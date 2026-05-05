@@ -1102,13 +1102,13 @@ export default function App() {
             {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempLogoConfig(logoConfig); setEditingLogo(true); }} className="absolute -top-3 -left-3 z-[110] p-1.5 bg-pink-600 text-white rounded-full shadow-md hover:bg-pink-700 transition active:scale-90"><Edit3 size={12} /></button>}
             <Logo sizeClass="w-16 h-16 md:w-20 md:h-20" isSolid={isSolidHeader} config={logoConfig} />
             <div className={`border-l pl-4 hidden sm:block ${isSolidHeader ? 'border-pink-200' : 'border-white/20'}`}>
-              <h1 className={`font-bold text-xl md:text-2xl leading-none uppercase tracking-tight ${isSolidHeader ? 'text-pink-950' : 'text-white'}`}>GIÁO XỨ HOÀNG YÊN</h1>
-              <p className={`text-[10px] md:text-xs font-bold uppercase tracking-[0.15em] mt-1.5 ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
+              <h1 className={`font-bold text-xl md:text-2xl leading-none uppercase tracking-tight whitespace-nowrap ${isSolidHeader ? 'text-pink-950' : 'text-white'}`}>GIÁO XỨ HOÀNG YÊN</h1>
+              <p className={`text-[10px] md:text-[11px] lg:text-xs font-bold uppercase tracking-[0.15em] mt-1.5 whitespace-nowrap ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
             </div>
           </div>
-          <nav className="hidden lg:flex items-center space-x-6">
+          <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6">
             {navLinks.map((link) => (
-              <button key={link.id} onClick={() => { setActiveTab(link.id); window.scrollTo(0,0); }} className={`text-[13px] font-bold uppercase tracking-widest relative pb-1 group transition-colors ${activeTab === link.id ? 'text-pink-600' : (isSolidHeader ? 'text-stone-600 hover:text-pink-900' : 'text-white/80 hover:text-white')}`}>
+              <button key={link.id} onClick={() => { setActiveTab(link.id); window.scrollTo(0,0); }} className={`text-[12px] xl:text-[13px] whitespace-nowrap font-bold uppercase tracking-widest relative pb-1 group transition-colors ${activeTab === link.id ? 'text-pink-600' : (isSolidHeader ? 'text-stone-600 hover:text-pink-900' : 'text-white/80 hover:text-white')}`}>
                 {link.name}<span className={`absolute bottom-0 left-0 h-[2px] bg-pink-500 transition-all duration-300 rounded-full ${activeTab === link.id ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
               </button>
             ))}
