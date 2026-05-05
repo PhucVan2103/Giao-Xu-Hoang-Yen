@@ -1102,29 +1102,29 @@ export default function App() {
             {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempLogoConfig(logoConfig); setEditingLogo(true); }} className="absolute -top-3 -left-3 z-[110] p-1.5 bg-pink-600 text-white rounded-full shadow-md hover:bg-pink-700 transition active:scale-90"><Edit3 size={12} /></button>}
             <Logo sizeClass="w-16 h-16 md:w-20 md:h-20" isSolid={isSolidHeader} config={logoConfig} />
             <div className={`border-l pl-4 hidden sm:block ${isSolidHeader ? 'border-pink-200' : 'border-white/20'}`}>
-              <h1 className={`font-bold text-base md:text-lg leading-none uppercase tracking-tight ${isSolidHeader ? 'text-pink-950' : 'text-white'}`}>GIÁO XỨ HOÀNG YÊN</h1>
-              <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-[0.15em] mt-1 ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
+              <h1 className={`font-bold text-xl md:text-2xl leading-none uppercase tracking-tight ${isSolidHeader ? 'text-pink-950' : 'text-white'}`}>GIÁO XỨ HOÀNG YÊN</h1>
+              <p className={`text-[10px] md:text-xs font-bold uppercase tracking-[0.15em] mt-1.5 ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
             </div>
           </div>
           <nav className="hidden lg:flex items-center space-x-6">
             {navLinks.map((link) => (
-              <button key={link.id} onClick={() => { setActiveTab(link.id); window.scrollTo(0,0); }} className={`text-[10px] font-bold uppercase tracking-widest relative pb-1 group transition-colors ${activeTab === link.id ? 'text-pink-600' : (isSolidHeader ? 'text-stone-600 hover:text-pink-900' : 'text-white/80 hover:text-white')}`}>
+              <button key={link.id} onClick={() => { setActiveTab(link.id); window.scrollTo(0,0); }} className={`text-[13px] font-bold uppercase tracking-widest relative pb-1 group transition-colors ${activeTab === link.id ? 'text-pink-600' : (isSolidHeader ? 'text-stone-600 hover:text-pink-900' : 'text-white/80 hover:text-white')}`}>
                 {link.name}<span className={`absolute bottom-0 left-0 h-[2px] bg-pink-500 transition-all duration-300 rounded-full ${activeTab === link.id ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
               </button>
             ))}
-            <button className={`p-1 transition-all hover:scale-110 ${isSolidHeader ? 'text-stone-400 hover:text-pink-600' : 'text-white/50 hover:text-white'}`}><Search size={18} /></button>
+            <button className={`p-1 transition-all hover:scale-110 ${isSolidHeader ? 'text-stone-400 hover:text-pink-600' : 'text-white/50 hover:text-white'}`}><Search size={22} /></button>
           </nav>
-          <button className={`lg:hidden p-1.5 transition-all active:scale-90 ${isSolidHeader ? 'text-pink-950' : 'text-white'}`} onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={28} /> : <Menu size={28} />}</button>
+          <button className={`lg:hidden p-1.5 transition-all active:scale-90 ${isSolidHeader ? 'text-pink-950' : 'text-white'}`} onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={32} /> : <Menu size={32} />}</button>
         </div>
         {/* Mobile Menu */}
         <div className={`fixed inset-0 top-0 left-0 w-full h-screen bg-pink-950/98 backdrop-blur-md z-[90] transition-all duration-500 lg:hidden flex flex-col items-center justify-center p-8 ${isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
            <div className="w-full flex flex-col items-center space-y-8 text-white">
               <Logo isSolid={false} sizeClass="w-24 h-24" config={logoConfig} />
               <div className="flex flex-col items-center space-y-5 w-full">
-                {navLinks.map((link) => (<button key={link.id} onClick={() => { setActiveTab(link.id); setIsMenuOpen(false); window.scrollTo(0,0); }} className={`text-lg font-bold uppercase tracking-widest transition-all ${activeTab === link.id ? 'text-pink-400 scale-105' : 'text-white/70 hover:text-white'}`}>{link.name}</button>))}
+                {navLinks.map((link) => (<button key={link.id} onClick={() => { setActiveTab(link.id); setIsMenuOpen(false); window.scrollTo(0,0); }} className={`text-2xl font-bold uppercase tracking-widest transition-all ${activeTab === link.id ? 'text-pink-400 scale-105' : 'text-white/70 hover:text-white'}`}>{link.name}</button>))}
               </div>
               <div className="h-px w-16 bg-pink-500/40"></div>
-              <button onClick={() => setIsMenuOpen(false)} className="text-white/50 uppercase tracking-widest text-[10px] font-bold border border-white/20 px-5 py-2 rounded-full">Đóng Menu</button>
+              <button onClick={() => setIsMenuOpen(false)} className="text-white/50 uppercase tracking-widest text-[13px] font-bold border border-white/20 px-6 py-2.5 rounded-full">Đóng Menu</button>
            </div>
         </div>
       </header>
@@ -1337,7 +1337,7 @@ export default function App() {
       )}
 
       {editingLiturgyEvent && tempLiturgyEvent && (
-        <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
+        <div className="fixed inset0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
           <div className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full border-t-4 border-pink-600 relative">
              <button onClick={() => setEditingLiturgyEvent(false)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Sửa Phụng Vụ Ngày {tempLiturgyEvent.date.split('-').reverse().join('/')}</h3>
