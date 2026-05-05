@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// 1. COMPONENT DÙNG CHUNG (GLOBAL COMPONENTS)
+// 1. COMPONENT DÙNG CHUNG & HELPER
 // ==========================================
 
 const FacebookIcon = ({ size = 20, className = "" }) => (
@@ -18,23 +18,45 @@ const FacebookIcon = ({ size = 20, className = "" }) => (
   </svg>
 );
 
-const Logo = ({ sizeClass = "w-12 h-12", isSolid, src = "./logo.svg" }) => (
-  <div className={`${sizeClass} border-2 rounded-full flex items-center justify-center transition-all duration-700 shadow-sm overflow-hidden bg-white flex-shrink-0 ${isSolid ? 'border-pink-500 shadow-pink-100' : 'border-white/50 shadow-black/20'}`}>
-    <img 
-      src={src} 
-      alt="Logo Giáo Xứ" 
-      className="w-full h-full object-contain p-1" 
-      onError={(e) => {
-        e.target.style.display = 'none';
-        const fallback = e.target.nextSibling;
-        if (fallback) fallback.style.display = 'flex';
-      }}
-    />
-    <div style={{ display: 'none' }} className="w-full h-full items-center justify-center text-pink-600 bg-pink-50">
-      <Church size={24} />
+const getImgStyle = (data) => {
+  if (!data) return { objectFit: 'cover', objectPosition: '50% 50%', transform: 'scale(1)', transformOrigin: '50% 50%' };
+  const x = data.imgPosX ?? 50;
+  const y = data.imgPosY ?? 50;
+  const scale = data.imgScale || 1;
+  return {
+    objectFit: data.imgFit || 'cover',
+    objectPosition: `${x}% ${y}%`,
+    transformOrigin: `${x}% ${y}%`,
+    transform: `scale(${scale})`
+  };
+};
+
+const Logo = ({ sizeClass = "w-12 h-12", isSolid, config = {} }) => {
+  const [hasError, setHasError] = useState(false);
+  const imgSrc = config.image || "./logo.svg";
+
+  useEffect(() => {
+    setHasError(false);
+  }, [imgSrc]);
+
+  return (
+    <div className={`${sizeClass} bg-white rounded-full border-2 border-white flex items-center justify-center transition-all duration-700 shadow-md overflow-hidden flex-shrink-0`}>
+      {!hasError ? (
+        <img 
+          src={imgSrc} 
+          alt="Logo Giáo Xứ" 
+          style={getImgStyle(config)}
+          className="w-full h-full block" 
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-pink-600 bg-pink-50">
+          <Church size={24} />
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 const editorContentClasses = "font-serif text-stone-700 text-sm md:text-base leading-relaxed text-justify flow-root [&_img]:max-w-[90%] md:[&_img]:max-w-[45%] [&_img]:h-auto [&_img]:rounded-md [&_img]:shadow-sm [&_p]:mb-4 [&_h3]:text-xl md:[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-pink-900 [&_h3]:mt-6 [&_h3]:mb-3 [&_h4]:text-lg md:[&_h4]:text-xl [&_h4]:font-bold [&_h4]:text-pink-700 [&_h4]:mt-5 [&_h4]:mb-2 [&_blockquote]:border-l-3 [&_blockquote]:border-pink-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-stone-500 [&_blockquote]:my-4";
 
@@ -87,24 +109,77 @@ const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
     <div className="border border-pink-200 rounded-sm flex flex-col bg-white overflow-hidden shadow-sm">
       <div className="bg-pink-50 p-2 flex flex-wrap gap-1 border-b border-pink-200 items-center">
         <select onMouseDown={e => e.preventDefault()} onChange={(e) => execCmd('formatBlock', e.target.value)} className="text-xs p-1 border border-pink-200 rounded bg-white font-bold outline-none"><option value="P">Đoạn văn</option><option value="H3">Tiêu đề Lớn</option><option value="H4">Tiêu đề Nhỏ</option></select>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('bold')} className="p-1.5 hover:bg-pink-200 rounded"><Bold size={14}/></button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('italic')} className="p-1.5 hover:bg-pink-200 rounded"><Italic size={14}/></button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('underline')} className="p-1.5 hover:bg-pink-200 rounded"><Underline size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('bold')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><Bold size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('italic')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><Italic size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('underline')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><Underline size={14}/></button>
         <div className="w-px h-4 bg-pink-200 mx-1"></div>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('left')} className="p-1.5 hover:bg-pink-200 rounded ml-2"><AlignLeft size={14}/></button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('center')} className="p-1.5 hover:bg-pink-200 rounded"><AlignCenter size={14}/></button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('right')} className="p-1.5 hover:bg-pink-200 rounded"><AlignRight size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('left')} className="p-1.5 hover:bg-pink-200 rounded ml-2 text-stone-700"><AlignLeft size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('center')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><AlignCenter size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('right')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><AlignRight size={14}/></button>
         <div className="w-px h-4 bg-pink-200 mx-1"></div>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={handleInsertImage} className="p-1.5 hover:bg-pink-200 rounded"><ImageIcon size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={handleInsertImage} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><ImageIcon size={14}/></button>
       </div>
       <div ref={editorRef} contentEditable onInput={handleInput} onPaste={handlePaste} onClick={(e) => { if (e.target.tagName === 'IMG') { e.target.style.outline = '3px solid #ec4899'; setSelectedImg(e.target); } else { if (selectedImg) selectedImg.style.outline='none'; setSelectedImg(null); } }} className={`p-4 focus:outline-none overflow-y-auto ${editorContentClasses}`} style={{ minHeight }} />
     </div>
   );
 };
 
+const ImageAdjuster = ({ data, setData, aspectClass = "aspect-[21/9] w-full rounded-lg" }) => {
+  if (!data.image) return null;
+
+  return (
+    <div className="mt-4 p-5 bg-stone-50 border border-stone-200 rounded-xl shadow-inner">
+      <h4 className="text-xs font-bold uppercase text-stone-500 tracking-widest mb-5 flex items-center gap-2">
+        <ImageIcon size={14} /> Căn chỉnh hình ảnh
+      </h4>
+      <div className="flex flex-col md:flex-row gap-8 items-center">
+        {/* Box Preview */}
+        <div className="w-full md:w-1/2 flex justify-center items-center">
+          <div className={`overflow-hidden border-2 border-pink-300 shadow-sm bg-stone-200 relative flex-shrink-0 ${aspectClass}`}>
+             <img
+               src={data.image}
+               style={getImgStyle(data)}
+               className="w-full h-full block max-w-none"
+               alt="Preview"
+             />
+             {/* Grid overlay */}
+             <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 opacity-20 divide-x divide-y divide-black/20" style={{ borderRadius: 'inherit' }}>
+               <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+             </div>
+          </div>
+        </div>
+        
+        {/* Controllers */}
+        <div className="w-full md:w-1/2 space-y-5">
+           <div className="flex items-center gap-4">
+              <label className="text-[10px] font-bold uppercase text-stone-500 w-20">Thu / Phóng</label>
+              <input type="range" min="0.5" max="3" step="0.05" value={data.imgScale || 1} onChange={e => setData({...data, imgScale: parseFloat(e.target.value)})} className="flex-1 accent-pink-600" />
+           </div>
+           <div className="flex items-center gap-4">
+              <label className="text-[10px] font-bold uppercase text-stone-500 w-20">Trái / Phải</label>
+              <input type="range" min="0" max="100" value={data.imgPosX ?? 50} onChange={e => setData({...data, imgPosX: parseFloat(e.target.value)})} className="flex-1 accent-pink-600" />
+           </div>
+           <div className="flex items-center gap-4">
+              <label className="text-[10px] font-bold uppercase text-stone-500 w-20">Lên / Xuống</label>
+              <input type="range" min="0" max="100" value={data.imgPosY ?? 50} onChange={e => setData({...data, imgPosY: parseFloat(e.target.value)})} className="flex-1 accent-pink-600" />
+           </div>
+           <div className="flex items-center gap-6 mt-2 pt-4 border-t border-stone-200">
+             <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-stone-600 uppercase tracking-wider">
+                <input type="radio" checked={(data.imgFit || 'cover') === 'cover'} onChange={() => setData({...data, imgFit: 'cover'})} className="accent-pink-600 w-4 h-4" /> Lấp đầy
+             </label>
+             <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-stone-600 uppercase tracking-wider">
+                <input type="radio" checked={data.imgFit === 'contain'} onChange={() => setData({...data, imgFit: 'contain'})} className="accent-pink-600 w-4 h-4" /> Vừa vặn
+             </label>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 // ==========================================
-// 2. DỮ LIỆU TĨNH & HELPERS (STATIC DATA)
+// 2. DỮ LIỆU TĨNH
 // ==========================================
 
 const navLinks = [
@@ -126,38 +201,20 @@ const initialNewsData = [
   { 
     id: 1, title: 'Đại lễ Kính Các Thánh Tử Đạo Việt Nam', date: '14/11/2023', category: 'Sự kiện', isFeatured: true,
     desc: '<p>Chương trình hành hương và đại lễ mừng kính tại Giáo xứ Hoàng Yên diễn ra trọng thể...</p>',
-    image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50,
     content: '<p>Chương trình hành hương trang trọng diễn ra trong 3 ngày với sự tham gia của hàng nghìn giáo dân từ khắp nơi đổ về Đền Thánh.</p>'
   },
   { 
     id: 2, title: 'Thông báo Giáo lý niên khóa mới', date: '10/11/2023', category: 'Giáo lý', isFeatured: true,
     desc: '<p>Giáo xứ bắt đầu nhận hồ sơ đăng ký cho các lớp Đồng cỏ non, Khai tâm...</p>',
-    image: 'https://images.unsplash.com/photo-1437603562860-1950e3ca6eab?q=80&w=800&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1437603562860-1950e3ca6eab?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50,
     content: '<p>Văn phòng Giáo lý xin thông báo chi tiết về thời gian đăng ký và khai giảng niên khóa mới cho các em thiếu nhi.</p>'
   },
   { 
     id: 3, title: 'Bản tin Bác ái: Chuyến đi thăm mái ấm tình thương', date: '05/11/2023', category: 'Bác ái', isFeatured: false,
     desc: '<p>Hành trình mang yêu thương đến với các cụ già neo đơn tại cơ sở xã hội...</p>',
-    image: 'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?q=80&w=800&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50,
     content: '<p>Hành trình mang yêu thương đến với các cụ già neo đơn tại cơ sở xã hội do Ban Bác Ái giáo xứ tổ chức đã thành công tốt đẹp.</p>'
-  },
-  { 
-    id: 4, title: 'Thư ngỏ: Đóng góp xây dựng nhà giáo lý', date: '01/11/2023', category: 'Thông báo', isFeatured: false,
-    desc: '<p>Kính gửi quý ân nhân và toàn thể cộng đoàn giáo xứ Hoàng Yên...</p>',
-    image: 'https://images.unsplash.com/photo-1510936111840-65e151ad71bb?q=80&w=800&auto=format&fit=crop',
-    content: '<p>Để đáp ứng nhu cầu học giáo lý ngày càng tăng của các em thiếu nhi, giáo xứ kêu gọi sự chung tay đóng góp để xây dựng dãy phòng học mới.</p>'
-  },
-  { 
-    id: 5, title: 'Thánh lễ ban Bí tích Thêm Sức năm 2023', date: '25/10/2023', category: 'Tin Tức', isFeatured: false,
-    desc: '<p>Đức Giám mục Giáo phận đã về thăm mục vụ và ban Bí tích Thêm Sức cho 120 em...</p>',
-    image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop',
-    content: '<p>Vào sáng Chúa Nhật vừa qua, Đức Giám mục Giáo phận đã cử hành Thánh lễ ban Bí tích Thêm Sức cho 120 em thiếu nhi trong giáo xứ.</p>'
-  },
-  { 
-    id: 6, title: 'Lịch tĩnh tâm Mùa Vọng 2023 dành cho các giới', date: '20/10/2023', category: 'Sự kiện', isFeatured: false,
-    desc: '<p>Chương trình tĩnh tâm Mùa Vọng dành cho các giới trong giáo xứ sẽ bắt đầu từ...</p>',
-    image: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=800&auto=format&fit=crop',
-    content: '<p>Giáo xứ thông báo lịch tĩnh tâm Mùa Vọng năm 2023. Kính mời cộng đoàn sắp xếp thời gian tham dự để dọn mình đón Chúa Hài Đồng.</p>'
   }
 ];
 
@@ -165,13 +222,13 @@ const initialPilgrimageData = [
   {
     id: 1, title: 'Hành Hương Đức Mẹ La Vang - Thánh Địa Trà Kiệu', date: '15/06/2024', duration: '3 Ngày 2 Đêm', status: 'Đang mở đăng ký',
     desc: 'Hành trình thiêng liêng về với Đức Mẹ, kết hợp tham quan các di tích lịch sử Công giáo miền Trung.',
-    image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50,
     content: '<h3>Chương trình chi tiết</h3><p><strong>Ngày 1:</strong> Khởi hành từ Giáo xứ lúc 5h00 sáng. Dừng chân nghỉ ngơi và dùng bữa trưa tại đèo Hải Vân...</p><p><strong>Ngày 2:</strong> Viếng Trung Tâm Hành Hương Thánh Mẫu La Vang. Tham dự Thánh Lễ chung...</p>'
   },
   {
     id: 2, title: 'Chương Trình Đón Tiếp Đoàn Hành Hương Giáo Phận', date: '24/11/2024', duration: '1 Ngày', status: 'Sắp diễn ra',
     desc: 'Đền Thánh hân hoan chuẩn bị chương trình đón tiếp các phái đoàn hành hương từ khắp nơi đổ về trong dịp đại lễ Bổn mạng.',
-    image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50,
     content: '<h3>Thông báo dành cho các Trưởng đoàn</h3><p>Ban Hành Giáo xin thông báo lịch trình đón tiếp như sau...</p><ul><li>Đăng ký vị trí đỗ xe trước 3 ngày.</li><li>Nhận phiếu ăn trưa tại Văn phòng Đền Thánh.</li></ul>'
   }
 ];
@@ -227,7 +284,6 @@ const getStatusStyles = (status) => {
 // ==========================================
 
 export default function App() {
-  // --- States Cơ Bản ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Home');
   const [scrolled, setScrolled] = useState(false);
@@ -235,18 +291,29 @@ export default function App() {
   const itemsPerPage = 4;
   const newsPerPage = 6;
   
-  // --- States Admin & Auth ---
   const [isAdmin, setIsAdmin] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
   // --- States Tùy chỉnh Giao diện ---
-  const [logoUrl, setLogoUrl] = useState('./logo.svg');
+  const [logoConfig, setLogoConfig] = useState({ image: './logo.svg', imgFit: 'contain', imgScale: 1, imgPosX: 50, imgPosY: 50 });
   const [editingLogo, setEditingLogo] = useState(false);
-  const [tempLogoUrl, setTempLogoUrl] = useState('');
+  const [tempLogoConfig, setTempLogoConfig] = useState({});
 
-  // --- States Dữ Liệu (Trang Chủ & Chung) ---
+  const [heroData, setHeroData] = useState({ image: 'https://travelplusvn.com/public/uploads/images/Bai_Viet/11_mon_do_khong_the_thieu/Nha-tho-Duc-Ba-1.jpg', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50 });
+  const [editingHero, setEditingHero] = useState(false);
+  const [tempHero, setTempHero] = useState({});
+
+  const [footerData, setFooterData] = useState({
+    aboutText: 'Lạy Chúa, xin cho chúng con được hiệp nhất trong tình yêu và sự phục vụ.',
+    facebookLink: '#'
+  });
+  const [editingFooter, setEditingFooter] = useState(false);
+  const [tempFooter, setTempFooter] = useState({});
+  const [editingQuickPhone, setEditingQuickPhone] = useState(false);
+
+  // --- States Dữ Liệu Chung ---
   const [parishStats, setParishStats] = useState({ population: '5,420', priest: 'Lm. Giuse Nguyễn Văn A', patron: 'Các Thánh Tử Đạo VN', address: '123 Các Thánh Tử Đạo, TP.HCM' });
   const [quote, setQuote] = useState({ text: "<p>Ta là bánh hằng sống từ trời xuống. Ai ăn bánh này, sẽ được sống muôn đời.</p>", ref: "Ga 6, 51" });
   const [massSchedules, setMassSchedules] = useState(initialMassSchedules);
@@ -260,19 +327,6 @@ export default function App() {
     hours: "Sáng: 08:00 - 11:30 | Chiều: 14:00 - 17:00 (Nghỉ Thứ Hai)"
   });
   const [formStatus, setFormStatus] = useState('');
-
-  // --- States Tùy chỉnh Giao diện ---
-  const [heroData, setHeroData] = useState({ bgImage: 'https://travelplusvn.com/public/uploads/images/Bai_Viet/11_mon_do_khong_the_thieu/Nha-tho-Duc-Ba-1.jpg' });
-  const [editingHero, setEditingHero] = useState(false);
-  const [tempHero, setTempHero] = useState({});
-
-  const [footerData, setFooterData] = useState({
-    aboutText: 'Lạy Chúa, xin cho chúng con được hiệp nhất trong tình yêu và sự phục vụ.',
-    facebookLink: '#'
-  });
-  const [editingFooter, setEditingFooter] = useState(false);
-  const [tempFooter, setTempFooter] = useState({});
-  const [editingQuickPhone, setEditingQuickPhone] = useState(false);
 
   // --- States Tab Phụng Vụ ---
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -288,10 +342,10 @@ export default function App() {
   });
   const [heritageTitle, setHeritageTitle] = useState("Gia Sản Thiêng Liêng");
   const [heritageList, setHeritageList] = useState([
-    { id: 1, name: 'Thánh Anrê Trần An Dũng Lạc', brief: 'Linh mục, tử đạo năm 1839. Mẫu gương sáng ngời về lòng trung kiên.', image: 'https://images.unsplash.com/photo-1550404618-c2b61f879685?q=80&w=800&auto=format&fit=crop' },
-    { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì che giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop' },
-    { id: 3, name: 'Thánh Phaolô Lê Bảo Tịnh', brief: 'Linh mục, tử đạo năm 1857. Nổi tiếng với bức thư gửi từ ngục tù.', image: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=800&auto=format&fit=crop' },
-    { id: 4, name: 'Thánh Giuse Nguyễn Duy Khang', brief: 'Thầy giảng, tử đạo năm 1861. Người đồng hành trung kiên của Đức cha Hermosilla.', image: 'https://images.unsplash.com/photo-1510936111840-65e151ad71bb?q=80&w=800&auto=format&fit=crop' }
+    { id: 1, name: 'Thánh Anrê Trần An Dũng Lạc', brief: 'Linh mục, tử đạo năm 1839. Mẫu gương sáng ngời về lòng trung kiên.', image: 'https://images.unsplash.com/photo-1550404618-c2b61f879685?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
+    { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì che giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
+    { id: 3, name: 'Thánh Phaolô Lê Bảo Tịnh', brief: 'Linh mục, tử đạo năm 1857. Nổi tiếng với bức thư gửi từ ngục tù.', image: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
+    { id: 4, name: 'Thánh Giuse Nguyễn Duy Khang', brief: 'Thầy giảng, tử đạo năm 1861. Người đồng hành trung kiên của Đức cha Hermosilla.', image: 'https://images.unsplash.com/photo-1510936111840-65e151ad71bb?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 }
   ]);
   const [pastoralData, setPastoralData] = useState({
     title: "Định Hướng Mục Vụ",
@@ -300,11 +354,6 @@ export default function App() {
 
   // --- States Tab Hành Hương ---
   const [pilgrimagePlans, setPilgrimagePlans] = useState(initialPilgrimageData);
-  const [receptionInfo, setReceptionInfo] = useState({
-    item1Title: "Đăng ký đoàn", item1Desc: "Quý đoàn vui lòng báo trước 3 ngày để Giáo xứ sắp xếp giờ lễ riêng và không gian sinh hoạt.",
-    item2Title: "Cơ sở vật chất", item2Desc: "Khuôn viên có bãi đỗ xe rộng rãi cho xe khách 45 chỗ. Có nhà ăn và khu vệ sinh chung.",
-    item3Title: "Hỗ trợ trực tiếp", item3Desc: "Liên hệ Văn phòng Đền Thánh để được hỗ trợ tốt nhất.", item3Phone: "090.123.4567"
-  });
 
   // --- States Tab Tin Tức ---
   const [newsItems, setNewsItems] = useState(initialNewsData);
@@ -347,7 +396,6 @@ export default function App() {
   const [editingAdoration, setEditingAdoration] = useState(false);
   const [tempAdoration, setTempAdoration] = useState({});
 
-  // --- Effects & Handlers ---
   useEffect(() => {
     const handleScroll = () => { setScrolled(window.scrollY > 50); setShowTopBtn(window.scrollY > 400); };
     window.addEventListener('scroll', handleScroll);
@@ -384,6 +432,29 @@ export default function App() {
   const getTodayFormattedStr = () => {
     const today = new Date();
     return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+  };
+
+  const handleImagePaste = (e, setterFunction) => {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (let index in items) {
+      const item = items[index];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result }));
+        reader.readAsDataURL(item.getAsFile());
+        e.preventDefault();
+        break;
+      }
+    }
+  };
+
+  const handleImageUpload = (e, setterFunction) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result }));
+      reader.readAsDataURL(file);
+    }
   };
 
   const prevMonth = () => { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1)); };
@@ -589,7 +660,9 @@ export default function App() {
                       {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempPilgrimage(plan); setEditingPilgrimage(plan.id); }} className="absolute top-3 right-3 z-20 p-1.5 bg-white/80 backdrop-blur-sm text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={14} /></button>}
                       
                       <div className="sm:w-56 h-48 sm:h-auto flex-shrink-0 relative overflow-hidden bg-stone-100">
-                        <img src={plan.image || 'https://via.placeholder.com/400x300/831843/fce7f3?text=Hành+Hương'} alt={plan.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+                           <img src={plan.image} style={getImgStyle(plan)} className="w-full h-full block" alt={plan.title} />
+                        </div>
                         <div className="absolute top-3 left-3">
                           <span className={`text-[10px] font-bold px-2 py-1 rounded shadow-sm border ${getStatusStyles(plan.status)} uppercase tracking-wider`}>{plan.status}</span>
                         </div>
@@ -639,18 +712,24 @@ export default function App() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
-                  <div className="flex flex-col items-center md:items-start p-4 bg-pink-900/50 rounded-xl border border-pink-800/50">
-                    <Users className="text-pink-400 mb-3" size={24} />
+                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50">
+                    <div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50">
+                      <Users className="text-pink-300" size={24} />
+                    </div>
                     <h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item1Title || ''}</h4>
                     <p className="font-serif text-sm leading-relaxed opacity-90 whitespace-pre-wrap">{receptionInfo.item1Desc || ''}</p>
                   </div>
-                  <div className="flex flex-col items-center md:items-start p-4 bg-pink-900/50 rounded-xl border border-pink-800/50">
-                    <MapPin className="text-pink-400 mb-3" size={24} />
+                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50">
+                    <div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50">
+                      <MapPin className="text-pink-300" size={24} />
+                    </div>
                     <h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item2Title || ''}</h4>
                     <p className="font-serif text-sm leading-relaxed opacity-90 whitespace-pre-wrap">{receptionInfo.item2Desc || ''}</p>
                   </div>
-                  <div className="flex flex-col items-center md:items-start p-4 bg-pink-900/50 rounded-xl border border-pink-800/50">
-                    <Phone className="text-pink-400 mb-3" size={24} />
+                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50">
+                    <div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50">
+                      <Phone className="text-pink-300" size={24} />
+                    </div>
                     <h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item3Title || ''}</h4>
                     <p className="font-serif text-sm leading-relaxed opacity-90 mb-3 whitespace-pre-wrap">{receptionInfo.item3Desc || ''}</p>
                     <strong className="text-xl text-white block mt-auto">{receptionInfo.item3Phone || ''}</strong>
@@ -676,7 +755,9 @@ export default function App() {
               <div className="bg-white rounded-2xl shadow-xl border border-pink-50 overflow-hidden relative">
                 {isAdmin && <button onClick={() => { setTempPilgrimage(selectedPilgrimage); setEditingPilgrimage(selectedPilgrimage.id); }} className="absolute top-4 right-4 z-20 p-2.5 bg-white/80 backdrop-blur-sm text-pink-700 rounded-full shadow-md transition active:scale-90 hover:bg-pink-600 hover:text-white"><Edit3 size={16} /></button>}
                 
-                <img src={selectedPilgrimage.image} alt={selectedPilgrimage.title} className="w-full aspect-[21/9] md:aspect-[21/7] object-cover bg-stone-100" />
+                <div className="w-full aspect-[21/9] md:aspect-[21/7] overflow-hidden bg-stone-100 relative">
+                  <img src={selectedPilgrimage.image} style={getImgStyle(selectedPilgrimage)} className="w-full h-full block" alt="" />
+                </div>
                 
                 <div className="p-8 md:p-12">
                   <div className="mb-4">
@@ -745,7 +826,7 @@ export default function App() {
                     </button>
                   )}
                   {isAdmin && (
-                    <button onClick={() => { setTempHeritageItem({ id: Date.now(), name: '', brief: '', image: '' }); setEditingHeritageItem('new'); }} className="absolute top-0 right-0 p-2 bg-pink-600 text-white rounded-full shadow-sm hover:bg-pink-500 transition">
+                    <button onClick={() => { setTempHeritageItem({ id: Date.now(), name: '', brief: '', image: '', imgFit: 'cover' }); setEditingHeritageItem('new'); }} className="absolute top-0 right-0 p-2 bg-pink-600 text-white rounded-full shadow-sm hover:bg-pink-500 transition">
                       <span className="font-bold px-1">+</span>
                     </button>
                   )}
@@ -757,8 +838,10 @@ export default function App() {
                       {isAdmin && (
                         <button onClick={(e) => { e.stopPropagation(); setTempHeritageItem(saint); setEditingHeritageItem(saint.id); }} className="absolute top-3 right-3 z-20 p-1.5 bg-pink-100 text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12} /></button>
                       )}
-                      <div className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0 relative">
-                        <img src={saint.image || 'https://via.placeholder.com/150/831843/fce7f3?text=Thánh'} alt={saint.name} className="w-full h-full object-cover rounded-full border-[3px] border-white shadow-sm group-hover/card:border-pink-200 transition-colors" />
+                      <div className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0 relative overflow-hidden rounded-full border-[3px] border-white shadow-sm bg-stone-100">
+                        <div className="absolute inset-0 transition-transform duration-300 group-hover/card:scale-110">
+                           <img src={saint.image} style={getImgStyle(saint)} className="w-full h-full block" alt={saint.name} />
+                        </div>
                       </div>
                       <div className="flex flex-col justify-center text-center sm:text-left flex-1">
                         <h4 className="text-base md:text-lg font-bold text-pink-950 mb-2 font-serif tracking-wide">{saint.name || ''}</h4>
@@ -805,13 +888,13 @@ export default function App() {
                   <div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div>
                 </div>
                 {isAdmin && (
-                  <button onClick={() => { setTempNews({ id: Date.now(), title: '', date: getTodayFormattedStr(), category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false }); setEditingNews('new'); }} className="absolute right-0 top-6 px-4 py-2 bg-pink-600 text-white text-[11px] font-bold rounded shadow-md transition-all active:scale-95 hidden md:flex items-center gap-1">
+                  <button onClick={() => { setTempNews({ id: Date.now(), title: '', date: getTodayFormattedStr(), category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false, imgFit: 'cover' }); setEditingNews('new'); }} className="absolute right-0 top-6 px-4 py-2 bg-pink-600 text-white text-[11px] font-bold rounded shadow-md transition-all active:scale-95 hidden md:flex items-center gap-1">
                     + Thêm Bản Tin
                   </button>
                 )}
               </div>
               {isAdmin && (
-                <button onClick={() => { setTempNews({ id: Date.now(), title: '', date: getTodayFormattedStr(), category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false }); setEditingNews('new'); }} className="mb-8 w-full py-3 bg-pink-600 text-white text-xs font-bold rounded shadow-md transition active:scale-95 flex md:hidden items-center justify-center gap-2">
+                <button onClick={() => { setTempNews({ id: Date.now(), title: '', date: getTodayFormattedStr(), category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false, imgFit: 'cover' }); setEditingNews('new'); }} className="mb-8 w-full py-3 bg-pink-600 text-white text-xs font-bold rounded shadow-md transition active:scale-95 flex md:hidden items-center justify-center gap-2">
                   + Thêm Bản Tin
                 </button>
               )}
@@ -830,8 +913,10 @@ export default function App() {
                         className="group cursor-pointer relative flex flex-col rounded-2xl overflow-hidden shadow-lg border border-pink-50 h-[380px] bg-white hover:shadow-xl hover:border-pink-200 transition-all duration-300"
                       >
                         {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempNews(item); setEditingNews(item.id); }} className="absolute top-4 right-4 z-20 p-2 bg-white/90 backdrop-blur-sm text-pink-700 rounded-full shadow-md transition hover:bg-pink-600 hover:text-white"><Edit3 size={14} /></button>}
-                        <div className="h-[220px] w-full overflow-hidden relative">
-                          <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        <div className="h-[220px] w-full overflow-hidden relative bg-stone-100">
+                          <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+                             <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" />
+                          </div>
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-80"></div>
                           <span className="absolute bottom-4 left-4 bg-pink-600 text-white text-[9px] font-bold px-2 py-1 rounded inline-block shadow-sm uppercase tracking-wider">{item.category}</span>
                         </div>
@@ -857,8 +942,10 @@ export default function App() {
                       className="group cursor-pointer relative bg-white p-4 rounded-xl border border-pink-50 shadow-sm hover:border-pink-300 hover:shadow-md transition-all flex flex-col"
                     >
                       {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempNews(item); setEditingNews(item.id); }} className="absolute top-2 right-2 z-20 p-1.5 bg-pink-100 text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12} /></button>}
-                      <div className="w-full h-48 mb-4 relative overflow-hidden rounded-lg shadow-sm">
-                        <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 bg-stone-100" />
+                      <div className="w-full h-48 mb-4 relative overflow-hidden rounded-lg shadow-sm bg-stone-100">
+                        <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+                           <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" />
+                        </div>
                         <span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-pink-700 text-[9px] font-bold px-2 py-1 rounded shadow-sm uppercase tracking-wider">{item.category}</span>
                       </div>
                       <div className="flex flex-col flex-1">
@@ -908,7 +995,9 @@ export default function App() {
               <div className="flex items-center text-stone-500 mb-8 text-[11px] md:text-xs font-bold uppercase tracking-wider border-b border-pink-100 pb-4">
                 <Calendar size={12} className="mr-1.5 text-pink-500" /> {selectedNews.date}
               </div>
-              <img src={selectedNews.image} alt={selectedNews.title} className="w-full aspect-[21/9] object-cover rounded-lg mb-8 shadow-sm border border-pink-50" />
+              <div className="w-full aspect-[21/9] rounded-lg mb-8 shadow-sm overflow-hidden bg-stone-100">
+                 <img src={selectedNews.image} style={getImgStyle(selectedNews)} className="w-full h-full block" alt="" />
+              </div>
               <div className={editorContentClasses} dangerouslySetInnerHTML={{ __html: selectedNews.content || selectedNews.desc || '' }} />
             </div>
           </div>
@@ -924,9 +1013,13 @@ export default function App() {
           <div className="animate-in fade-in duration-500">
              <section className="relative h-[85vh] flex items-center justify-center text-white overflow-hidden group">
                 {isAdmin && <button onClick={() => { setTempHero(heroData); setEditingHero(true); }} className="absolute top-24 right-4 z-50 p-2 bg-white/20 backdrop-blur-sm text-white rounded-full shadow-md transition active:scale-90 hover:bg-pink-600"><Edit3 size={16}/></button>}
-                <div className="absolute inset-0 bg-black/40 z-10"></div>
-                <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[30000ms] scale-105" style={{ backgroundImage: `url("${heroData.bgImage}")` }}></div>
-                <div className="relative z-20 max-w-5xl px-4 text-center">
+                <div className="absolute inset-0 bg-black/40 z-20"></div>
+                <div className="absolute inset-0 overflow-hidden z-10">
+                   <div className="w-full h-full transition-transform duration-[30000ms] scale-105">
+                     <img src={heroData.image} style={getImgStyle({...heroData, imgFit: heroData.imgFit || 'cover'})} className="w-full h-full block" alt="" />
+                   </div>
+                </div>
+                <div className="relative z-30 max-w-5xl px-4 text-center">
                   <h2 className="text-pink-200 text-xs md:text-sm uppercase tracking-[0.6em] mb-4 font-bold">Chào mừng quý vị đến với</h2>
                   <h1 className="text-4xl md:text-7xl font-serif font-bold tracking-tight uppercase leading-tight">GIÁO XỨ HOÀNG YÊN</h1>
                   <p className="text-base md:text-xl font-serif font-light text-pink-50 mt-6 italic tracking-wider opacity-90 uppercase">ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
@@ -935,7 +1028,7 @@ export default function App() {
                     <button onClick={() => { setActiveTab('Pilgrimage'); window.scrollTo(0,0); }} className="px-10 py-3 bg-transparent hover:bg-white/10 text-white border border-white/50 rounded font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95">Hành Hương</button>
                   </div>
                 </div>
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 animate-bounce text-pink-200/50"><ChevronDown size={32} /></div>
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 animate-bounce text-pink-200/50"><ChevronDown size={32} /></div>
              </section>
 
              <section className="py-16 bg-[#fffcfd] relative z-20 border-b border-pink-50">
@@ -956,13 +1049,27 @@ export default function App() {
                       {isAdmin && <button onClick={() => { setTempMass([...massSchedules]); setEditingMass(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-600 text-white rounded-full shadow"><Edit3 size={12}/></button>}
                    </div>
                    <div className="bg-white p-8 rounded-2xl shadow-md border border-pink-100 flex flex-col">
-                      <h3 className="text-lg font-bold text-pink-900 uppercase border-b border-pink-50 pb-2 mb-6 tracking-tighter">Thông Báo Mới</h3>
-                      <div className="space-y-4 cursor-pointer" onClick={() => { if(newsItems[0]) { setLastTab('Home'); setSelectedNews(newsItems[0]); setActiveTab('NewsDetail'); window.scrollTo(0,0); } }}>
-                        <p className="text-[9px] font-bold text-pink-600 uppercase tracking-widest">Tin nổi bật</p>
-                        <p className="font-serif font-bold text-base line-clamp-3 text-pink-950">{newsItems[0]?.title || 'Đang cập nhật...'}</p>
-                        <div className="text-stone-500 text-sm line-clamp-3 font-serif" dangerouslySetInnerHTML={{ __html: newsItems[0]?.desc || '' }} />
+                      <div className="flex justify-between items-center border-b border-pink-50 pb-2 mb-6">
+                        <h3 className="text-lg font-bold text-pink-900 uppercase tracking-tighter">Thông Báo Mới</h3>
+                        <button onClick={() => { setActiveTab('News'); window.scrollTo(0,0); }} className="text-[10px] font-bold text-pink-600 uppercase hover:text-pink-800 transition">Xem tất cả</button>
                       </div>
-                      <div className="mt-auto pt-8 border-t border-pink-50 text-center relative group">
+                      <div className="space-y-5 mb-6 flex-1">
+                        {newsItems.slice(0, 3).map((item) => (
+                          <div key={item.id} className="cursor-pointer group flex gap-4 items-start" onClick={() => { setLastTab('Home'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}>
+                            <div className="w-20 h-14 flex-shrink-0 rounded-lg bg-stone-100 overflow-hidden shadow-sm relative">
+                              <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110">
+                                 <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" />
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-serif font-bold text-sm text-pink-950 line-clamp-2 group-hover:text-pink-700 transition leading-snug">{item.title}</h4>
+                              <p className="text-[9px] text-stone-400 font-bold mt-1 uppercase flex items-center"><Calendar size={10} className="mr-1"/> {item.date}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {newsItems.length === 0 && <p className="text-sm font-serif text-stone-500 italic">Chưa có thông báo mới.</p>}
+                      </div>
+                      <div className="mt-auto pt-6 border-t border-pink-50 text-center relative group">
                         {isAdmin && <button onClick={() => { setTempContact(contactInfo); setEditingQuickPhone(true); }} className="absolute top-4 right-0 p-1.5 bg-pink-100 text-pink-600 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12}/></button>}
                         <Phone size={18} className="mx-auto text-pink-600 mb-1" />
                         <div className="text-lg font-bold text-pink-950">{contactInfo.phone}</div>
@@ -992,8 +1099,8 @@ export default function App() {
       <header className={`fixed w-full z-[100] transition-all duration-500 ${isSolidHeader ? 'bg-white shadow-md py-3 border-b border-pink-50' : 'bg-transparent py-5 text-white'}`}>
         <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center space-x-3 cursor-pointer group relative" onClick={() => { setActiveTab('Home'); window.scrollTo(0,0); }}>
-            {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempLogoUrl(logoUrl); setEditingLogo(true); }} className="absolute -top-3 -left-3 z-[110] p-1.5 bg-pink-600 text-white rounded-full shadow-md hover:bg-pink-700 transition active:scale-90"><Edit3 size={12} /></button>}
-            <Logo sizeClass="w-10 h-10 md:w-12 md:h-12" isSolid={isSolidHeader} src={logoUrl} />
+            {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempLogoConfig(logoConfig); setEditingLogo(true); }} className="absolute -top-3 -left-3 z-[110] p-1.5 bg-pink-600 text-white rounded-full shadow-md hover:bg-pink-700 transition active:scale-90"><Edit3 size={12} /></button>}
+            <Logo sizeClass="w-16 h-16 md:w-20 md:h-20" isSolid={isSolidHeader} config={logoConfig} />
             <div className={`border-l pl-4 hidden sm:block ${isSolidHeader ? 'border-pink-200' : 'border-white/20'}`}>
               <h1 className={`font-bold text-base md:text-lg leading-none uppercase tracking-tight ${isSolidHeader ? 'text-pink-950' : 'text-white'}`}>GIÁO XỨ HOÀNG YÊN</h1>
               <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-[0.15em] mt-1 ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
@@ -1012,7 +1119,7 @@ export default function App() {
         {/* Mobile Menu */}
         <div className={`fixed inset-0 top-0 left-0 w-full h-screen bg-pink-950/98 backdrop-blur-md z-[90] transition-all duration-500 lg:hidden flex flex-col items-center justify-center p-8 ${isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
            <div className="w-full flex flex-col items-center space-y-8 text-white">
-              <Logo isSolid={false} sizeClass="w-20 h-20" src={logoUrl} />
+              <Logo isSolid={false} sizeClass="w-24 h-24" config={logoConfig} />
               <div className="flex flex-col items-center space-y-5 w-full">
                 {navLinks.map((link) => (<button key={link.id} onClick={() => { setActiveTab(link.id); setIsMenuOpen(false); window.scrollTo(0,0); }} className={`text-lg font-bold uppercase tracking-widest transition-all ${activeTab === link.id ? 'text-pink-400 scale-105' : 'text-white/70 hover:text-white'}`}>{link.name}</button>))}
               </div>
@@ -1029,7 +1136,7 @@ export default function App() {
       <footer className="bg-[#1a0f12] text-pink-200/60 pt-20 pb-10 border-t-4 border-pink-950 relative group">
         {isAdmin && <button onClick={() => { setTempFooter(footerData); setTempContact(contactInfo); setEditingFooter(true); }} className="absolute top-6 right-6 z-20 p-2 bg-white/10 text-white rounded-full shadow-md transition active:scale-90 hover:bg-pink-600"><Edit3 size={16}/></button>}
         <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-10 text-left">
-          <div><div className="flex items-center space-x-3 mb-6"><Logo sizeClass="w-12 h-12" isSolid={true} src={logoUrl} /><h2 className="font-bold text-white text-lg uppercase tracking-widest">GIÁO XỨ HOÀNG YÊN</h2></div><p className="text-xs italic leading-relaxed opacity-70 whitespace-pre-wrap">{footerData.aboutText}</p></div>
+          <div><div className="flex items-center space-x-3 mb-6"><Logo sizeClass="w-16 h-16" isSolid={true} config={logoConfig} /><h2 className="font-bold text-white text-lg uppercase tracking-widest">GIÁO XỨ HOÀNG YÊN</h2></div><p className="text-xs italic leading-relaxed opacity-70 whitespace-pre-wrap">{footerData.aboutText}</p></div>
           <div><h3 className="text-pink-100 font-bold text-xs uppercase mb-6 border-b border-pink-900/50 pb-3 tracking-widest">Thông Tin</h3><ul className="space-y-3 text-xs opacity-80"><li>{contactInfo.address}</li><li>{contactInfo.phone}</li><li>{contactInfo.email}</li></ul></div>
           <div><h3 className="text-pink-100 font-bold text-xs uppercase mb-6 border-b border-pink-900/50 pb-3 tracking-widest">Liên Kết</h3><ul className="space-y-3 text-[10px] uppercase opacity-80 tracking-widest"><li className="cursor-pointer hover:text-pink-300" onClick={() => {setActiveTab('Liturgy'); window.scrollTo(0,0);}}>Lịch Phụng Vụ</li><li className="cursor-pointer hover:text-pink-300" onClick={() => {setActiveTab('Contact'); window.scrollTo(0,0);}}>Liên Hệ Văn Phòng</li><li className="cursor-pointer hover:text-pink-300" onClick={() => {setActiveTab('Pilgrimage'); window.scrollTo(0,0);}}>Đăng ký Hành Hương</li></ul></div>
           <div><h3 className="text-pink-100 font-bold text-xs uppercase mb-6 border-b border-pink-900/50 pb-3 tracking-widest">Kết Nối</h3><a href={footerData.facebookLink} target="_blank" rel="noreferrer" className="flex items-center gap-3 hover:text-pink-300 transition-colors"><div className="w-8 h-8 rounded-full bg-pink-900/40 flex items-center justify-center border border-pink-800/50"><FacebookIcon size={14} className="text-pink-200" /></div><span>Facebook Giáo Xứ</span></a></div>
@@ -1101,12 +1208,15 @@ export default function App() {
                 <span className="text-sm font-bold text-pink-900 group-hover:text-pink-700 transition">Ghim làm Tin Nổi Bật (Hiển thị to ở trang Tin Tức)</span>
               </label>
             </div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Hình ảnh đại diện (Link hoặc Dán ảnh)</label>
-            <div className="flex flex-col sm:flex-row gap-4 mb-5 items-start">
-               <input className="flex-1 w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none focus:border-pink-500" value={tempNews.image || ''} onChange={(e) => setTempNews({...tempNews, image: e.target.value})} onPaste={(e) => handleImagePaste(e, setTempNews)} placeholder="Dán link ảnh tại đây..." />
-               {tempNews.image && <div className="w-24 h-16 bg-stone-100 rounded border border-pink-200 overflow-hidden shadow-inner"><img src={tempNews.image} alt="Preview" className="w-full h-full object-cover" /></div>}
+            
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Hình ảnh đại diện (Link URL hoặc Chọn tệp)</label>
+            <div className="flex flex-col gap-2 mb-2">
+               <input className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none focus:border-pink-500" value={tempNews.image || ''} onChange={(e) => setTempNews({...tempNews, image: e.target.value})} onPaste={(e) => handleImagePaste(e, setTempNews)} placeholder="Dán link ảnh tại đây..." />
+               <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setTempNews)} className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 cursor-pointer" />
             </div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Tiêu đề bài viết</label>
+            <ImageAdjuster data={tempNews} setData={setTempNews} aspectClass="aspect-[21/9] w-full rounded-lg" />
+
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 mt-6 block">Tiêu đề bài viết</label>
             <input className="w-full border border-pink-200 p-3 rounded mb-6 font-bold text-lg outline-none focus:border-pink-600" value={tempNews.title || ''} onChange={(e) => setTempNews({...tempNews, title: e.target.value})} placeholder="Nhập tiêu đề..." />
             <div className="grid grid-cols-1 gap-6 mb-6">
               <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Mô tả ngắn</label><RichTextEditor value={tempNews.desc || ''} onChange={(val) => setTempNews({...tempNews, desc: val})} minHeight="100px" /></div>
@@ -1143,17 +1253,20 @@ export default function App() {
 
       {editingHeritageItem !== null && tempHeritageItem && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
-          <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
+          <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
             <button onClick={() => setEditingHeritageItem(null)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">{editingHeritageItem === 'new' ? 'Thêm Vị Thánh' : 'Sửa Thông Tin Thánh'}</h3>
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Tên Vị Thánh</label>
             <input className="w-full border border-pink-200 p-3 rounded mb-5 text-base font-serif font-bold bg-stone-50 outline-none focus:border-pink-500" value={tempHeritageItem.name || ''} onChange={(e) => setTempHeritageItem({...tempHeritageItem, name: e.target.value})} placeholder="VD: Thánh Anrê Trần An Dũng Lạc" />
-            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Hình Ảnh Đại Diện (Link hoặc Dán ảnh)</label>
-            <div className="flex flex-col sm:flex-row gap-4 mb-5 items-start">
+            
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Hình Ảnh Đại Diện (Link URL hoặc Chọn tệp)</label>
+            <div className="flex flex-col gap-2 mb-2">
                <input className="flex-1 w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none focus:border-pink-500" value={tempHeritageItem.image || ''} onChange={(e) => setTempHeritageItem({...tempHeritageItem, image: e.target.value})} onPaste={(e) => handleImagePaste(e, setTempHeritageItem)} placeholder="Dán link ảnh tại đây..." />
-               {tempHeritageItem.image && <div className="w-16 h-16 flex-shrink-0 bg-stone-100 rounded-full border-2 border-pink-200 overflow-hidden shadow-inner"><img src={tempHeritageItem.image} alt="Preview" className="w-full h-full object-cover" /></div>}
+               <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setTempHeritageItem)} className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 cursor-pointer" />
             </div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Tiểu sử sơ lược</label>
+            <ImageAdjuster data={tempHeritageItem} setData={setTempHeritageItem} aspectClass="aspect-square w-40 rounded-full" />
+
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 mt-6 block">Tiểu sử sơ lược</label>
             <textarea className="w-full border border-pink-200 p-3 rounded h-28 text-sm font-serif leading-relaxed outline-none focus:border-pink-500 custom-scrollbar" value={tempHeritageItem.brief || ''} onChange={(e) => setTempHeritageItem({...tempHeritageItem, brief: e.target.value})} placeholder="Nhập sơ lược tiểu sử..." />
             <div className="flex gap-4 pt-6 border-t mt-6">
               {editingHeritageItem !== 'new' && <button className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={() => { setHeritageList(heritageList.filter(item => item.id !== tempHeritageItem.id)); setEditingHeritageItem(null); }}>Xóa Vị Thánh</button>}
@@ -1196,12 +1309,15 @@ export default function App() {
                 </select>
               </div>
             </div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Hình ảnh đại diện (Link hoặc Dán ảnh)</label>
-            <div className="flex flex-col sm:flex-row gap-4 mb-5 items-start">
+            
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Hình ảnh đại diện (Link URL hoặc Chọn tệp)</label>
+            <div className="flex flex-col gap-2 mb-2">
                <input className="flex-1 w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none focus:border-pink-500" value={tempPilgrimage.image || ''} onChange={(e) => setTempPilgrimage({...tempPilgrimage, image: e.target.value})} onPaste={(e) => handleImagePaste(e, setTempPilgrimage)} placeholder="Dán link ảnh tại đây..." />
-               {tempPilgrimage.image && <div className="w-24 h-16 bg-stone-100 rounded border border-pink-200 overflow-hidden shadow-inner"><img src={tempPilgrimage.image} alt="Preview" className="w-full h-full object-cover" /></div>}
+               <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setTempPilgrimage)} className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 cursor-pointer" />
             </div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Mô tả ngắn gọn (Hiển thị bên ngoài thẻ)</label>
+            <ImageAdjuster data={tempPilgrimage} setData={setTempPilgrimage} aspectClass="aspect-[21/9] w-full rounded-lg" />
+
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 mt-6 block">Mô tả ngắn gọn (Hiển thị bên ngoài thẻ)</label>
             <textarea className="w-full border border-pink-200 p-3 rounded mb-5 h-20 text-sm font-serif outline-none focus:border-pink-600 custom-scrollbar" value={tempPilgrimage.desc || ''} onChange={(e) => setTempPilgrimage({...tempPilgrimage, desc: e.target.value})} placeholder="Nhập mô tả ngắn..." />
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Nội dung chương trình chi tiết</label>
             <div className="mb-6"><RichTextEditor value={tempPilgrimage.content || ''} onChange={(val) => setTempPilgrimage({...tempPilgrimage, content: val})} minHeight="250px" /></div>
@@ -1279,7 +1395,7 @@ export default function App() {
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
           <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full border-t-4 border-pink-600 relative">
              <button onClick={() => setEditingConfession(false)} className="absolute top-3 right-3 text-stone-400 hover:text-stone-600"><X size={18}/></button>
-            <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Sửa Bí Tích / Hoạt Động</h3>
+            <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Sửa Bí Tích</h3>
             <div className="space-y-4 mb-8">
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Tiêu đề</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-sm" value={tempConfession.title || ''} onChange={(e) => setTempConfession({...tempConfession, title: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Nội dung</label><textarea className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 text-sm font-serif h-24 custom-scrollbar leading-relaxed" value={tempConfession.desc || ''} onChange={(e) => setTempConfession({...tempConfession, desc: e.target.value})} /></div>
@@ -1293,7 +1409,7 @@ export default function App() {
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
           <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full border-t-4 border-pink-600 relative">
              <button onClick={() => setEditingAdoration(false)} className="absolute top-3 right-3 text-stone-400 hover:text-stone-600"><X size={18}/></button>
-            <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Sửa Bí Tích / Hoạt Động</h3>
+            <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Sửa Hoạt Động</h3>
             <div className="space-y-4 mb-8">
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Tiêu đề</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-sm" value={tempAdoration.title || ''} onChange={(e) => setTempAdoration({...tempAdoration, title: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Nội dung</label><textarea className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 text-sm font-serif h-24 custom-scrollbar leading-relaxed" value={tempAdoration.desc || ''} onChange={(e) => setTempAdoration({...tempAdoration, desc: e.target.value})} /></div>
@@ -1331,21 +1447,18 @@ export default function App() {
 
       {editingHero && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
-          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full border-t-4 border-pink-600 relative">
+          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full border-t-4 border-pink-600 relative">
              <button onClick={() => setEditingHero(false)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Đổi Ảnh Nền Trang Chủ</h3>
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-2">Đường dẫn hình ảnh (URL)</label>
-                <input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 text-sm" value={tempHero.bgImage || ''} onChange={(e) => setTempHero({...tempHero, bgImage: e.target.value})} onPaste={(e) => handleImagePaste(e, setTempHero)} placeholder="Dán link ảnh hoặc Ctrl+V để dán file ảnh..." />
-              </div>
-              {tempHero.bgImage && (
-                <div className="w-full h-40 rounded-lg overflow-hidden border border-stone-200 shadow-inner">
-                  <img src={tempHero.bgImage} className="w-full h-full object-cover" alt="Preview" />
-                </div>
-              )}
+            
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Đường dẫn Hình ảnh (URL hoặc Tải ảnh lên)</label>
+            <div className="flex flex-col gap-2 mb-2">
+               <input className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none focus:border-pink-500" value={tempHero.image || ''} onChange={(e) => setTempHero({...tempHero, image: e.target.value})} onPaste={(e) => handleImagePaste(e, setTempHero)} placeholder="Dán link ảnh tại đây..." />
+               <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setTempHero)} className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 cursor-pointer" />
             </div>
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingHero(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { setHeroData(tempHero); setEditingHero(false); }}>Lưu Hình Nền</button></div>
+            <ImageAdjuster data={tempHero} setData={setTempHero} aspectClass="aspect-[21/9] w-full rounded-lg" />
+
+            <div className="flex gap-3 mt-6"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingHero(false)}>Hủy</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { setHeroData(tempHero); setEditingHero(false); }}>Lưu Hình Nền</button></div>
           </div>
         </div>
       )}
@@ -1383,33 +1496,18 @@ export default function App() {
 
       {editingLogo && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
-          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full border-t-4 border-pink-600 relative">
+          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-xl w-full border-t-4 border-pink-600 relative">
              <button onClick={() => setEditingLogo(false)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Đổi Logo Giáo Xứ</h3>
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-2">Đường dẫn Logo (URL hoặc ./logo.svg)</label>
-                <input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 text-sm" value={tempLogoUrl} onChange={(e) => setTempLogoUrl(e.target.value)} onPaste={(e) => {
-                    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-                    for (let index in items) {
-                      const item = items[index];
-                      if (item.kind === 'file' && item.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => setTempLogoUrl(event.target.result);
-                        reader.readAsDataURL(item.getAsFile());
-                        e.preventDefault();
-                        break;
-                      }
-                    }
-                }} placeholder="Nhập link ảnh hoặc dán ảnh..." />
-              </div>
-              {tempLogoUrl && (
-                <div className="w-20 h-20 mx-auto rounded-full overflow-hidden border-2 border-pink-200 shadow-inner p-2 bg-stone-50 flex items-center justify-center">
-                  <img src={tempLogoUrl} className="w-full h-full object-contain" alt="Preview Logo" onError={(e) => e.target.style.display='none'} />
-                </div>
-              )}
+            
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Đường dẫn Logo (URL) hoặc Tải ảnh lên</label>
+            <div className="flex flex-col gap-2 mb-2">
+               <input className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none focus:border-pink-500" value={tempLogoConfig.image || ''} onChange={(e) => setTempLogoConfig({...tempLogoConfig, image: e.target.value})} onPaste={(e) => handleImagePaste(e, setTempLogoConfig)} placeholder="Nhập link ảnh hoặc dán ảnh..." />
+               <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setTempLogoConfig)} className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 cursor-pointer" />
             </div>
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingLogo(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { setLogoUrl(tempLogoUrl); setEditingLogo(false); }}>Lưu Logo</button></div>
+            <ImageAdjuster data={tempLogoConfig} setData={setTempLogoConfig} aspectClass="w-40 h-40 rounded-full" />
+
+            <div className="flex gap-3 mt-6"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingLogo(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { setLogoConfig(tempLogoConfig); setEditingLogo(false); }}>Lưu Logo</button></div>
           </div>
         </div>
       )}
