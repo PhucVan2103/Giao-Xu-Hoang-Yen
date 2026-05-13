@@ -2,11 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Menu, X, Clock, Calendar, MapPin, Phone, 
   ChevronRight, BookOpen, Users, Image as ImageIcon, 
-  Bell, Heart, Search, Mail, Quote,
+  Bell, Heart, Search, Mail, ExternalLink, Quote,
   ChevronDown, Church, ArrowUp, Edit3, ChevronLeft,
   User, Star, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Send,
   MessageSquare, CheckCircle2
 } from 'lucide-react';
+
+// Thiết lập mật khẩu quản trị viên.
+// Trong môi trường thực tế, bạn nên sử dụng biến môi trường để bảo mật hơn.
+// Hiện tại đang đặt cứng là "admin" để chạy demo trên môi trường này.
+const ADMIN_PASSWORD = "admin";
+
+// ==========================================
+// 1. COMPONENT DÙNG CHUNG (GLOBAL COMPONENTS)
+// ==========================================
 
 const FacebookIcon = ({ size = 20, className = "" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -269,6 +278,11 @@ const getStatusStyles = (status) => {
   }
 };
 
+
+// ==========================================
+// 3. MAIN APP COMPONENT
+// ==========================================
+
 export default function App() {
   // --- States Cơ Bản ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -312,7 +326,8 @@ export default function App() {
     address: "123 Các Thánh Tử Đạo, Phường Hoàng Yên, Quận 1, TP. HCM",
     phone: "(028) 1234 5678",
     email: "vanphong@giaoxuhoangyen.vn",
-    hours: "Sáng: 08:00 - 11:30 | Chiều: 14:00 - 17:00 (Nghỉ Thứ Hai)"
+    hours: "Sáng: 08:00 - 11:30 | Chiều: 14:00 - 17:00 (Nghỉ Thứ Hai)",
+    mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.5132741062075!2d106.69744577481812!3d10.771944789376665!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f40a3b49e59%3A0xa1bd14e483a602db!2sNotre%20Dame%20Cathedral%20of%20Saigon!5e0!3m2!1sen!2s!4v1714202353111!5m2!1sen!2s"
   });
   const [formStatus, setFormStatus] = useState('');
 
@@ -331,7 +346,7 @@ export default function App() {
   const [heritageTitle, setHeritageTitle] = useState("Gia Sản Thiêng Liêng");
   const [heritageList, setHeritageList] = useState([
     { id: 1, name: 'Thánh Anrê Trần An Dũng Lạc', brief: 'Linh mục, tử đạo năm 1839. Mẫu gương sáng ngời về lòng trung kiên.', image: 'https://images.unsplash.com/photo-1550404618-c2b61f879685?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
-    { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì chegb giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 }
+    { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì che giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 }
   ]);
   const [pastoralData, setPastoralData] = useState({
     title: "Định Hướng Mục Vụ",
@@ -409,7 +424,7 @@ export default function App() {
   }, [activeTab, returnToNews]);
 
   const handleLoginSubmit = () => {
-    if (password === 'admin') { setIsAdmin(true); setShowLoginModal(false); setPassword(''); setLoginError(''); }
+    if (password === ADMIN_PASSWORD) { setIsAdmin(true); setShowLoginModal(false); setPassword(''); setLoginError(''); }
     else setLoginError('Mật khẩu không chính xác!');
   };
 
@@ -472,7 +487,7 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="space-y-6">
+                <div className="flex flex-col h-full gap-6">
                   <div className="bg-white p-8 rounded-2xl shadow-lg border border-pink-50 relative group">
                     {isAdmin && <button onClick={() => { setTempContact(contactInfo); setEditingContact(true); }} className="absolute top-4 right-4 p-2 bg-pink-600 text-white rounded-full shadow-md transition active:scale-90 hover:bg-pink-700"><Edit3 size={14}/></button>}
                     <h3 className="text-xl font-bold text-pink-950 uppercase mb-8 pb-4 border-b border-pink-50 flex items-center gap-3"><Mail className="text-pink-600" /> {contactInfo.title || ''}</h3>
@@ -496,13 +511,25 @@ export default function App() {
                     </ul>
                   </div>
 
-                  <div className="bg-stone-200 rounded-2xl h-64 shadow-inner overflow-hidden relative border border-stone-300 flex items-center justify-center">
-                    <div className="text-center opacity-40"><MapPin size={48} className="mx-auto mb-2"/><p className="text-xs font-bold uppercase tracking-widest">Bản đồ Đền Thánh</p></div>
-                    <div className="absolute bottom-4 left-4 bg-white/90 p-2 rounded shadow-sm text-[9px] font-bold uppercase tracking-widest">123 Các Thánh Tử Đạo, TP. HCM</div>
+                  {/* Bản đồ Google Maps */}
+                  <div className="bg-stone-200 rounded-2xl flex-1 min-h-[300px] shadow-inner overflow-hidden relative border border-stone-300 flex items-center justify-center">
+                    {contactInfo.mapUrl ? (
+                      <iframe 
+                        src={contactInfo.mapUrl} 
+                        className="w-full h-full absolute inset-0"
+                        style={{ border: 0 }} 
+                        allowFullScreen="" 
+                        loading="lazy" 
+                        referrerPolicy="no-referrer-when-downgrade"
+                      ></iframe>
+                    ) : (
+                      <div className="text-center opacity-40"><MapPin size={48} className="mx-auto mb-2"/><p className="text-xs font-bold uppercase tracking-widest">Bản đồ Đền Thánh</p></div>
+                    )}
                   </div>
                 </div>
 
-                <div className="bg-white p-8 rounded-2xl shadow-lg border border-pink-50">
+                {/* Form gửi yêu cầu */}
+                <div className="bg-white p-8 rounded-2xl shadow-lg border border-pink-50 h-full flex flex-col">
                   <h3 className="text-xl font-bold text-pink-950 uppercase mb-6 pb-4 border-b border-pink-50 flex items-center gap-3"><MessageSquare className="text-pink-600" /> Gửi Ý Nguyện & Góp Ý</h3>
                   {formStatus === 'success' && (
                     <div className="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
@@ -523,7 +550,7 @@ export default function App() {
                         <option>Liên hệ công việc khác</option>
                       </select>
                     </div>
-                    <div><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Nội dung</label><textarea required className="w-full border border-stone-200 bg-stone-50 p-3 rounded text-sm h-32 focus:border-pink-500 focus:bg-white outline-none transition resize-none font-serif" placeholder="Nhập nội dung ý nguyện hoặc góp ý của bạn tại đây..."></textarea></div>
+                    <div className="flex-1 flex flex-col"><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Nội dung</label><textarea required className="w-full flex-1 border border-stone-200 bg-stone-50 p-3 rounded text-sm min-h-[120px] focus:border-pink-500 focus:bg-white outline-none transition resize-none font-serif" placeholder="Nhập nội dung ý nguyện hoặc góp ý của bạn tại đây..."></textarea></div>
                     <button type="submit" className="w-full bg-pink-700 hover:bg-pink-800 text-white font-bold py-4 rounded-lg shadow-md active:scale-95 transition-all uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-2 mt-4">Gửi Thông Tin <Send size={14}/></button>
                   </form>
                 </div>
@@ -1204,10 +1231,13 @@ export default function App() {
           <div><h3 className="text-pink-100 font-bold text-xs uppercase mb-6 border-b border-pink-900/50 pb-3 tracking-widest">Liên Kết</h3><ul className="space-y-3 text-[10px] uppercase opacity-80 tracking-widest"><li className="cursor-pointer hover:text-pink-300" onClick={() => {setActiveTab('Liturgy'); window.scrollTo(0,0);}}>Lịch Phụng Vụ</li><li className="cursor-pointer hover:text-pink-300" onClick={() => {setActiveTab('Contact'); window.scrollTo(0,0);}}>Liên Hệ Văn Phòng</li><li className="cursor-pointer hover:text-pink-300" onClick={() => {setActiveTab('Pilgrimage'); window.scrollTo(0,0);}}>Đăng ký Hành Hương</li></ul></div>
           <div><h3 className="text-pink-100 font-bold text-xs uppercase mb-6 border-b border-pink-900/50 pb-3 tracking-widest">Kết Nối</h3><a href={footerData.facebookLink} target="_blank" rel="noreferrer" className="flex items-center gap-3 hover:text-pink-300 transition-colors"><div className="w-8 h-8 rounded-full bg-pink-900/40 flex items-center justify-center border border-pink-800/50"><FacebookIcon size={14} className="text-pink-200" /></div><span>Facebook Giáo Xứ</span></a></div>
         </div>
-        <div className="max-w-6xl mx-auto px-4 mt-16 pt-6 border-t border-white/10 text-[9px] uppercase font-bold opacity-40 flex justify-between tracking-widest"><p>© 2023 GIÁO XỨ HOÀNG YÊN.</p><span onClick={() => isAdmin ? setIsAdmin(false) : setShowLoginModal(true)} className="cursor-pointer hover:text-white transition-all">{isAdmin ? 'Thoát Quản Trị' : 'Admin'}</span></div>
+        <div className="max-w-6xl mx-auto px-4 mt-16 pt-6 border-t border-white/10 text-[9px] uppercase font-bold opacity-40 flex items-center justify-between tracking-widest">
+          <p onClick={() => !isAdmin && setShowLoginModal(true)} className="cursor-pointer hover:opacity-100 hover:text-white transition-all select-none">© 2026 GIÁO XỨ HOÀNG YÊN.</p>
+          {isAdmin && <span onClick={() => setIsAdmin(false)} className="cursor-pointer hover:text-white transition-all">Thoát Quản Trị</span>}
+        </div>
       </footer>
 
-      {showTopBtn && <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-6 right-6 p-2.5 bg-pink-700 text-white rounded-full shadow-xl z-50 active:scale-90"><ArrowUp size={20} /></button>}
+      {showTopBtn && <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-6 right-6 p-2.5 bg-pink-700 text-white rounded-full shadow-xl z-50 active:scale-90 transition-all hover:bg-pink-800"><ArrowUp size={20} /></button>}
 
       {/* ========================================== */}
       {/* MODALS QUẢN TRỊ (ADMIN) */}
@@ -1217,8 +1247,7 @@ export default function App() {
         <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center border-t-4 border-pink-600 relative">
              <button onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}} className="absolute top-3 right-3 text-stone-400 hover:text-stone-600"><X size={18}/></button>
-            <h3 className="text-xl font-bold text-pink-950 mb-2 uppercase tracking-tight">Đăng Nhập Admin</h3>
-            <p className="text-[10px] text-stone-500 mb-6 uppercase tracking-widest">Nhập 'admin' để dùng thử</p>
+            <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">Đăng Nhập Admin</h3>
             <input type="password" placeholder="Nhập mật khẩu" className={`w-full border p-3 mb-2 text-center text-sm outline-none focus:border-pink-500 font-serif rounded ${loginError ? 'border-red-400' : 'border-pink-200'}`} value={password} onChange={(e) => {setPassword(e.target.value); setLoginError('');}} onKeyDown={(e) => e.key === 'Enter' && handleLoginSubmit()} />
             <div className="h-6 mb-2">{loginError && <p className="text-red-500 text-xs font-bold animate-in slide-in-from-top-1">{loginError}</p>}</div>
             <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={handleLoginSubmit}>Xác Nhận</button></div>
@@ -1228,7 +1257,7 @@ export default function App() {
 
       {editingContact && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
-          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full border-t-4 border-pink-600 relative">
+          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
              <button onClick={() => setEditingContact(false)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600"><X size={20}/></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Sửa Thông Tin Liên Hệ</h3>
             <div className="space-y-4 mb-8">
@@ -1237,6 +1266,7 @@ export default function App() {
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Điện thoại</label><input className="w-full border border-pink-200 p-2.5 rounded outline-none text-sm focus:border-pink-500" value={tempContact.phone || ''} onChange={e => setTempContact({...tempContact, phone: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Email</label><input className="w-full border border-pink-200 p-2.5 rounded outline-none text-sm focus:border-pink-500" value={tempContact.email || ''} onChange={e => setTempContact({...tempContact, email: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Giờ làm việc</label><input className="w-full border border-pink-200 p-2.5 rounded outline-none text-sm font-serif focus:border-pink-500" value={tempContact.hours || ''} onChange={e => setTempContact({...tempContact, hours: e.target.value})} /></div>
+              <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Link Nhúng Bản Đồ (Google Maps Embed src)</label><textarea className="w-full border border-pink-200 p-2.5 rounded outline-none text-[11px] h-20 font-mono focus:border-pink-500 custom-scrollbar" value={tempContact.mapUrl || ''} onChange={e => setTempContact({...tempContact, mapUrl: e.target.value})} placeholder="https://www.google.com/maps/embed?..." /></div>
             </div>
             <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingContact(false)}>Hủy</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow active:scale-95 transition-all hover:bg-pink-800" onClick={() => { setContactInfo(tempContact); setEditingContact(false); }}>Lưu Lại</button></div>
           </div>
@@ -1314,7 +1344,7 @@ export default function App() {
         </div>
       )}
 
-      {!!editingHeritageItem && tempHeritageItem && (
+      {editingHeritageItem !== null && tempHeritageItem && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
           <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
             <button onClick={() => setEditingHeritageItem(null)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
@@ -1355,7 +1385,7 @@ export default function App() {
         </div>
       )}
 
-      {!!editingPilgrimage && tempPilgrimage && (
+      {editingPilgrimage !== null && tempPilgrimage && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
           <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
             <button onClick={() => setEditingPilgrimage(null)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
