@@ -2,15 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Menu, X, Clock, Calendar, MapPin, Phone, 
   ChevronRight, BookOpen, Users, Image as ImageIcon, 
-  Bell, Heart, Search, Mail, ExternalLink, Quote,
+  Bell, Heart, Search, Mail, Quote,
   ChevronDown, Church, ArrowUp, Edit3, ChevronLeft,
   User, Star, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Send,
   MessageSquare, CheckCircle2
 } from 'lucide-react';
-
-// ==========================================
-// 1. COMPONENT DÙNG CHUNG & HELPER
-// ==========================================
 
 const FacebookIcon = ({ size = 20, className = "" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -125,7 +121,7 @@ const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
 };
 
 const ImageAdjuster = ({ data, setData, aspectClass = "aspect-[21/9] w-full rounded-lg" }) => {
-  if (!data.image) return null;
+  if (!data?.image) return null;
 
   return (
     <div className="mt-4 p-5 bg-stone-50 border border-stone-200 rounded-xl shadow-inner">
@@ -176,11 +172,6 @@ const ImageAdjuster = ({ data, setData, aspectClass = "aspect-[21/9] w-full roun
     </div>
   );
 };
-
-
-// ==========================================
-// 2. DỮ LIỆU TĨNH
-// ==========================================
 
 const navLinks = [
   { name: 'Trang Chủ', id: 'Home' },
@@ -278,12 +269,8 @@ const getStatusStyles = (status) => {
   }
 };
 
-
-// ==========================================
-// 3. MAIN APP COMPONENT
-// ==========================================
-
 export default function App() {
+  // --- States Cơ Bản ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Home');
   const [scrolled, setScrolled] = useState(false);
@@ -291,6 +278,7 @@ export default function App() {
   const itemsPerPage = 4;
   const newsPerPage = 6;
   
+  // --- States Admin & Auth ---
   const [isAdmin, setIsAdmin] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [password, setPassword] = useState('');
@@ -343,17 +331,20 @@ export default function App() {
   const [heritageTitle, setHeritageTitle] = useState("Gia Sản Thiêng Liêng");
   const [heritageList, setHeritageList] = useState([
     { id: 1, name: 'Thánh Anrê Trần An Dũng Lạc', brief: 'Linh mục, tử đạo năm 1839. Mẫu gương sáng ngời về lòng trung kiên.', image: 'https://images.unsplash.com/photo-1550404618-c2b61f879685?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
-    { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì che giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
-    { id: 3, name: 'Thánh Phaolô Lê Bảo Tịnh', brief: 'Linh mục, tử đạo năm 1857. Nổi tiếng với bức thư gửi từ ngục tù.', image: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
-    { id: 4, name: 'Thánh Giuse Nguyễn Duy Khang', brief: 'Thầy giảng, tử đạo năm 1861. Người đồng hành trung kiên của Đức cha Hermosilla.', image: 'https://images.unsplash.com/photo-1510936111840-65e151ad71bb?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 }
+    { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì chegb giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 }
   ]);
   const [pastoralData, setPastoralData] = useState({
     title: "Định Hướng Mục Vụ",
-    content: `<h4>01. Đào Tạo Đức Tin Giới Trẻ</h4><p>Chú trọng sâu sát vào việc giáo dục nhân bản và giáo lý cho thiếu nhi, thanh giới trẻ.</p><h4>02. Thực Thi Bác Ái Xã Hội</h4><p>Mở rộng vòng tay yêu thương đến những người có hoàn cảnh khó khăn, ốm đau.</p><h4>03. Đồng Hành Cùng Gia Đình</h4><p>Đồng hành và nâng đỡ các gia đình trẻ, biến mỗi gia đình thành một "Hội Thánh tại gia" đúng nghĩa.</p>`
+    content: `<h4>01. Đào Tạo Đức Tin Giới Trẻ</h4><p>Chú trọng sâu sát vào việc giáo dục nhân bản và giáo lý cho thiếu nhi, thanh giới trẻ.</p><h4>02. Thực Thi Bác Ái Xã Hội</h4><p>Mở rộng vòng tay yêu thương đến những người có hoàn cảnh khó khăn, ốm đau.</p>`
   });
 
   // --- States Tab Hành Hương ---
   const [pilgrimagePlans, setPilgrimagePlans] = useState(initialPilgrimageData);
+  const [receptionInfo, setReceptionInfo] = useState({
+    item1Title: "Đăng ký đoàn", item1Desc: "Quý đoàn vui lòng báo trước 3 ngày để Giáo xứ sắp xếp giờ lễ riêng.",
+    item2Title: "Cơ sở vật chất", item2Desc: "Khuôn viên có bãi đỗ xe rộng rãi cho xe khách 45 chỗ.",
+    item3Title: "Hỗ trợ trực tiếp", item3Desc: "Liên hệ Văn phòng Đền Thánh để được hỗ trợ tốt nhất.", item3Phone: "090.123.4567"
+  });
 
   // --- States Tab Tin Tức ---
   const [newsItems, setNewsItems] = useState(initialNewsData);
@@ -462,7 +453,6 @@ export default function App() {
 
   const isSolidHeader = scrolled || activeTab !== 'Home';
 
-  // --- RENDER CONTENT THÔNG MINH ---
   const renderContent = () => {
     switch (activeTab) {
       
@@ -1048,36 +1038,109 @@ export default function App() {
                       </div>
                       {isAdmin && <button onClick={() => { setTempMass([...massSchedules]); setEditingMass(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-600 text-white rounded-full shadow"><Edit3 size={12}/></button>}
                    </div>
-                   <div className="bg-white p-8 rounded-2xl shadow-md border border-pink-100 flex flex-col">
-                      <div className="flex justify-between items-center border-b border-pink-50 pb-2 mb-6">
-                        <h3 className="text-lg font-bold text-pink-900 uppercase tracking-tighter">Thông Báo Mới</h3>
-                        <button onClick={() => { setActiveTab('News'); window.scrollTo(0,0); }} className="text-[10px] font-bold text-pink-600 uppercase hover:text-pink-800 transition">Xem tất cả</button>
-                      </div>
-                      <div className="space-y-5 mb-6 flex-1">
-                        {newsItems.slice(0, 3).map((item) => (
-                          <div key={item.id} className="cursor-pointer group flex gap-4 items-start" onClick={() => { setLastTab('Home'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}>
-                            <div className="w-20 h-14 flex-shrink-0 rounded-lg bg-stone-100 overflow-hidden shadow-sm relative">
-                              <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110">
-                                 <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" />
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-serif font-bold text-sm text-pink-950 line-clamp-2 group-hover:text-pink-700 transition leading-snug">{item.title}</h4>
-                              <p className="text-[9px] text-stone-400 font-bold mt-1 uppercase flex items-center"><Calendar size={10} className="mr-1"/> {item.date}</p>
-                            </div>
-                          </div>
-                        ))}
-                        {newsItems.length === 0 && <p className="text-sm font-serif text-stone-500 italic">Chưa có thông báo mới.</p>}
-                      </div>
-                      <div className="mt-auto pt-6 border-t border-pink-50 text-center relative group">
-                        {isAdmin && <button onClick={() => { setTempContact(contactInfo); setEditingQuickPhone(true); }} className="absolute top-4 right-0 p-1.5 bg-pink-100 text-pink-600 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12}/></button>}
-                        <Phone size={18} className="mx-auto text-pink-600 mb-1" />
-                        <div className="text-lg font-bold text-pink-950">{contactInfo.phone}</div>
-                        <span className="text-[9px] text-stone-400 uppercase font-bold tracking-widest">Văn phòng giáo xứ</span>
+                   <div className="bg-white p-8 rounded-2xl shadow-md border border-pink-100 flex flex-col relative group">
+                      {isAdmin && <button onClick={() => { setTempContact(contactInfo); setEditingQuickPhone(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-100 text-pink-600 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12}/></button>}
+                      <h3 className="text-lg font-bold text-pink-900 uppercase border-b border-pink-50 pb-2 mb-6 tracking-tighter text-center">Liên Hệ & Văn Phòng</h3>
+                      
+                      <ul className="space-y-4 flex-1">
+                        <li className="flex items-start gap-3">
+                          <MapPin size={16} className="text-pink-500 mt-0.5 flex-shrink-0" />
+                          <div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Địa chỉ</span><p className="text-sm font-serif text-stone-700 leading-snug line-clamp-2">{contactInfo.address}</p></div>
+                        </li>
+                        <li className="flex items-center gap-3">
+                          <Phone size={16} className="text-pink-500 flex-shrink-0" />
+                          <div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Điện thoại</span><p className="text-lg font-bold text-pink-900">{contactInfo.phone}</p></div>
+                        </li>
+                        <li className="flex items-center gap-3">
+                          <Mail size={16} className="text-pink-500 flex-shrink-0" />
+                          <div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email</span><p className="text-sm font-serif text-stone-700 line-clamp-1">{contactInfo.email}</p></div>
+                        </li>
+                      </ul>
+                      
+                      <div className="mt-6 pt-5 border-t border-pink-50 text-center flex items-center justify-center gap-2 text-stone-500 text-sm font-serif italic">
+                        <Clock size={16} className="text-pink-400" />
+                        <span>{contactInfo.hours}</span>
                       </div>
                    </div>
                 </div>
              </section>
+
+             <section id="news-section" className="py-20 bg-stone-50">
+               <div className="max-w-6xl mx-auto px-4 lg:px-6">
+                 
+                 <div className="flex justify-between items-end mb-10 border-b border-pink-100 pb-4">
+                   <div>
+                     <h2 className="text-pink-600 font-bold uppercase tracking-widest text-[10px] mb-2 flex items-center gap-2"><Bell size={14} /> Tin Tức Giáo Xứ</h2>
+                     <h3 className="text-3xl md:text-4xl font-serif font-bold text-pink-950 tracking-tight">Thông Báo Mới</h3>
+                   </div>
+                   <button onClick={() => { setActiveTab('News'); window.scrollTo(0,0); }} className="hidden sm:flex items-center gap-2 text-xs font-bold text-pink-600 uppercase tracking-widest hover:text-pink-800 transition-colors">
+                     Xem tất cả <ChevronRight size={16} />
+                   </button>
+                 </div>
+
+                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:h-[420px]">
+                   {newsItems.length > 0 && (
+                     <div 
+                       className="lg:col-span-7 group cursor-pointer relative rounded-2xl overflow-hidden shadow-md border border-stone-200 hover:border-pink-300 transition-all duration-300 h-[350px] lg:h-full bg-white flex flex-col"
+                       onClick={() => { setLastTab('Home'); setSelectedNews(newsItems[0]); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}
+                     >
+                       <div className="absolute inset-0 bg-stone-100 overflow-hidden">
+                         <img src={newsItems[0].image} style={getImgStyle(newsItems[0])} className="w-full h-full block transition-transform duration-700 group-hover:scale-105" alt="" />
+                       </div>
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-90 transition-opacity group-hover:opacity-100"></div>
+                       
+                       <div className="relative z-10 flex flex-col justify-end h-full p-6 md:p-8">
+                         <div>
+                           <span className="bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-sm inline-block shadow-sm uppercase tracking-widest mb-4">
+                             {newsItems[0].category}
+                           </span>
+                         </div>
+                         <h4 className="font-serif font-bold text-2xl md:text-3xl text-white mb-3 leading-tight line-clamp-2 drop-shadow-md group-hover:text-pink-200 transition-colors">
+                           {newsItems[0].title}
+                         </h4>
+                         <div className="text-stone-300 text-sm leading-relaxed line-clamp-2 font-serif mb-4 [&_p]:mb-0 drop-shadow" dangerouslySetInnerHTML={{ __html: newsItems[0].desc || '' }} />
+                         <div className="text-[11px] font-bold text-pink-300 uppercase tracking-widest flex items-center gap-2">
+                           <Calendar size={14} /> {newsItems[0].date}
+                         </div>
+                       </div>
+                     </div>
+                   )}
+
+                   <div className="lg:col-span-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 h-full">
+                     {newsItems.slice(1, 6).map((item) => (
+                       <div 
+                         key={item.id} 
+                         className="group cursor-pointer flex gap-4 items-center bg-white p-3 rounded-xl border border-stone-200 hover:border-pink-300 hover:shadow-md transition-all duration-300"
+                         onClick={() => { setLastTab('Home'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}
+                       >
+                         <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative overflow-hidden rounded-lg bg-stone-100">
+                           <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110">
+                              <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" />
+                           </div>
+                         </div>
+                         <div className="flex flex-col flex-1 py-1">
+                           <span className="text-[9px] font-bold text-pink-600 uppercase tracking-widest mb-1.5">{item.category}</span>
+                           <h4 className="font-serif font-bold text-sm sm:text-base text-stone-900 group-hover:text-pink-700 transition-colors leading-snug line-clamp-2 mb-2">
+                             {item.title}
+                           </h4>
+                           <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1.5 mt-auto">
+                             <Calendar size={12} className="text-pink-400" /> {item.date}
+                           </div>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+
+                 <div className="mt-8 text-center sm:hidden">
+                   <button onClick={() => { setActiveTab('News'); window.scrollTo(0,0); }} className="inline-flex items-center gap-2 px-6 py-3 border border-pink-200 text-pink-700 font-bold text-[10px] uppercase tracking-widest rounded-full hover:bg-pink-50 transition-colors">
+                     Tất cả tin tức <ChevronRight size={14} />
+                   </button>
+                 </div>
+
+               </div>
+             </section>
+
           </div>
         );
       }
@@ -1102,8 +1165,8 @@ export default function App() {
             {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempLogoConfig(logoConfig); setEditingLogo(true); }} className="absolute -top-3 -left-3 z-[110] p-1.5 bg-pink-600 text-white rounded-full shadow-md hover:bg-pink-700 transition active:scale-90"><Edit3 size={12} /></button>}
             <Logo sizeClass="w-16 h-16 md:w-20 md:h-20" isSolid={isSolidHeader} config={logoConfig} />
             <div className={`border-l pl-4 hidden sm:block ${isSolidHeader ? 'border-pink-200' : 'border-white/20'}`}>
-              <h1 className={`font-bold text-xl md:text-2xl leading-none uppercase tracking-tight whitespace-nowrap ${isSolidHeader ? 'text-pink-950' : 'text-white'}`}>GIÁO XỨ HOÀNG YÊN</h1>
-              <p className={`text-[10px] md:text-[11px] lg:text-xs font-bold uppercase tracking-[0.15em] mt-1.5 whitespace-nowrap ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
+              <h1 className={`font-bold text-base md:text-lg leading-none uppercase tracking-tight whitespace-nowrap ${isSolidHeader ? 'text-pink-950' : 'text-white'}`}>GIÁO XỨ HOÀNG YÊN</h1>
+              <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-[0.15em] mt-1.5 whitespace-nowrap ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
             </div>
           </div>
           <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6">
@@ -1121,7 +1184,7 @@ export default function App() {
            <div className="w-full flex flex-col items-center space-y-8 text-white">
               <Logo isSolid={false} sizeClass="w-24 h-24" config={logoConfig} />
               <div className="flex flex-col items-center space-y-5 w-full">
-                {navLinks.map((link) => (<button key={link.id} onClick={() => { setActiveTab(link.id); setIsMenuOpen(false); window.scrollTo(0,0); }} className={`text-2xl font-bold uppercase tracking-widest transition-all ${activeTab === link.id ? 'text-pink-400 scale-105' : 'text-white/70 hover:text-white'}`}>{link.name}</button>))}
+                {navLinks.map((link) => (<button key={link.id} onClick={() => { setActiveTab(link.id); setIsMenuOpen(false); window.scrollTo(0,0); }} className={`text-lg font-bold uppercase tracking-widest transition-all ${activeTab === link.id ? 'text-pink-400 scale-105' : 'text-white/70 hover:text-white'}`}>{link.name}</button>))}
               </div>
               <div className="h-px w-16 bg-pink-500/40"></div>
               <button onClick={() => setIsMenuOpen(false)} className="text-white/50 uppercase tracking-widest text-[13px] font-bold border border-white/20 px-6 py-2.5 rounded-full">Đóng Menu</button>
@@ -1193,7 +1256,7 @@ export default function App() {
         </div>
       )}
 
-      {editingNews !== null && tempNews && (
+      {!!editingNews && tempNews && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
           <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
             <button onClick={() => setEditingNews(null)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
@@ -1251,9 +1314,9 @@ export default function App() {
         </div>
       )}
 
-      {editingHeritageItem !== null && tempHeritageItem && (
+      {!!editingHeritageItem && tempHeritageItem && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
-          <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
+          <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
             <button onClick={() => setEditingHeritageItem(null)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">{editingHeritageItem === 'new' ? 'Thêm Vị Thánh' : 'Sửa Thông Tin Thánh'}</h3>
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Tên Vị Thánh</label>
@@ -1292,7 +1355,7 @@ export default function App() {
         </div>
       )}
 
-      {editingPilgrimage !== null && tempPilgrimage && (
+      {!!editingPilgrimage && tempPilgrimage && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
           <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
             <button onClick={() => setEditingPilgrimage(null)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
@@ -1337,7 +1400,7 @@ export default function App() {
       )}
 
       {editingLiturgyEvent && tempLiturgyEvent && (
-        <div className="fixed inset0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
           <div className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full border-t-4 border-pink-600 relative">
              <button onClick={() => setEditingLiturgyEvent(false)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Sửa Phụng Vụ Ngày {tempLiturgyEvent.date.split('-').reverse().join('/')}</h3>
