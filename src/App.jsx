@@ -8,34 +8,46 @@ import {
   MessageSquare, CheckCircle2
 } from 'lucide-react';
 
+// Thiết lập mật khẩu quản trị viên.
+const ADMIN_PASSWORD = "admin";
+
 // ==========================================
-// CẤU HÌNH FIREBASE THỰC TẾ
+// CẤU HÌNH FIREBASE VÀ ID BẢO MẬT
 // ==========================================
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDzl8FQDegLV3LVx2qTa4dLFF_3esa67XA",
-  authDomain: "giao-xu-hoang-yen.firebaseapp.com",
-  projectId: "giao-xu-hoang-yen",
-  storageBucket: "giao-xu-hoang-yen.firebasestorage.app",
-  messagingSenderId: "896647028768",
-  appId: "1:896647028768:web:5a9c6f6b7638a15a30dc45"
-};
-
-let app, db;
+let app, auth, db;
 try {
-  if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
+  let firebaseConfig = null;
+  if (typeof __firebase_config !== 'undefined') {
+    firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
   } else {
-    app = getApp();
+    // Cấu hình fallback nếu không có môi trường truyền vào
+    firebaseConfig = {
+      apiKey: "AIzaSyDzl8FQDegLV3LVx2qTa4dLFF_3esa67XA",
+      authDomain: "giao-xu-hoang-yen.firebaseapp.com",
+      projectId: "giao-xu-hoang-yen",
+      storageBucket: "giao-xu-hoang-yen.firebasestorage.app",
+      messagingSenderId: "896647028768",
+      appId: "1:896647028768:web:5a9c6f6b7638a15a30dc45"
+    };
   }
-  db = getFirestore(app);
+  
+  if (firebaseConfig) {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+  }
 } catch (error) {
   console.error("Lỗi khởi tạo Firebase:", error);
 }
 
-const ADMIN_PASSWORD = "admin";
+// XỬ LÝ LỖI INVALID COLLECTION REFERENCE: 
+// Mã hóa appId, thay thế các dấu '/' và '.' thành '-' để đường dẫn Firebase luôn là cấp bậc hợp lệ
+const rawAppId = typeof __app_id !== 'undefined' ? String(__app_id) : 'giao-xu-hoang-yen-app';
+const appId = rawAppId.replace(/[\/\.]/g, '-'); 
 
 // ==========================================
 // 1. COMPONENT DÙNG CHUNG (GLOBAL COMPONENTS)
@@ -162,15 +174,23 @@ const ImageAdjuster = ({ data, setData, aspectClass = "aspect-[21/9] w-full roun
         <ImageIcon size={14} /> Căn chỉnh hình ảnh
       </h4>
       <div className="flex flex-col md:flex-row gap-8 items-center">
+        {/* Box Preview */}
         <div className="w-full md:w-1/2 flex justify-center items-center">
           <div className={`overflow-hidden border-2 border-pink-300 shadow-sm bg-stone-200 relative flex-shrink-0 ${aspectClass}`}>
-             <img src={data.image} style={getImgStyle(data)} className="w-full h-full block max-w-none" alt="Preview" />
+             <img
+               src={data.image}
+               style={getImgStyle(data)}
+               className="w-full h-full block max-w-none"
+               alt="Preview"
+             />
+             {/* Grid overlay */}
              <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 opacity-20 divide-x divide-y divide-black/20" style={{ borderRadius: 'inherit' }}>
                <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
              </div>
           </div>
         </div>
         
+        {/* Controllers */}
         <div className="w-full md:w-1/2 space-y-5">
            <div className="flex items-center gap-4">
               <label className="text-[10px] font-bold uppercase text-stone-500 w-20">Thu / Phóng</label>
@@ -200,7 +220,7 @@ const ImageAdjuster = ({ data, setData, aspectClass = "aspect-[21/9] w-full roun
 
 
 // ==========================================
-// 2. DỮ LIỆU TĨNH (SEED DATA)
+// 2. DỮ LIỆU TĨNH
 // ==========================================
 
 const navLinks = [
@@ -210,37 +230,6 @@ const navLinks = [
   { name: 'Hành Hương', id: 'Pilgrimage' },
   { name: 'Tin Tức', id: 'News' },
   { name: 'Liên Hệ', id: 'Contact' },
-];
-
-const initialMassSchedules = [
-  { day: 'Ngày Thường', times: ['05:00', '17:30'] },
-  { day: 'Thứ Bảy', times: ['05:00', '17:30 (Lễ Chúa Nhật)'] },
-  { day: 'Chúa Nhật', times: ['05:30', '07:30 (Thiếu Nhi)', '16:30', '18:30'] },
-];
-
-const initialNewsData = [
-  { id: 1, title: 'Đại lễ Kính Các Thánh Tử Đạo Việt Nam', date: '14/11/2023', category: 'Sự kiện', isFeatured: true, desc: '<p>Chương trình hành hương và đại lễ mừng kính tại Giáo xứ Hoàng Yên diễn ra trọng thể...</p>', image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50, content: '<p>Chương trình hành hương trang trọng diễn ra trong 3 ngày với sự tham gia của hàng nghìn giáo dân từ khắp nơi đổ về Đền Thánh.</p>'},
-  { id: 2, title: 'Thông báo Giáo lý niên khóa mới', date: '10/11/2023', category: 'Giáo lý', isFeatured: true, desc: '<p>Giáo xứ bắt đầu nhận hồ sơ đăng ký cho các lớp Đồng cỏ non, Khai tâm...</p>', image: 'https://images.unsplash.com/photo-1437603562860-1950e3ca6eab?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50, content: '<p>Văn phòng Giáo lý xin thông báo chi tiết về thời gian đăng ký và khai giảng niên khóa mới cho các em thiếu nhi.</p>'},
-  { id: 3, title: 'Bản tin Bác ái: Chuyến đi thăm mái ấm tình thương', date: '05/11/2023', category: 'Bác ái', isFeatured: false, desc: '<p>Hành trình mang yêu thương đến với các cụ già neo đơn tại cơ sở xã hội...</p>', image: 'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50, content: '<p>Hành trình mang yêu thương đến với các cụ già neo đơn tại cơ sở xã hội do Ban Bác Ái giáo xứ tổ chức đã thành công tốt đẹp.</p>'}
-];
-
-const initialPilgrimageData = [
-  { id: 1, title: 'Hành Hương Đức Mẹ La Vang - Thánh Địa Trà Kiệu', date: '15/06/2024', duration: '3 Ngày 2 Đêm', status: 'Đang mở đăng ký', desc: 'Hành trình thiêng liêng về với Đức Mẹ, kết hợp tham quan các di tích lịch sử Công giáo miền Trung.', image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50, content: '<h3>Chương trình chi tiết</h3><p><strong>Ngày 1:</strong> Khởi hành từ Giáo xứ lúc 5h00 sáng. Dừng chân nghỉ ngơi và dùng bữa trưa tại đèo Hải Vân...</p><p><strong>Ngày 2:</strong> Viếng Trung Tâm Hành Hương Thánh Mẫu La Vang. Tham dự Thánh Lễ chung...</p>'},
-  { id: 2, title: 'Chương Trình Đón Tiếp Đoàn Hành Hương Giáo Phận', date: '24/11/2024', duration: '1 Ngày', status: 'Sắp diễn ra', desc: 'Đền Thánh hân hoan chuẩn bị chương trình đón tiếp các phái đoàn hành hương từ khắp nơi đổ về trong dịp đại lễ Bổn mạng.', image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50, content: '<h3>Thông báo dành cho các Trưởng đoàn</h3><p>Ban Hành Giáo xin thông báo lịch trình đón tiếp như sau...</p><ul><li>Đăng ký vị trí đỗ xe trước 3 ngày.</li><li>Nhận phiếu ăn trưa tại Văn phòng Đền Thánh.</li></ul>'}
-];
-
-const getInitialLiturgyEvents = () => {
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = String(today.getMonth() + 1).padStart(2, '0');
-  return [
-    { date: `${y}-${m}-01`, title: 'Thứ Sáu Đầu Tháng - Kính Thánh Tâm', colorType: 'red', desc: 'Kính mời cộng đoàn tham dự Thánh lễ và Chầu Thánh Thể lúc 18h30.' }
-  ];
-};
-
-const initialHeritageList = [
-    { id: 1, name: 'Thánh Anrê Trần An Dũng Lạc', brief: 'Linh mục, tử đạo năm 1839. Mẫu gương sáng ngời về lòng trung kiên.', image: 'https://images.unsplash.com/photo-1550404618-c2b61f879685?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
-    { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì che giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 }
 ];
 
 const litColors = {
@@ -290,12 +279,16 @@ export default function App() {
   const itemsPerPage = 4;
   const newsPerPage = 6;
   
-  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
+  // --- States Admin & Auth ---
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // --- States Giao Diện ---
+  // --- States Firebase User ---
+  const [firebaseUser, setFirebaseUser] = useState(null);
+
+  // --- States Tùy chỉnh Giao diện ---
   const [logoConfig, setLogoConfig] = useState({ image: './logo.svg', imgFit: 'contain', imgScale: 1, imgPosX: 50, imgPosY: 50 });
   const [editingLogo, setEditingLogo] = useState(false);
   const [tempLogoConfig, setTempLogoConfig] = useState({});
@@ -304,35 +297,61 @@ export default function App() {
   const [editingHero, setEditingHero] = useState(false);
   const [tempHero, setTempHero] = useState({});
 
-  const [footerData, setFooterData] = useState({ aboutText: 'Lạy Chúa, xin cho chúng con được hiệp nhất trong tình yêu và sự phục vụ.', facebookLink: '#' });
+  const [footerData, setFooterData] = useState({
+    aboutText: 'Lạy Chúa, xin cho chúng con được hiệp nhất trong tình yêu và sự phục vụ.',
+    facebookLink: '#'
+  });
   const [editingFooter, setEditingFooter] = useState(false);
   const [tempFooter, setTempFooter] = useState({});
   const [editingQuickPhone, setEditingQuickPhone] = useState(false);
 
-  // --- States Dữ Liệu ---
+  // --- States Dữ Liệu Chung ---
   const [parishStats, setParishStats] = useState({ population: '5,420', priest: 'Lm. Giuse Nguyễn Văn A', patron: 'Các Thánh Tử Đạo VN', address: '123 Các Thánh Tử Đạo, TP.HCM' });
   const [quote, setQuote] = useState({ text: "<p>Ta là bánh hằng sống từ trời xuống. Ai ăn bánh này, sẽ được sống muôn đời.</p>", ref: "Ga 6, 51" });
-  const [massSchedules, setMassSchedules] = useState(initialMassSchedules);
+  const [massSchedules, setMassSchedules] = useState([]);
   
-  const [contactInfo, setContactInfo] = useState({ title: "Liên Hệ Văn Phòng Giáo Xứ", address: "123 Các Thánh Tử Đạo, Phường Hoàng Yên, Quận 1, TP. HCM", phone: "(028) 1234 5678", email: "vanphong@giaoxuhoangyen.vn", hours: "Sáng: 08:00 - 11:30 | Chiều: 14:00 - 17:00 (Nghỉ Thứ Hai)", mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.5132741062075!2d106.69744577481812!3d10.771944789376665!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f40a3b49e59%3A0xa1bd14e483a602db!2sNotre%20Dame%20Cathedral%20of%20Saigon!5e0!3m2!1sen!2s!4v1714202353111!5m2!1sen!2s" });
+  // --- States Tab Liên Hệ ---
+  const [contactInfo, setContactInfo] = useState({
+    title: "Liên Hệ Văn Phòng Giáo Xứ",
+    address: "123 Các Thánh Tử Đạo, Phường Hoàng Yên, Quận 1, TP. HCM",
+    phone: "(028) 1234 5678",
+    email: "vanphong@giaoxuhoangyen.vn",
+    hours: "Sáng: 08:00 - 11:30 | Chiều: 14:00 - 17:00 (Nghỉ Thứ Hai)",
+    mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.5132741062075!2d106.69744577481812!3d10.771944789376665!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f40a3b49e59%3A0xa1bd14e483a602db!2sNotre%20Dame%20Cathedral%20of%20Saigon!5e0!3m2!1sen!2s!4v1714202353111!5m2!1sen!2s"
+  });
   const [formStatus, setFormStatus] = useState('');
 
+  // --- States Tab Phụng Vụ ---
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [liturgyEvents, setLiturgyEvents] = useState(getInitialLiturgyEvents());
+  const [liturgyEvents, setLiturgyEvents] = useState([]);
   const [confessionData, setConfessionData] = useState({ title: "Bí Tích Giao Hòa", desc: "Trước các Thánh lễ ngày thường 30 phút và vào các giờ cố định chiều Thứ Bảy hằng tuần." });
   const [adorationData, setAdorationData] = useState({ title: "Chầu Thánh Thể", desc: "Thứ Năm hằng tuần từ 19:00 - 20:00 và Thứ Sáu đầu tháng sau lễ chiều." });
 
-  const [historyData, setHistoryData] = useState({ title: "Dấu Ấn Lịch Sử", content: "<img src='https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop' style='float: left; margin: 0.5rem 1.5rem 1rem 0; width: 40%; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);' /><p>Giáo xứ Hoàng Yên được hình thành từ những hạt giống tin mừng đầu tiên gieo rắc vào cuối thế kỷ 19.</p>" });
+  // --- States Tab Giới Thiệu ---
+  const [historyData, setHistoryData] = useState({
+    title: "Dấu Ấn Lịch Sử",
+    content: "<img src='https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop' style='float: left; margin: 0.5rem 1.5rem 1rem 0; width: 40%; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);' /><p>Giáo xứ Hoàng Yên được hình thành từ những hạt giống tin mừng đầu tiên gieo rắc vào cuối thế kỷ 19. Trải qua bao thăng trầm của thời cuộc, nay đã trở thành trung tâm đức tin kiên trung của vùng đất này.</p>"
+  });
   const [heritageTitle, setHeritageTitle] = useState("Gia Sản Thiêng Liêng");
-  const [heritageList, setHeritageList] = useState(initialHeritageList);
-  const [pastoralData, setPastoralData] = useState({ title: "Định Hướng Mục Vụ", content: `<h4>01. Đào Tạo Đức Tin Giới Trẻ</h4><p>Chú trọng sâu sát vào việc giáo dục nhân bản và giáo lý cho thiếu nhi.</p>` });
+  const [heritageList, setHeritageList] = useState([]);
+  const [pastoralData, setPastoralData] = useState({
+    title: "Định Hướng Mục Vụ",
+    content: `<h4>01. Đào Tạo Đức Tin Giới Trẻ</h4><p>Chú trọng sâu sát vào việc giáo dục nhân bản và giáo lý cho thiếu nhi, thanh giới trẻ.</p>`
+  });
 
-  const [pilgrimagePlans, setPilgrimagePlans] = useState(initialPilgrimageData);
-  const [receptionInfo, setReceptionInfo] = useState({ item1Title: "Đăng ký đoàn", item1Desc: "Quý đoàn vui lòng báo trước 3 ngày để Giáo xứ sắp xếp giờ lễ riêng.", item2Title: "Cơ sở vật chất", item2Desc: "Khuôn viên có bãi đỗ xe rộng rãi cho xe khách 45 chỗ.", item3Title: "Hỗ trợ trực tiếp", item3Desc: "Liên hệ Văn phòng Đền Thánh để được hỗ trợ tốt nhất.", item3Phone: "090.123.4567" });
+  // --- States Tab Hành Hương ---
+  const [pilgrimagePlans, setPilgrimagePlans] = useState([]);
+  const [receptionInfo, setReceptionInfo] = useState({
+    item1Title: "Đăng ký đoàn", item1Desc: "Quý đoàn vui lòng báo trước 3 ngày để Giáo xứ sắp xếp giờ lễ riêng.",
+    item2Title: "Cơ sở vật chất", item2Desc: "Khuôn viên có bãi đỗ xe rộng rãi cho xe khách 45 chỗ.",
+    item3Title: "Hỗ trợ trực tiếp", item3Desc: "Liên hệ Văn phòng Đền Thánh để được hỗ trợ tốt nhất.", item3Phone: "090.123.4567"
+  });
 
-  const [newsItems, setNewsItems] = useState(initialNewsData);
+  // --- States Tab Tin Tức ---
+  const [newsItems, setNewsItems] = useState([]);
 
+  // --- States View Detail & Pagination ---
   const [selectedNews, setSelectedNews] = useState(null);
   const [selectedPilgrimage, setSelectedPilgrimage] = useState(null);
   const [lastTab, setLastTab] = useState('Home');
@@ -340,37 +359,104 @@ export default function App() {
   const [pilgrimagePage, setPilgrimagePage] = useState(1);
   const [returnToNews, setReturnToNews] = useState(false);
 
-  const [editingQuote, setEditingQuote] = useState(false); const [tempQuote, setTempQuote] = useState({});
-  const [editingStats, setEditingStats] = useState(false); const [tempStats, setTempStats] = useState({});
-  const [editingMass, setEditingMass] = useState(false); const [tempMass, setTempMass] = useState([]);
-  const [editingContact, setEditingContact] = useState(false); const [tempContact, setTempContact] = useState({});
-  const [editingHistory, setEditingHistory] = useState(false); const [tempHistory, setTempHistory] = useState({});
-  const [editingHeritageTitle, setEditingHeritageTitle] = useState(false); const [tempHeritageTitle, setTempHeritageTitle] = useState("");
-  const [editingHeritageItem, setEditingHeritageItem] = useState(null); const [tempHeritageItem, setTempHeritageItem] = useState(null);
-  const [editingPastoral, setEditingPastoral] = useState(false); const [tempPastoral, setTempPastoral] = useState({});
-  const [editingNews, setEditingNews] = useState(null); const [tempNews, setTempNews] = useState(null);
-  const [editingPilgrimage, setEditingPilgrimage] = useState(null); const [tempPilgrimage, setTempPilgrimage] = useState(null);
-  const [editingReception, setEditingReception] = useState(false); const [tempReception, setTempReception] = useState({});
-  const [editingLiturgyEvent, setEditingLiturgyEvent] = useState(false); const [tempLiturgyEvent, setTempLiturgyEvent] = useState(null);
-  const [editingConfession, setEditingConfession] = useState(false); const [tempConfession, setTempConfession] = useState({});
-  const [editingAdoration, setEditingAdoration] = useState(false); const [tempAdoration, setTempAdoration] = useState({});
+  // --- States Quản lý Modals Edit (Temp Data) ---
+  const [editingQuote, setEditingQuote] = useState(false);
+  const [tempQuote, setTempQuote] = useState({});
+  const [editingStats, setEditingStats] = useState(false);
+  const [tempStats, setTempStats] = useState({});
+  const [editingMass, setEditingMass] = useState(false);
+  const [tempMass, setTempMass] = useState([]);
+  const [editingContact, setEditingContact] = useState(false);
+  const [tempContact, setTempContact] = useState({});
+  const [editingHistory, setEditingHistory] = useState(false);
+  const [tempHistory, setTempHistory] = useState({});
+  const [editingHeritageTitle, setEditingHeritageTitle] = useState(false);
+  const [tempHeritageTitle, setTempHeritageTitle] = useState("");
+  const [editingHeritageItem, setEditingHeritageItem] = useState(null);
+  const [tempHeritageItem, setTempHeritageItem] = useState(null);
+  const [editingPastoral, setEditingPastoral] = useState(false);
+  const [tempPastoral, setTempPastoral] = useState({});
+  const [editingNews, setEditingNews] = useState(null);
+  const [tempNews, setTempNews] = useState(null);
+  const [editingPilgrimage, setEditingPilgrimage] = useState(null);
+  const [tempPilgrimage, setTempPilgrimage] = useState(null);
+  const [editingReception, setEditingReception] = useState(false);
+  const [tempReception, setTempReception] = useState({});
+  const [editingLiturgyEvent, setEditingLiturgyEvent] = useState(false);
+  const [tempLiturgyEvent, setTempLiturgyEvent] = useState(null);
+  const [editingConfession, setEditingConfession] = useState(false);
+  const [tempConfession, setTempConfession] = useState({});
+  const [editingAdoration, setEditingAdoration] = useState(false);
+  const [tempAdoration, setTempAdoration] = useState({});
 
 
   // ==========================================
-  // FIREBASE SYNC & AUTO SEEDING
+  // FIREBASE INITIALIZATION & SYNC
   // ==========================================
+  
+  // 1. Authenticate FIRST
   useEffect(() => {
-    if (!db) return;
-
-    // Lắng nghe và tự động tạo dữ liệu mẫu nếu CSDL trống (Auto-Seeding)
-    const unsubConfig = onSnapshot(doc(db, 'hoangyen_db', 'config'), (docSnap) => {
-        if (!docSnap.exists()) {
-            console.log("Firebase trống. Đang khởi tạo dữ liệu mẫu...");
-            setDoc(doc(db, 'hoangyen_db', 'config'), {
-                parishStats, quote, massSchedules, contactInfo, confessionData, adorationData, 
-                historyData, heritageTitle, heritageList, pastoralData, receptionInfo, logoConfig, heroData, footerData
-            }, { merge: true });
+    if (!auth) return;
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
         } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.error("Lỗi xác thực Firebase:", err);
+      }
+    };
+    initAuth();
+    
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setFirebaseUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 2. Data Synchronization (Bọc Try-Catch chống Crash)
+  useEffect(() => {
+    if (!firebaseUser || !db) return;
+
+    let unsubNews, unsubPilgrimages, unsubLiturgy, unsubConfig;
+
+    try {
+      unsubNews = onSnapshot(
+        collection(db, 'artifacts', appId, 'public', 'data', 'news'),
+        (snapshot) => {
+          const items = [];
+          snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+          setNewsItems(items.sort((a,b) => b.id - a.id));
+        },
+        (err) => console.error("Firebase lỗi lấy News:", err)
+      );
+
+      unsubPilgrimages = onSnapshot(
+        collection(db, 'artifacts', appId, 'public', 'data', 'pilgrimages'),
+        (snapshot) => {
+          const items = [];
+          snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+          setPilgrimagePlans(items);
+        },
+        (err) => console.error("Firebase lỗi lấy Pilgrimage:", err)
+      );
+
+      unsubLiturgy = onSnapshot(
+        collection(db, 'artifacts', appId, 'public', 'data', 'liturgy'),
+        (snapshot) => {
+          const items = [];
+          snapshot.forEach(doc => items.push(doc.data()));
+          setLiturgyEvents(items);
+        },
+        (err) => console.error("Firebase lỗi lấy Liturgy:", err)
+      );
+
+      unsubConfig = onSnapshot(
+        doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'),
+        (docSnap) => {
+          if (docSnap.exists()) {
             const d = docSnap.data();
             if (d.parishStats) setParishStats(d.parishStats);
             if (d.massSchedules) setMassSchedules(d.massSchedules);
@@ -386,44 +472,30 @@ export default function App() {
             if (d.logoConfig) setLogoConfig(d.logoConfig);
             if (d.heroData) setHeroData(d.heroData);
             if (d.footerData) setFooterData(d.footerData);
-        }
-    });
+          }
+        },
+        (err) => console.error("Firebase lỗi lấy Config:", err)
+      );
+    } catch (err) {
+      console.error("Lỗi khi thiết lập listeners Firebase:", err);
+    }
 
-    const unsubNews = onSnapshot(collection(db, 'hoangyen_news'), (snapshot) => {
-        if (snapshot.empty) {
-            initialNewsData.forEach(async (item) => { await setDoc(doc(db, 'hoangyen_news', item.id.toString()), item); });
-        } else {
-            const items = []; snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
-            setNewsItems(items.sort((a,b) => b.id - a.id));
-        }
-    });
+    return () => {
+      if(unsubNews) unsubNews();
+      if(unsubPilgrimages) unsubPilgrimages();
+      if(unsubLiturgy) unsubLiturgy();
+      if(unsubConfig) unsubConfig();
+    };
+  }, [firebaseUser]);
 
-    const unsubPilgrimages = onSnapshot(collection(db, 'hoangyen_pilgrimages'), (snapshot) => {
-        if (snapshot.empty) {
-            initialPilgrimageData.forEach(async (item) => { await setDoc(doc(db, 'hoangyen_pilgrimages', item.id.toString()), item); });
-        } else {
-            const items = []; snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
-            setPilgrimagePlans(items);
-        }
-    });
-
-    const unsubLiturgy = onSnapshot(collection(db, 'hoangyen_liturgy'), (snapshot) => {
-        if (snapshot.empty) {
-            getInitialLiturgyEvents().forEach(async (item) => { await setDoc(doc(db, 'hoangyen_liturgy', item.date), item); });
-        } else {
-            const items = []; snapshot.forEach(doc => items.push(doc.data()));
-            setLiturgyEvents(items);
-        }
-    });
-
-    return () => { unsubConfig(); unsubNews(); unsubPilgrimages(); unsubLiturgy(); };
-  }, []);
-
-  // Hàm ghi dữ liệu an toàn
+  // --- Hàm hỗ trợ ghi dữ liệu lên Firebase ---
   const saveConfigToDB = async (key, value) => {
-    if (!db) return;
-    try { await setDoc(doc(db, 'hoangyen_db', 'config'), { [key]: value }, { merge: true }); } 
-    catch (err) { console.error("Lỗi khi lưu DB:", err); }
+    if (!db || !firebaseUser) return;
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'), { [key]: value }, { merge: true });
+    } catch (err) {
+      console.error("Lỗi khi lưu DB:", err);
+    }
   };
 
   // ==========================================
@@ -440,7 +512,10 @@ export default function App() {
     if (activeTab === 'Home' && returnToNews) {
       setTimeout(() => {
         const el = document.getElementById('news-section');
-        if (el) { window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' }); }
+        if (el) {
+          const y = el.getBoundingClientRect().top + window.scrollY - 80;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
       }, 100);
       setReturnToNews(false);
     } else {
@@ -449,43 +524,66 @@ export default function App() {
   }, [activeTab, returnToNews]);
 
   const handleLoginSubmit = () => {
-    if (password === ADMIN_PASSWORD) { setIsAdmin(true); localStorage.setItem('isAdmin', 'true'); setShowLoginModal(false); setPassword(''); setLoginError(''); }
+    if (password === ADMIN_PASSWORD) { setIsAdmin(true); setShowLoginModal(false); setPassword(''); setLoginError(''); }
     else setLoginError('Mật khẩu không chính xác!');
   };
 
-  const handleLogout = () => { setIsAdmin(false); localStorage.removeItem('isAdmin'); };
-  const handleContactSubmit = (e) => { e.preventDefault(); setFormStatus('success'); setTimeout(() => setFormStatus(''), 4000); e.target.reset(); };
-  const getTodayFormattedStr = () => { const today = new Date(); return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`; };
+  const handleContactSubmit = (e) => {
+    e.preventDefault();
+    setFormStatus('success');
+    setTimeout(() => setFormStatus(''), 4000);
+    e.target.reset();
+  };
+
+  const getTodayFormattedStr = () => {
+    const today = new Date();
+    return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+  };
 
   const handleImagePaste = (e, setterFunction) => {
     const items = (e.clipboardData || e.originalEvent.clipboardData).items;
     for (let index in items) {
       const item = items[index];
       if (item.kind === 'file' && item.type.startsWith('image/')) {
-        const reader = new FileReader(); reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result })); reader.readAsDataURL(item.getAsFile()); e.preventDefault(); break;
+        const reader = new FileReader();
+        reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result }));
+        reader.readAsDataURL(item.getAsFile());
+        e.preventDefault();
+        break;
       }
     }
   };
 
   const handleImageUpload = (e, setterFunction) => {
     const file = e.target.files[0];
-    if (file) { const reader = new FileReader(); reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result })); reader.readAsDataURL(file); }
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result }));
+      reader.readAsDataURL(file);
+    }
   };
 
   const prevMonth = () => { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1)); };
   const nextMonth = () => { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1)); };
+
   const isSolidHeader = scrolled || activeTab !== 'Home';
 
   // --- RENDER CONTENT THÔNG MINH ---
   const renderContent = () => {
     switch (activeTab) {
+      
+      // ==========================================
+      // TAB: LIÊN HỆ
+      // ==========================================
       case 'Contact': {
         return (
           <div className="py-20 md:py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
             <div className="max-w-6xl mx-auto px-4 lg:px-6">
               <div className="text-center mb-16">
                 <h2 className="text-3xl md:text-5xl font-serif font-bold text-pink-950 mb-4 uppercase tracking-widest leading-tight">Liên Hệ</h2>
-                <div className="flex items-center justify-center space-x-3 mb-6"><div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div></div>
+                <div className="flex items-center justify-center space-x-3 mb-6">
+                  <div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div>
+                </div>
                 <p className="text-stone-500 font-serif text-sm md:text-base max-w-2xl mx-auto italic text-center">"Hãy gõ, cửa sẽ mở cho anh em." (Mt 7, 7)</p>
               </div>
 
@@ -495,26 +593,64 @@ export default function App() {
                     {isAdmin && <button onClick={() => { setTempContact(contactInfo); setEditingContact(true); }} className="absolute top-4 right-4 p-2 bg-pink-600 text-white rounded-full shadow-md transition active:scale-90 hover:bg-pink-700"><Edit3 size={14}/></button>}
                     <h3 className="text-xl font-bold text-pink-950 uppercase mb-8 pb-4 border-b border-pink-50 flex items-center gap-3"><Mail className="text-pink-600" /> {contactInfo.title || ''}</h3>
                     <ul className="space-y-6">
-                      <li className="flex gap-4"><div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><MapPin size={18} className="text-pink-600"/></div><div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Địa chỉ</span><p className="text-sm font-serif text-stone-700 leading-relaxed">{contactInfo.address || ''}</p></div></li>
-                      <li className="flex gap-4"><div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><Phone size={18} className="text-pink-600"/></div><div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Điện thoại</span><p className="text-lg font-bold text-pink-900">{contactInfo.phone || ''}</p></div></li>
-                      <li className="flex gap-4"><div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><Mail size={18} className="text-pink-600"/></div><div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email</span><p className="text-sm font-serif text-stone-700">{contactInfo.email || ''}</p></div></li>
-                      <li className="flex gap-4"><div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><Clock size={18} className="text-pink-600"/></div><div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Giờ làm việc</span><p className="text-sm font-serif text-stone-700 italic">{contactInfo.hours || ''}</p></div></li>
+                      <li className="flex gap-4">
+                        <div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><MapPin size={18} className="text-pink-600"/></div>
+                        <div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Địa chỉ</span><p className="text-sm font-serif text-stone-700 leading-relaxed">{contactInfo.address || ''}</p></div>
+                      </li>
+                      <li className="flex gap-4">
+                        <div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><Phone size={18} className="text-pink-600"/></div>
+                        <div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Điện thoại</span><p className="text-lg font-bold text-pink-900">{contactInfo.phone || ''}</p></div>
+                      </li>
+                      <li className="flex gap-4">
+                        <div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><Mail size={18} className="text-pink-600"/></div>
+                        <div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email</span><p className="text-sm font-serif text-stone-700">{contactInfo.email || ''}</p></div>
+                      </li>
+                      <li className="flex gap-4">
+                        <div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><Clock size={18} className="text-pink-600"/></div>
+                        <div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Giờ làm việc</span><p className="text-sm font-serif text-stone-700 italic">{contactInfo.hours || ''}</p></div>
+                      </li>
                     </ul>
                   </div>
+
+                  {/* Bản đồ Google Maps */}
                   <div className="bg-stone-200 rounded-2xl flex-1 min-h-[300px] shadow-inner overflow-hidden relative border border-stone-300 flex items-center justify-center">
-                    {contactInfo.mapUrl ? <iframe src={contactInfo.mapUrl} className="w-full h-full absolute inset-0" style={{ border: 0 }} allowFullScreen="" loading="lazy" referrerPolicy="no-referrer-when-downgrade"></iframe> : <div className="text-center opacity-40"><MapPin size={48} className="mx-auto mb-2"/><p className="text-xs font-bold uppercase tracking-widest">Bản đồ Đền Thánh</p></div>}
+                    {contactInfo.mapUrl ? (
+                      <iframe 
+                        src={contactInfo.mapUrl} 
+                        className="w-full h-full absolute inset-0"
+                        style={{ border: 0 }} 
+                        allowFullScreen="" 
+                        loading="lazy" 
+                        referrerPolicy="no-referrer-when-downgrade"
+                      ></iframe>
+                    ) : (
+                      <div className="text-center opacity-40"><MapPin size={48} className="mx-auto mb-2"/><p className="text-xs font-bold uppercase tracking-widest">Bản đồ Đền Thánh</p></div>
+                    )}
                   </div>
                 </div>
 
+                {/* Form gửi yêu cầu */}
                 <div className="bg-white p-8 rounded-2xl shadow-lg border border-pink-50 h-full flex flex-col">
                   <h3 className="text-xl font-bold text-pink-950 uppercase mb-6 pb-4 border-b border-pink-50 flex items-center gap-3"><MessageSquare className="text-pink-600" /> Gửi Ý Nguyện & Góp Ý</h3>
-                  {formStatus === 'success' && <div className="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2"><CheckCircle2 size={20} className="text-emerald-500" /><span className="text-sm font-bold">Gửi thông tin thành công! Xin cảm ơn bạn.</span></div>}
+                  {formStatus === 'success' && (
+                    <div className="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                      <CheckCircle2 size={20} className="text-emerald-500" />
+                      <span className="text-sm font-bold">Gửi thông tin thành công! Xin cảm ơn bạn.</span>
+                    </div>
+                  )}
                   <form className="space-y-5 flex-1 flex flex-col" onSubmit={handleContactSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Họ và tên</label><input type="text" required className="w-full border border-stone-200 bg-stone-50 p-3 rounded text-sm focus:border-pink-500 focus:bg-white outline-none transition" placeholder="Tên của bạn..." /></div>
                       <div><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Số điện thoại</label><input type="text" required className="w-full border border-stone-200 bg-stone-50 p-3 rounded text-sm focus:border-pink-500 focus:bg-white outline-none transition" placeholder="Số liên lạc..." /></div>
                     </div>
-                    <div><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Chủ đề</label><select className="w-full border border-stone-200 bg-stone-50 p-3 rounded text-sm focus:border-pink-500 focus:bg-white outline-none transition cursor-pointer"><option>Gửi ý lễ / Xin ơn</option><option>Góp ý xây dựng Giáo xứ</option><option>Hỏi đáp thủ tục Bí tích</option><option>Liên hệ công việc khác</option></select></div>
+                    <div><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Chủ đề</label>
+                      <select className="w-full border border-stone-200 bg-stone-50 p-3 rounded text-sm focus:border-pink-500 focus:bg-white outline-none transition cursor-pointer">
+                        <option>Gửi ý lễ / Xin ơn</option>
+                        <option>Góp ý xây dựng Giáo xứ</option>
+                        <option>Hỏi đáp thủ tục Bí tích</option>
+                        <option>Liên hệ công việc khác</option>
+                      </select>
+                    </div>
                     <div className="flex-1 flex flex-col"><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Nội dung</label><textarea required className="w-full flex-1 border border-stone-200 bg-stone-50 p-3 rounded text-sm min-h-[120px] focus:border-pink-500 focus:bg-white outline-none transition resize-none font-serif" placeholder="Nhập nội dung ý nguyện hoặc góp ý của bạn tại đây..."></textarea></div>
                     <button type="submit" className="w-full bg-pink-700 hover:bg-pink-800 text-white font-bold py-4 rounded-lg shadow-md active:scale-95 transition-all uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-2 mt-4">Gửi Thông Tin <Send size={14}/></button>
                   </form>
@@ -525,6 +661,9 @@ export default function App() {
         );
       }
 
+      // ==========================================
+      // TAB: PHỤNG VỤ
+      // ==========================================
       case 'Liturgy': {
         const selectedDateStr = formatDateString(selectedDate);
         const eventOfDay = liturgyEvents.find(e => e.date === selectedDateStr);
@@ -540,7 +679,7 @@ export default function App() {
                   {isAdmin && <button onClick={() => { setTempMass([...massSchedules]); setEditingMass(true); }} className="absolute top-3 right-3 p-1.5 bg-pink-600 text-white rounded-full shadow-md"><Edit3 size={14}/></button>}
                   <h3 className="text-lg font-bold mb-5 uppercase text-pink-700 flex items-center gap-2"><Clock size={18}/> Giờ Lễ Chung</h3>
                   <div className="space-y-3">
-                    {massSchedules.map((item, idx) => (
+                    {(massSchedules.length > 0 ? massSchedules : [{day: 'Trống', times:[]}]).map((item, idx) => (
                       <div key={idx} className="flex justify-between p-3 bg-stone-50 rounded-lg text-[10px] font-bold">
                         <span className="text-pink-800 uppercase">{item.day}</span>
                         <div className="flex gap-1">{item.times.map((t, i) => <span key={i} className="bg-white border px-1.5 py-0.5 rounded">{t}</span>)}</div>
@@ -550,13 +689,13 @@ export default function App() {
                 </div>
                 <div className="bg-white p-6 shadow-lg shadow-purple-100 border-t-4 border-purple-500 rounded-xl relative group">
                   {isAdmin && <button onClick={() => { setTempConfession(confessionData); setEditingConfession(true); }} className="absolute top-3 right-3 p-1.5 bg-purple-600 text-white rounded-full shadow-md"><Edit3 size={14}/></button>}
-                  <h3 className="text-lg font-bold text-purple-700 mb-3 flex items-center gap-2"><Heart size={18}/> {confessionData.title || ''}</h3>
-                  <p className="font-serif text-sm leading-relaxed text-stone-600 whitespace-pre-wrap">{confessionData.desc || ''}</p>
+                  <h3 className="text-lg font-bold text-purple-700 mb-3 flex items-center gap-2"><Heart size={18}/> {confessionData.title || 'Bí Tích'}</h3>
+                  <p className="font-serif text-sm leading-relaxed text-stone-600 whitespace-pre-wrap">{confessionData.desc || 'Đang cập nhật'}</p>
                 </div>
                 <div className="bg-white p-6 shadow-lg shadow-amber-100 border-t-4 border-amber-500 rounded-xl relative group">
                   {isAdmin && <button onClick={() => { setTempAdoration(adorationData); setEditingAdoration(true); }} className="absolute top-3 right-3 p-1.5 bg-amber-600 text-white rounded-full shadow-md"><Edit3 size={14}/></button>}
-                  <h3 className="text-lg font-bold text-amber-700 mb-3 flex items-center gap-2"><BookOpen size={18}/> {adorationData.title || ''}</h3>
-                  <p className="font-serif text-sm leading-relaxed text-stone-600 whitespace-pre-wrap">{adorationData.desc || ''}</p>
+                  <h3 className="text-lg font-bold text-amber-700 mb-3 flex items-center gap-2"><BookOpen size={18}/> {adorationData.title || 'Hoạt Động'}</h3>
+                  <p className="font-serif text-sm leading-relaxed text-stone-600 whitespace-pre-wrap">{adorationData.desc || 'Đang cập nhật'}</p>
                 </div>
               </div>
 
@@ -601,6 +740,9 @@ export default function App() {
         );
       }
 
+      // ==========================================
+      // TAB: HÀNH HƯƠNG (PILGRIMAGE)
+      // ==========================================
       case 'Pilgrimage': {
         const totalPilgrimagePages = Math.ceil(pilgrimagePlans.length / itemsPerPage);
         const currentPilgrimagePlans = pilgrimagePlans.slice((pilgrimagePage - 1) * itemsPerPage, pilgrimagePage * itemsPerPage);
@@ -610,24 +752,40 @@ export default function App() {
             <div className="max-w-5xl mx-auto px-4 lg:px-6">
               <div className="text-center mb-16">
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-pink-950 mb-4 uppercase tracking-widest leading-tight text-center">Trung Tâm Hành Hương</h2>
-                <div className="flex items-center justify-center space-x-3 mb-6"><div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div></div>
+                <div className="flex items-center justify-center space-x-3 mb-6">
+                  <div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div>
+                </div>
                 <p className="text-stone-500 font-serif text-sm md:text-base max-w-2xl mx-auto italic text-center leading-relaxed">"Phúc thay ai lấy Chúa làm sức mạnh, quyết tâm tiến bước hành hương." (Tv 84, 6)</p>
               </div>
 
               <div className="mb-16">
                 <div className="flex justify-between items-center mb-8 border-b border-pink-100 pb-4 relative">
                   <h3 className="text-xl md:text-2xl font-serif font-bold text-pink-950 uppercase tracking-widest">Kế Hoạch Hành Hương</h3>
-                  {isAdmin && <button onClick={() => { setTempPilgrimage({ id: Date.now(), title: '', date: '', duration: '', status: 'Sắp diễn ra', desc: '', image: '', content: '' }); setEditingPilgrimage('new'); }} className="px-4 py-2 bg-pink-600 text-white text-[11px] font-bold rounded shadow-md transition-all active:scale-95 flex items-center gap-1">+ Thêm Kế Hoạch</button>}
+                  {isAdmin && (
+                    <button onClick={() => { setTempPilgrimage({ id: Date.now(), title: '', date: '', duration: '', status: 'Sắp diễn ra', desc: '', image: '', content: '' }); setEditingPilgrimage('new'); }} className="px-4 py-2 bg-pink-600 text-white text-[11px] font-bold rounded shadow-md transition-all active:scale-95 flex items-center gap-1">
+                      + Thêm Kế Hoạch
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-6">
                   {currentPilgrimagePlans.map(plan => (
-                    <div key={plan.id} onClick={() => { setSelectedPilgrimage(plan); setActiveTab('PilgrimageDetail'); window.scrollTo(0,0); }} className="group flex flex-col sm:flex-row bg-white rounded-xl shadow-md border border-pink-50 overflow-hidden cursor-pointer hover:shadow-lg hover:border-pink-300 transition-all relative">
+                    <div 
+                      key={plan.id} 
+                      onClick={() => { setSelectedPilgrimage(plan); setActiveTab('PilgrimageDetail'); window.scrollTo(0,0); }}
+                      className="group flex flex-col sm:flex-row bg-white rounded-xl shadow-md border border-pink-50 overflow-hidden cursor-pointer hover:shadow-lg hover:border-pink-300 transition-all relative"
+                    >
                       {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempPilgrimage(plan); setEditingPilgrimage(plan.id); }} className="absolute top-3 right-3 z-20 p-1.5 bg-white/80 backdrop-blur-sm text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={14} /></button>}
+                      
                       <div className="sm:w-56 h-48 sm:h-auto flex-shrink-0 relative overflow-hidden bg-stone-100">
-                        <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"><img src={plan.image} style={getImgStyle(plan)} className="w-full h-full block" alt={plan.title} /></div>
-                        <div className="absolute top-3 left-3"><span className={`text-[10px] font-bold px-2 py-1 rounded shadow-sm border ${getStatusStyles(plan.status)} uppercase tracking-wider`}>{plan.status}</span></div>
+                        <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+                           <img src={plan.image} style={getImgStyle(plan)} className="w-full h-full block" alt={plan.title} />
+                        </div>
+                        <div className="absolute top-3 left-3">
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded shadow-sm border ${getStatusStyles(plan.status)} uppercase tracking-wider`}>{plan.status}</span>
+                        </div>
                       </div>
+                      
                       <div className="p-6 flex flex-col justify-center flex-1">
                         <h4 className="text-lg md:text-xl font-serif font-bold text-pink-950 mb-3 group-hover:text-pink-700 transition leading-snug line-clamp-2">{plan.title}</h4>
                         <div className="flex flex-wrap gap-4 mb-4">
@@ -638,13 +796,27 @@ export default function App() {
                       </div>
                     </div>
                   ))}
-                  {pilgrimagePlans.length === 0 && <div className="text-center py-12 bg-stone-50 rounded-xl border border-stone-100"><MapPin className="mx-auto text-stone-300 mb-4" size={32} /><p className="text-stone-500 font-serif">Hiện tại chưa có kế hoạch hành hương nào.</p></div>}
+
+                  {pilgrimagePlans.length === 0 && (
+                    <div className="text-center py-12 bg-stone-50 rounded-xl border border-stone-100">
+                      <MapPin className="mx-auto text-stone-300 mb-4" size={32} />
+                      <p className="text-stone-500 font-serif">Hiện tại chưa có kế hoạch hành hương nào.</p>
+                    </div>
+                  )}
                 </div>
 
                 {totalPilgrimagePages > 1 && (
                   <div className="flex justify-center items-center space-x-2 mt-10">
                     <button onClick={() => setPilgrimagePage(p => Math.max(1, p - 1))} disabled={pilgrimagePage === 1} className="p-2 rounded border border-pink-200 text-pink-600 hover:bg-pink-50 disabled:opacity-30 disabled:hover:bg-transparent transition"><ChevronLeft size={16}/></button>
-                    {Array.from({length: totalPilgrimagePages}, (_, i) => <button key={i+1} onClick={() => setPilgrimagePage(i+1)} className={`w-8 h-8 rounded text-sm font-bold transition ${pilgrimagePage === i + 1 ? 'bg-pink-600 text-white shadow-md' : 'text-stone-600 hover:bg-pink-50 border border-transparent hover:border-pink-200'}`}>{i + 1}</button>)}
+                    {Array.from({length: totalPilgrimagePages}, (_, i) => (
+                      <button 
+                        key={i+1} 
+                        onClick={() => setPilgrimagePage(i+1)} 
+                        className={`w-8 h-8 rounded text-sm font-bold transition ${pilgrimagePage === i + 1 ? 'bg-pink-600 text-white shadow-md' : 'text-stone-600 hover:bg-pink-50 border border-transparent hover:border-pink-200'}`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
                     <button onClick={() => setPilgrimagePage(p => Math.min(totalPilgrimagePages, p + 1))} disabled={pilgrimagePage === totalPilgrimagePages} className="p-2 rounded border border-pink-200 text-pink-600 hover:bg-pink-50 disabled:opacity-30 disabled:hover:bg-transparent transition"><ChevronRight size={16}/></button>
                   </div>
                 )}
@@ -652,31 +824,70 @@ export default function App() {
 
               <div className="mt-16 bg-pink-950 p-8 md:p-12 rounded-2xl shadow-xl text-pink-50 border-t-4 border-pink-400 relative group">
                 {isAdmin && <button onClick={() => { setTempReception(receptionInfo); setEditingReception(true); }} className="absolute top-4 right-4 z-20 p-2 bg-white/20 backdrop-blur-sm text-white rounded-full shadow-md transition hover:bg-pink-600 active:scale-90"><Edit3 size={16} /></button>}
-                <div className="text-center mb-10"><h3 className="text-2xl md:text-3xl font-serif font-bold text-white mb-4 uppercase tracking-tight flex items-center justify-center"><Heart className="mr-3 text-pink-400" size={28}/> Liên Hệ Đón Tiếp</h3><div className="h-[2px] w-16 bg-pink-800 mx-auto"></div></div>
+                <div className="text-center mb-10">
+                  <h3 className="text-2xl md:text-3xl font-serif font-bold text-white mb-4 uppercase tracking-tight flex items-center justify-center"><Heart className="mr-3 text-pink-400" size={28}/> Liên Hệ Đón Tiếp</h3>
+                  <div className="h-[2px] w-16 bg-pink-800 mx-auto"></div>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
-                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50"><div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50"><Users className="text-pink-300" size={24} /></div><h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item1Title || ''}</h4><p className="font-serif text-sm leading-relaxed opacity-90 whitespace-pre-wrap">{receptionInfo.item1Desc || ''}</p></div>
-                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50"><div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50"><MapPin className="text-pink-300" size={24} /></div><h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item2Title || ''}</h4><p className="font-serif text-sm leading-relaxed opacity-90 whitespace-pre-wrap">{receptionInfo.item2Desc || ''}</p></div>
-                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50"><div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50"><Phone className="text-pink-300" size={24} /></div><h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item3Title || ''}</h4><p className="font-serif text-sm leading-relaxed opacity-90 mb-3 whitespace-pre-wrap">{receptionInfo.item3Desc || ''}</p><strong className="text-xl text-white block mt-auto">{receptionInfo.item3Phone || ''}</strong></div>
+                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50">
+                    <div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50">
+                      <Users className="text-pink-300" size={24} />
+                    </div>
+                    <h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item1Title || 'Đăng ký đoàn'}</h4>
+                    <p className="font-serif text-sm leading-relaxed opacity-90 whitespace-pre-wrap">{receptionInfo.item1Desc || ''}</p>
+                  </div>
+                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50">
+                    <div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50">
+                      <MapPin className="text-pink-300" size={24} />
+                    </div>
+                    <h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item2Title || 'Cơ sở vật chất'}</h4>
+                    <p className="font-serif text-sm leading-relaxed opacity-90 whitespace-pre-wrap">{receptionInfo.item2Desc || ''}</p>
+                  </div>
+                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50">
+                    <div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50">
+                      <Phone className="text-pink-300" size={24} />
+                    </div>
+                    <h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item3Title || 'Hỗ trợ'}</h4>
+                    <p className="font-serif text-sm leading-relaxed opacity-90 mb-3 whitespace-pre-wrap">{receptionInfo.item3Desc || ''}</p>
+                    <strong className="text-xl text-white block mt-auto">{receptionInfo.item3Phone || ''}</strong>
+                  </div>
                 </div>
               </div>
+
             </div>
           </div>
         );
       }
 
+      // ==========================================
+      // TAB: CHI TIẾT HÀNH HƯƠNG
+      // ==========================================
       case 'PilgrimageDetail': {
         if (!selectedPilgrimage) return null;
         return (
           <div className="py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
             <div className="max-w-4xl mx-auto px-4 lg:px-6">
               <button onClick={() => { setActiveTab('Pilgrimage'); window.scrollTo(0,0); }} className="flex items-center text-pink-700 hover:text-pink-900 mb-8 font-bold text-[11px] uppercase tracking-widest transition-transform hover:-translate-x-1"><ChevronLeft size={14} className="mr-1" /> Quay lại Kế hoạch Hành Hương</button>
+              
               <div className="bg-white rounded-2xl shadow-xl border border-pink-50 overflow-hidden relative">
                 {isAdmin && <button onClick={() => { setTempPilgrimage(selectedPilgrimage); setEditingPilgrimage(selectedPilgrimage.id); }} className="absolute top-4 right-4 z-20 p-2.5 bg-white/80 backdrop-blur-sm text-pink-700 rounded-full shadow-md transition active:scale-90 hover:bg-pink-600 hover:text-white"><Edit3 size={16} /></button>}
-                <div className="w-full aspect-[21/9] md:aspect-[21/7] overflow-hidden bg-stone-100 relative"><img src={selectedPilgrimage.image} style={getImgStyle(selectedPilgrimage)} className="w-full h-full block" alt="" /></div>
+                
+                <div className="w-full aspect-[21/9] md:aspect-[21/7] overflow-hidden bg-stone-100 relative">
+                  <img src={selectedPilgrimage.image} style={getImgStyle(selectedPilgrimage)} className="w-full h-full block" alt="" />
+                </div>
+                
                 <div className="p-8 md:p-12">
-                  <div className="mb-4"><span className={`text-[10px] font-bold px-3 py-1.5 rounded shadow-sm border ${getStatusStyles(selectedPilgrimage.status)} uppercase tracking-wider`}>{selectedPilgrimage.status}</span></div>
+                  <div className="mb-4">
+                    <span className={`text-[10px] font-bold px-3 py-1.5 rounded shadow-sm border ${getStatusStyles(selectedPilgrimage.status)} uppercase tracking-wider`}>{selectedPilgrimage.status}</span>
+                  </div>
                   <h1 className="text-3xl md:text-4xl font-serif font-bold text-pink-950 leading-tight mb-6">{selectedPilgrimage.title}</h1>
-                  <div className="flex flex-wrap gap-6 mb-10 pb-6 border-b border-pink-100"><span className="flex items-center text-xs font-bold text-stone-500 uppercase tracking-widest"><Calendar size={14} className="mr-2 text-pink-500" /> Ngày: {selectedPilgrimage.date}</span><span className="flex items-center text-xs font-bold text-stone-500 uppercase tracking-widest"><Clock size={14} className="mr-2 text-pink-500" /> Thời lượng: {selectedPilgrimage.duration}</span></div>
+                  
+                  <div className="flex flex-wrap gap-6 mb-10 pb-6 border-b border-pink-100">
+                    <span className="flex items-center text-xs font-bold text-stone-500 uppercase tracking-widest"><Calendar size={14} className="mr-2 text-pink-500" /> Ngày: {selectedPilgrimage.date}</span>
+                    <span className="flex items-center text-xs font-bold text-stone-500 uppercase tracking-widest"><Clock size={14} className="mr-2 text-pink-500" /> Thời lượng: {selectedPilgrimage.duration}</span>
+                  </div>
+
                   <p className="text-lg font-serif italic text-stone-600 mb-10 leading-relaxed border-l-4 border-pink-300 pl-4">{selectedPilgrimage.desc}</p>
                   <div className={editorContentClasses} dangerouslySetInnerHTML={{ __html: selectedPilgrimage.content || '' }} />
                 </div>
@@ -686,45 +897,74 @@ export default function App() {
         );
       }
 
+      // ==========================================
+      // TAB: GIỚI THIỆU (ABOUT)
+      // ==========================================
       case 'About': {
         return (
           <div className="py-20 md:py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
             <div className="max-w-6xl mx-auto px-4 lg:px-6">
+              
               <div className="text-center mb-16">
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-pink-950 mb-4 uppercase tracking-widest leading-tight text-center">Lịch Sử & Di Sản</h2>
-                <div className="flex items-center justify-center space-x-3 mb-6"><div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div></div>
+                <div className="flex items-center justify-center space-x-3 mb-6">
+                  <div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div>
+                </div>
                 <p className="text-stone-500 font-serif text-sm md:text-base max-w-2xl mx-auto italic text-center leading-relaxed">"Anh em hãy nhớ đến những người lãnh đạo đã giảng Lời Chúa cho anh em. Hãy nhìn xem kết cuộc đời họ mà noi gương đức tin của họ." (Dt 13, 7)</p>
               </div>
 
               <div className="mb-16 bg-white shadow-lg rounded-xl border border-pink-50 p-6 md:p-8 relative group">
                 {isAdmin && <button onClick={() => { setTempStats(parishStats); setEditingStats(true); }} className="absolute top-3 right-3 p-1.5 bg-pink-600 text-white rounded-full shadow-md"><Edit3 size={14} /></button>}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 divide-x-0 md:divide-x divide-pink-100">
-                  <div className="text-center px-2"><Users className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-2xl font-serif font-bold text-pink-950 tracking-tight mb-1">{parishStats.population || ''}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Giáo dân</span></div>
-                  <div className="text-center px-2"><User className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-base md:text-lg font-serif font-bold text-pink-950 tracking-tight mb-1 line-clamp-1">{parishStats.priest || ''}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Linh mục</span></div>
-                  <div className="text-center px-2"><Star className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-base md:text-lg font-serif font-bold text-pink-950 tracking-tight mb-1 line-clamp-1">{parishStats.patron || ''}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Bổn mạng</span></div>
-                  <div className="text-center px-2"><MapPin className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-base md:text-lg font-serif font-bold text-pink-950 tracking-tight mb-1 line-clamp-1">{parishStats.address || ''}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Địa chỉ</span></div>
+                  <div className="text-center px-2"><Users className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-2xl font-serif font-bold text-pink-950 tracking-tight mb-1">{parishStats.population || '0'}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Giáo dân</span></div>
+                  <div className="text-center px-2"><User className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-base md:text-lg font-serif font-bold text-pink-950 tracking-tight mb-1 line-clamp-1">{parishStats.priest || 'Đang cập nhật'}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Linh mục</span></div>
+                  <div className="text-center px-2"><Star className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-base md:text-lg font-serif font-bold text-pink-950 tracking-tight mb-1 line-clamp-1">{parishStats.patron || 'Đang cập nhật'}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Bổn mạng</span></div>
+                  <div className="text-center px-2"><MapPin className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-base md:text-lg font-serif font-bold text-pink-950 tracking-tight mb-1 line-clamp-1">{parishStats.address || 'Đang cập nhật'}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Địa chỉ</span></div>
                 </div>
               </div>
 
               <div className="mb-16 relative group bg-white p-6 md:p-10 rounded-2xl border border-pink-50 shadow-md">
                 {isAdmin && <button onClick={() => { setTempHistory(historyData); setEditingHistory(true); }} className="absolute top-4 right-4 z-20 p-2 bg-pink-600 text-white rounded-full shadow-md transition hover:bg-pink-700 active:scale-90"><Edit3 size={14} /></button>}
-                <div className="text-center mb-8"><h3 className="text-2xl md:text-3xl font-serif font-bold text-pink-950 uppercase tracking-widest">{historyData.title || ''}</h3><div className="h-[2px] w-16 bg-pink-200 mx-auto mt-4"></div></div>
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl md:text-3xl font-serif font-bold text-pink-950 uppercase tracking-widest">{historyData.title || ''}</h3>
+                  <div className="h-[2px] w-16 bg-pink-200 mx-auto mt-4"></div>
+                </div>
                 <div className={`max-h-[1200px] overflow-y-auto custom-scrollbar pr-4 ${editorContentClasses}`} dangerouslySetInnerHTML={{ __html: historyData.content || '' }} />
               </div>
 
               <div className="mb-16 relative group bg-white p-6 md:p-10 rounded-2xl border border-pink-50 shadow-md">
                 <div className="text-center mb-8 relative">
-                  <h3 className="text-2xl md:text-3xl font-serif font-bold text-pink-950 uppercase tracking-widest inline-flex items-center">{heritageTitle || ''}</h3>
+                  <h3 className="text-2xl md:text-3xl font-serif font-bold text-pink-950 uppercase tracking-widest inline-flex items-center">
+                    {heritageTitle || 'Gia Sản Thiêng Liêng'}
+                  </h3>
                   <div className="h-[2px] w-16 bg-pink-200 mx-auto mt-4"></div>
-                  {isAdmin && <button onClick={() => { setTempHeritageTitle(heritageTitle); setEditingHeritageTitle(true); }} className="absolute top-0 right-10 md:right-14 p-2 bg-pink-100 text-pink-600 rounded-full hover:bg-pink-600 hover:text-white transition shadow-sm"><Edit3 size={14} /></button>}
-                  {isAdmin && <button onClick={() => { setTempHeritageItem({ id: Date.now(), name: '', brief: '', image: '', imgFit: 'cover' }); setEditingHeritageItem('new'); }} className="absolute top-0 right-0 p-2 bg-pink-600 text-white rounded-full shadow-sm hover:bg-pink-500 transition"><span className="font-bold px-1">+</span></button>}
+                  {isAdmin && (
+                    <button onClick={() => { setTempHeritageTitle(heritageTitle); setEditingHeritageTitle(true); }} className="absolute top-0 right-10 md:right-14 p-2 bg-pink-100 text-pink-600 rounded-full hover:bg-pink-600 hover:text-white transition shadow-sm">
+                      <Edit3 size={14} />
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button onClick={() => { setTempHeritageItem({ id: Date.now(), name: '', brief: '', image: '', imgFit: 'cover' }); setEditingHeritageItem('new'); }} className="absolute top-0 right-0 p-2 bg-pink-600 text-white rounded-full shadow-sm hover:bg-pink-500 transition">
+                      <span className="font-bold px-1">+</span>
+                    </button>
+                  )}
                 </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {heritageList.map(saint => (
                     <div key={saint.id} className="relative group/card flex flex-col sm:flex-row gap-4 bg-pink-50/40 p-5 rounded-xl border border-pink-100 hover:border-pink-300 hover:shadow-md transition-all duration-300 items-center sm:items-start">
-                      {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempHeritageItem(saint); setEditingHeritageItem(saint.id); }} className="absolute top-3 right-3 z-20 p-1.5 bg-pink-100 text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12} /></button>}
-                      <div className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0 relative overflow-hidden rounded-full border-[3px] border-white shadow-sm bg-stone-100"><div className="absolute inset-0 transition-transform duration-300 group-hover/card:scale-110"><img src={saint.image} style={getImgStyle(saint)} className="w-full h-full block" alt={saint.name} /></div></div>
-                      <div className="flex flex-col justify-center text-center sm:text-left flex-1"><h4 className="text-base md:text-lg font-bold text-pink-950 mb-2 font-serif tracking-wide">{saint.name || ''}</h4><p className="text-xs md:text-sm font-serif text-stone-600 leading-relaxed">{saint.brief || ''}</p></div>
+                      {isAdmin && (
+                        <button onClick={(e) => { e.stopPropagation(); setTempHeritageItem(saint); setEditingHeritageItem(saint.id); }} className="absolute top-3 right-3 z-20 p-1.5 bg-pink-100 text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12} /></button>
+                      )}
+                      <div className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0 relative overflow-hidden rounded-full border-[3px] border-white shadow-sm bg-stone-100">
+                        <div className="absolute inset-0 transition-transform duration-300 group-hover/card:scale-110">
+                           <img src={saint.image} style={getImgStyle(saint)} className="w-full h-full block" alt={saint.name} />
+                        </div>
+                      </div>
+                      <div className="flex flex-col justify-center text-center sm:text-left flex-1">
+                        <h4 className="text-base md:text-lg font-bold text-pink-950 mb-2 font-serif tracking-wide">{saint.name || ''}</h4>
+                        <p className="text-xs md:text-sm font-serif text-stone-600 leading-relaxed">{saint.brief || ''}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -738,52 +978,99 @@ export default function App() {
                 </div>
                 <div className={`max-h-[1200px] overflow-y-auto custom-scrollbar pr-4 ${editorContentClasses}`} dangerouslySetInnerHTML={{ __html: pastoralData.content || '' }} />
               </div>
+
             </div>
           </div>
         );
       }
 
+      // ==========================================
+      // TAB: TIN TỨC (NEWS)
+      // ==========================================
       case 'News': {
         const featuredNews = newsItems.filter(n => n.isFeatured).slice(0, 2);
         const featuredIds = featuredNews.map(n => n.id);
         const regularNews = newsItems.filter(n => !featuredIds.includes(n.id));
+        
         const totalNewsPages = Math.ceil(regularNews.length / newsPerPage);
         const currentRegularNews = regularNews.slice((newsPage - 1) * newsPerPage, newsPage * newsPerPage);
 
         return (
           <div className="py-20 md:py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
             <div className="max-w-6xl mx-auto px-4 lg:px-6">
+              
               <div className="text-center mb-12 relative">
                 <h2 className="text-pink-600 font-bold uppercase tracking-widest text-[10px] mb-2">Truyền thông Công giáo</h2>
                 <h3 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-pink-950 uppercase tracking-widest leading-tight">Tin Tức & Thông Báo</h3>
-                <div className="flex items-center justify-center space-x-3 mt-6 mb-8"><div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div></div>
-                {isAdmin && <button onClick={() => { setTempNews({ id: Date.now(), title: '', date: getTodayFormattedStr(), category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false, imgFit: 'cover' }); setEditingNews('new'); }} className="absolute right-0 top-6 px-4 py-2 bg-pink-600 text-white text-[11px] font-bold rounded shadow-md transition-all active:scale-95 hidden md:flex items-center gap-1">+ Thêm Bản Tin</button>}
+                <div className="flex items-center justify-center space-x-3 mt-6 mb-8">
+                  <div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div>
+                </div>
+                {isAdmin && (
+                  <button onClick={() => { setTempNews({ id: Date.now(), title: '', date: getTodayFormattedStr(), category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false, imgFit: 'cover' }); setEditingNews('new'); }} className="absolute right-0 top-6 px-4 py-2 bg-pink-600 text-white text-[11px] font-bold rounded shadow-md transition-all active:scale-95 hidden md:flex items-center gap-1">
+                    + Thêm Bản Tin
+                  </button>
+                )}
               </div>
-              {isAdmin && <button onClick={() => { setTempNews({ id: Date.now(), title: '', date: getTodayFormattedStr(), category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false, imgFit: 'cover' }); setEditingNews('new'); }} className="mb-8 w-full py-3 bg-pink-600 text-white text-xs font-bold rounded shadow-md transition active:scale-95 flex md:hidden items-center justify-center gap-2">+ Thêm Bản Tin</button>}
+              {isAdmin && (
+                <button onClick={() => { setTempNews({ id: Date.now(), title: '', date: getTodayFormattedStr(), category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false, imgFit: 'cover' }); setEditingNews('new'); }} className="mb-8 w-full py-3 bg-pink-600 text-white text-xs font-bold rounded shadow-md transition active:scale-95 flex md:hidden items-center justify-center gap-2">
+                  + Thêm Bản Tin
+                </button>
+              )}
 
+              {/* TIN NỔI BẬT */}
               {featuredNews.length > 0 && (
                 <div className="mb-16">
-                  <div className="flex items-center mb-6"><span className="bg-pink-100 text-pink-700 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-sm border border-pink-200 flex items-center"><Star size={12} className="mr-1.5" /> Tin Nổi Bật</span></div>
+                  <div className="flex items-center mb-6">
+                    <span className="bg-pink-100 text-pink-700 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-sm border border-pink-200 flex items-center"><Star size={12} className="mr-1.5" /> Tin Nổi Bật</span>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {featuredNews.map(item => (
-                      <div key={item.id} onClick={() => { setLastTab('News'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }} className="group cursor-pointer relative flex flex-col rounded-2xl overflow-hidden shadow-lg border border-pink-50 h-[380px] bg-white hover:shadow-xl hover:border-pink-200 transition-all duration-300">
+                      <div 
+                        key={item.id} 
+                        onClick={() => { setLastTab('News'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}
+                        className="group cursor-pointer relative flex flex-col rounded-2xl overflow-hidden shadow-lg border border-pink-50 h-[380px] bg-white hover:shadow-xl hover:border-pink-200 transition-all duration-300"
+                      >
                         {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempNews(item); setEditingNews(item.id); }} className="absolute top-4 right-4 z-20 p-2 bg-white/90 backdrop-blur-sm text-pink-700 rounded-full shadow-md transition hover:bg-pink-600 hover:text-white"><Edit3 size={14} /></button>}
-                        <div className="h-[220px] w-full overflow-hidden relative bg-stone-100"><div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"><img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" /></div><div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-80"></div><span className="absolute bottom-4 left-4 bg-pink-600 text-white text-[9px] font-bold px-2 py-1 rounded inline-block shadow-sm uppercase tracking-wider">{item.category}</span></div>
-                        <div className="p-6 flex flex-col flex-1"><h4 className="font-serif font-bold text-xl text-pink-950 mb-3 group-hover:text-pink-700 transition leading-snug line-clamp-2">{item.title}</h4><div className="text-stone-500 text-sm line-clamp-2 leading-relaxed font-serif mb-4 flex-1" dangerouslySetInnerHTML={{ __html: item.desc || '' }} /><p className="text-[10px] font-bold text-stone-400 uppercase flex items-center tracking-widest mt-auto"><Calendar size={12} className="mr-1.5 text-pink-400" />{item.date}</p></div>
+                        <div className="h-[220px] w-full overflow-hidden relative bg-stone-100">
+                          <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+                             <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" />
+                          </div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-80"></div>
+                          <span className="absolute bottom-4 left-4 bg-pink-600 text-white text-[9px] font-bold px-2 py-1 rounded inline-block shadow-sm uppercase tracking-wider">{item.category}</span>
+                        </div>
+                        <div className="p-6 flex flex-col flex-1">
+                          <h4 className="font-serif font-bold text-xl text-pink-950 mb-3 group-hover:text-pink-700 transition leading-snug line-clamp-2">{item.title}</h4>
+                          <div className="text-stone-500 text-sm line-clamp-2 leading-relaxed font-serif mb-4 flex-1" dangerouslySetInnerHTML={{ __html: item.desc || '' }} />
+                          <p className="text-[10px] font-bold text-stone-400 uppercase flex items-center tracking-widest mt-auto"><Calendar size={12} className="mr-1.5 text-pink-400" />{item.date}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
+              {/* DANH SÁCH TIN TỨC */}
               <div>
                 <h3 className="text-xl font-serif font-bold text-pink-950 uppercase tracking-widest mb-6 pb-4 border-b border-pink-100">Điểm Tin Giáo Xứ</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {currentRegularNews.map((item) => (
-                    <div key={item.id} onClick={() => { setLastTab('News'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }} className="group cursor-pointer relative bg-white p-4 rounded-xl border border-pink-50 shadow-sm hover:border-pink-300 hover:shadow-md transition-all flex flex-col">
+                    <div 
+                      key={item.id} 
+                      onClick={() => { setLastTab('News'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}
+                      className="group cursor-pointer relative bg-white p-4 rounded-xl border border-pink-50 shadow-sm hover:border-pink-300 hover:shadow-md transition-all flex flex-col"
+                    >
                       {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempNews(item); setEditingNews(item.id); }} className="absolute top-2 right-2 z-20 p-1.5 bg-pink-100 text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12} /></button>}
-                      <div className="w-full h-48 mb-4 relative overflow-hidden rounded-lg shadow-sm bg-stone-100"><div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"><img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" /></div><span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-pink-700 text-[9px] font-bold px-2 py-1 rounded shadow-sm uppercase tracking-wider">{item.category}</span></div>
-                      <div className="flex flex-col flex-1"><p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest flex items-center mb-2"><Calendar size={10} className="mr-1.5" />{item.date}</p><h4 className="font-serif font-bold text-lg text-pink-950 mb-2 group-hover:text-pink-700 transition leading-snug line-clamp-2">{item.title}</h4><div className="text-stone-500 text-sm line-clamp-3 leading-relaxed font-serif mt-auto" dangerouslySetInnerHTML={{ __html: item.desc || '' }} /></div>
+                      <div className="w-full h-48 mb-4 relative overflow-hidden rounded-lg shadow-sm bg-stone-100">
+                        <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+                           <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" />
+                        </div>
+                        <span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-pink-700 text-[9px] font-bold px-2 py-1 rounded shadow-sm uppercase tracking-wider">{item.category}</span>
+                      </div>
+                      <div className="flex flex-col flex-1">
+                        <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest flex items-center mb-2"><Calendar size={10} className="mr-1.5" />{item.date}</p>
+                        <h4 className="font-serif font-bold text-lg text-pink-950 mb-2 group-hover:text-pink-700 transition leading-snug line-clamp-2">{item.title}</h4>
+                        <div className="text-stone-500 text-sm line-clamp-3 leading-relaxed font-serif mt-auto" dangerouslySetInnerHTML={{ __html: item.desc || '' }} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -791,31 +1078,53 @@ export default function App() {
                 {totalNewsPages > 1 && (
                   <div className="flex justify-center items-center space-x-2 mt-12">
                     <button onClick={() => setNewsPage(p => Math.max(1, p - 1))} disabled={newsPage === 1} className="p-2 rounded border border-pink-200 text-pink-600 hover:bg-pink-50 disabled:opacity-30 disabled:hover:bg-transparent transition"><ChevronLeft size={16}/></button>
-                    {Array.from({length: totalNewsPages}, (_, i) => <button key={i+1} onClick={() => setNewsPage(i+1)} className={`w-8 h-8 rounded text-sm font-bold transition ${newsPage === i + 1 ? 'bg-pink-600 text-white shadow-md' : 'text-stone-600 hover:bg-pink-50 border border-transparent hover:border-pink-200'}`}>{i + 1}</button>)}
+                    {Array.from({length: totalNewsPages}, (_, i) => (
+                      <button 
+                        key={i+1} 
+                        onClick={() => setNewsPage(i+1)} 
+                        className={`w-8 h-8 rounded text-sm font-bold transition ${newsPage === i + 1 ? 'bg-pink-600 text-white shadow-md' : 'text-stone-600 hover:bg-pink-50 border border-transparent hover:border-pink-200'}`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
                     <button onClick={() => setNewsPage(p => Math.min(totalNewsPages, p + 1))} disabled={newsPage === totalNewsPages} className="p-2 rounded border border-pink-200 text-pink-600 hover:bg-pink-50 disabled:opacity-30 disabled:hover:bg-transparent transition"><ChevronRight size={16}/></button>
                   </div>
                 )}
               </div>
+
             </div>
           </div>
         );
       }
 
+      // ==========================================
+      // TAB: CHI TIẾT TIN TỨC
+      // ==========================================
       case 'NewsDetail': {
         if (!selectedNews) return null;
         return (
           <div className="py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
             <div className="max-w-4xl mx-auto px-4 lg:px-6">
               <button onClick={() => { setActiveTab(lastTab); if(lastTab === 'Home') setReturnToNews(true); window.scrollTo(0,0); }} className="flex items-center text-pink-700 hover:text-pink-900 mb-8 font-bold text-[11px] uppercase tracking-widest transition-transform hover:-translate-x-1"><ChevronLeft size={14} className="mr-1" /> Quay lại {lastTab === 'Home' ? 'Trang chủ' : 'Tin Tức'}</button>
-              <div className="flex justify-between items-start mb-5 gap-4"><h1 className="text-2xl md:text-4xl font-serif font-bold text-pink-950 leading-tight">{selectedNews.title}</h1>{isAdmin && <button onClick={() => { setTempNews(selectedNews); setEditingNews(selectedNews.id); }} className="p-2.5 bg-pink-600 text-white rounded-full shadow-md flex-shrink-0 transition active:scale-90"><Edit3 size={16} /></button>}</div>
-              <div className="flex items-center text-stone-500 mb-8 text-[11px] md:text-xs font-bold uppercase tracking-wider border-b border-pink-100 pb-4"><Calendar size={12} className="mr-1.5 text-pink-500" /> {selectedNews.date}</div>
-              <div className="w-full aspect-[21/9] rounded-lg mb-8 shadow-sm overflow-hidden bg-stone-100"><img src={selectedNews.image} style={getImgStyle(selectedNews)} className="w-full h-full block" alt="" /></div>
+              <div className="flex justify-between items-start mb-5 gap-4">
+                <h1 className="text-2xl md:text-4xl font-serif font-bold text-pink-950 leading-tight">{selectedNews.title}</h1>
+                {isAdmin && <button onClick={() => { setTempNews(selectedNews); setEditingNews(selectedNews.id); }} className="p-2.5 bg-pink-600 text-white rounded-full shadow-md flex-shrink-0 transition active:scale-90"><Edit3 size={16} /></button>}
+              </div>
+              <div className="flex items-center text-stone-500 mb-8 text-[11px] md:text-xs font-bold uppercase tracking-wider border-b border-pink-100 pb-4">
+                <Calendar size={12} className="mr-1.5 text-pink-500" /> {selectedNews.date}
+              </div>
+              <div className="w-full aspect-[21/9] rounded-lg mb-8 shadow-sm overflow-hidden bg-stone-100">
+                 <img src={selectedNews.image} style={getImgStyle(selectedNews)} className="w-full h-full block" alt="" />
+              </div>
               <div className={editorContentClasses} dangerouslySetInnerHTML={{ __html: selectedNews.content || selectedNews.desc || '' }} />
             </div>
           </div>
         );
       }
 
+      // ==========================================
+      // TAB: TRANG CHỦ (HOME)
+      // ==========================================
       case 'Home':
       default: {
         return (
@@ -823,7 +1132,11 @@ export default function App() {
              <section className="relative h-[85vh] flex items-center justify-center text-white overflow-hidden group">
                 {isAdmin && <button onClick={() => { setTempHero(heroData); setEditingHero(true); }} className="absolute top-24 right-4 z-50 p-2 bg-white/20 backdrop-blur-sm text-white rounded-full shadow-md transition active:scale-90 hover:bg-pink-600"><Edit3 size={16}/></button>}
                 <div className="absolute inset-0 bg-black/40 z-20"></div>
-                <div className="absolute inset-0 overflow-hidden z-10"><div className="w-full h-full transition-transform duration-[30000ms] scale-105"><img src={heroData.image} style={getImgStyle({...heroData, imgFit: heroData.imgFit || 'cover'})} className="w-full h-full block" alt="" /></div></div>
+                <div className="absolute inset-0 overflow-hidden z-10">
+                   <div className="w-full h-full transition-transform duration-[30000ms] scale-105">
+                     <img src={heroData.image} style={getImgStyle({...heroData, imgFit: heroData.imgFit || 'cover'})} className="w-full h-full block" alt="" />
+                   </div>
+                </div>
                 <div className="relative z-30 max-w-5xl px-4 text-center">
                   <h2 className="text-pink-200 text-xs md:text-sm uppercase tracking-[0.6em] mb-4 font-bold">Chào mừng quý vị đến với</h2>
                   <h1 className="text-4xl md:text-7xl font-serif font-bold tracking-tight uppercase leading-tight">GIÁO XỨ HOÀNG YÊN</h1>
@@ -849,54 +1162,116 @@ export default function App() {
                       <Clock size={32} className="text-pink-300 mb-4"/>
                       <h3 className="text-xl font-bold uppercase text-pink-100 tracking-tight mb-8">Giờ Thánh Lễ</h3>
                       <div className="w-full space-y-4">
-                        {massSchedules.map((item, idx) => (<div key={idx} className="border-b border-pink-900/50 pb-2 last:border-0 flex justify-between items-center"><p className="font-bold text-pink-300 uppercase text-[9px] tracking-wider">{item.day}</p><div className="flex gap-2">{item.times.slice(0,2).map((t, i) => <span key={i} className="text-[9px] bg-pink-900/50 px-1.5 py-0.5 rounded border border-pink-800">{t}</span>)}</div></div>))}
+                        {(massSchedules.length > 0 ? massSchedules : [{day: 'Trống', times:[]}]).map((item, idx) => (
+                          <div key={idx} className="border-b border-pink-900/50 pb-2 last:border-0 flex justify-between items-center"><p className="font-bold text-pink-300 uppercase text-[9px] tracking-wider">{item.day}</p><div className="flex gap-2">{item.times.slice(0,2).map((t, i) => <span key={i} className="text-[9px] bg-pink-900/50 px-1.5 py-0.5 rounded border border-pink-800">{t}</span>)}</div></div>
+                        ))}
                       </div>
                       {isAdmin && <button onClick={() => { setTempMass([...massSchedules]); setEditingMass(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-600 text-white rounded-full shadow"><Edit3 size={12}/></button>}
                    </div>
                    <div className="bg-white p-8 rounded-2xl shadow-md border border-pink-100 flex flex-col relative group">
                       {isAdmin && <button onClick={() => { setTempContact(contactInfo); setEditingQuickPhone(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-100 text-pink-600 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12}/></button>}
                       <h3 className="text-lg font-bold text-pink-900 uppercase border-b border-pink-50 pb-2 mb-6 tracking-tighter text-center">Liên Hệ & Văn Phòng</h3>
+                      
                       <ul className="space-y-4 flex-1">
-                        <li className="flex items-start gap-3"><MapPin size={16} className="text-pink-500 mt-0.5 flex-shrink-0" /><div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Địa chỉ</span><p className="text-sm font-serif text-stone-700 leading-snug line-clamp-2">{contactInfo.address}</p></div></li>
-                        <li className="flex items-center gap-3"><Phone size={16} className="text-pink-500 flex-shrink-0" /><div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Điện thoại</span><p className="text-lg font-bold text-pink-900">{contactInfo.phone}</p></div></li>
-                        <li className="flex items-center gap-3"><Mail size={16} className="text-pink-500 flex-shrink-0" /><div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email</span><p className="text-sm font-serif text-stone-700 line-clamp-1">{contactInfo.email}</p></div></li>
+                        <li className="flex items-start gap-3">
+                          <MapPin size={16} className="text-pink-500 mt-0.5 flex-shrink-0" />
+                          <div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Địa chỉ</span><p className="text-sm font-serif text-stone-700 leading-snug line-clamp-2">{contactInfo.address || 'Đang cập nhật'}</p></div>
+                        </li>
+                        <li className="flex items-center gap-3">
+                          <Phone size={16} className="text-pink-500 flex-shrink-0" />
+                          <div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Điện thoại</span><p className="text-lg font-bold text-pink-900">{contactInfo.phone || 'Đang cập nhật'}</p></div>
+                        </li>
+                        <li className="flex items-center gap-3">
+                          <Mail size={16} className="text-pink-500 flex-shrink-0" />
+                          <div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email</span><p className="text-sm font-serif text-stone-700 line-clamp-1">{contactInfo.email || 'Đang cập nhật'}</p></div>
+                        </li>
                       </ul>
-                      <div className="mt-6 pt-5 border-t border-pink-50 text-center flex items-center justify-center gap-2 text-stone-500 text-sm font-serif italic"><Clock size={16} className="text-pink-400" /><span>{contactInfo.hours}</span></div>
+                      
+                      <div className="mt-6 pt-5 border-t border-pink-50 text-center flex items-center justify-center gap-2 text-stone-500 text-sm font-serif italic">
+                        <Clock size={16} className="text-pink-400" />
+                        <span>{contactInfo.hours || 'Đang cập nhật'}</span>
+                      </div>
                    </div>
                 </div>
              </section>
 
              <section id="news-section" className="py-20 bg-stone-50">
                <div className="max-w-6xl mx-auto px-4 lg:px-6">
+                 
                  <div className="flex justify-between items-end mb-10 border-b border-pink-100 pb-4">
-                   <div><h2 className="text-pink-600 font-bold uppercase tracking-widest text-[10px] mb-2 flex items-center gap-2"><Bell size={14} /> Tin Tức Giáo Xứ</h2><h3 className="text-3xl md:text-4xl font-serif font-bold text-pink-950 tracking-tight">Thông Báo Mới</h3></div>
-                   <button onClick={() => { setActiveTab('News'); window.scrollTo(0,0); }} className="hidden sm:flex items-center gap-2 text-xs font-bold text-pink-600 uppercase tracking-widest hover:text-pink-800 transition-colors">Xem tất cả <ChevronRight size={16} /></button>
+                   <div>
+                     <h2 className="text-pink-600 font-bold uppercase tracking-widest text-[10px] mb-2 flex items-center gap-2"><Bell size={14} /> Tin Tức Giáo Xứ</h2>
+                     <h3 className="text-3xl md:text-4xl font-serif font-bold text-pink-950 tracking-tight">Thông Báo Mới</h3>
+                   </div>
+                   <button onClick={() => { setActiveTab('News'); window.scrollTo(0,0); }} className="hidden sm:flex items-center gap-2 text-xs font-bold text-pink-600 uppercase tracking-widest hover:text-pink-800 transition-colors">
+                     Xem tất cả <ChevronRight size={16} />
+                   </button>
                  </div>
+
                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:h-[420px]">
                    {newsItems.length > 0 && (
-                     <div className="lg:col-span-7 group cursor-pointer relative rounded-2xl overflow-hidden shadow-md border border-stone-200 hover:border-pink-300 transition-all duration-300 h-[350px] lg:h-full bg-white flex flex-col" onClick={() => { setLastTab('Home'); setSelectedNews(newsItems[0]); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}>
-                       <div className="absolute inset-0 bg-stone-100 overflow-hidden"><img src={newsItems[0].image} style={getImgStyle(newsItems[0])} className="w-full h-full block transition-transform duration-700 group-hover:scale-105" alt="" /></div>
+                     <div 
+                       className="lg:col-span-7 group cursor-pointer relative rounded-2xl overflow-hidden shadow-md border border-stone-200 hover:border-pink-300 transition-all duration-300 h-[350px] lg:h-full bg-white flex flex-col"
+                       onClick={() => { setLastTab('Home'); setSelectedNews(newsItems[0]); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}
+                     >
+                       <div className="absolute inset-0 bg-stone-100 overflow-hidden">
+                         <img src={newsItems[0].image} style={getImgStyle(newsItems[0])} className="w-full h-full block transition-transform duration-700 group-hover:scale-105" alt={newsItems[0].title} />
+                       </div>
                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-90 transition-opacity group-hover:opacity-100"></div>
+                       
                        <div className="relative z-10 flex flex-col justify-end h-full p-6 md:p-8">
-                         <div><span className="bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-sm inline-block shadow-sm uppercase tracking-widest mb-4">{newsItems[0].category}</span></div>
-                         <h4 className="font-serif font-bold text-2xl md:text-3xl text-white mb-3 leading-tight line-clamp-2 drop-shadow-md group-hover:text-pink-200 transition-colors">{newsItems[0].title}</h4>
+                         <div>
+                           <span className="bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-sm inline-block shadow-sm uppercase tracking-widest mb-4">
+                             {newsItems[0].category}
+                           </span>
+                         </div>
+                         <h4 className="font-serif font-bold text-2xl md:text-3xl text-white mb-3 leading-tight line-clamp-2 drop-shadow-md group-hover:text-pink-200 transition-colors">
+                           {newsItems[0].title}
+                         </h4>
                          <div className="text-stone-300 text-sm leading-relaxed line-clamp-2 font-serif mb-4 [&_p]:mb-0 drop-shadow" dangerouslySetInnerHTML={{ __html: newsItems[0].desc || '' }} />
-                         <div className="text-[11px] font-bold text-pink-300 uppercase tracking-widest flex items-center gap-2"><Calendar size={14} /> {newsItems[0].date}</div>
+                         <div className="text-[11px] font-bold text-pink-300 uppercase tracking-widest flex items-center gap-2">
+                           <Calendar size={14} /> {newsItems[0].date}
+                         </div>
                        </div>
                      </div>
                    )}
+
                    <div className="lg:col-span-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 h-full">
                      {newsItems.slice(1, 6).map((item) => (
-                       <div key={item.id} className="group cursor-pointer flex gap-4 items-center bg-white p-3 rounded-xl border border-stone-200 hover:border-pink-300 hover:shadow-md transition-all duration-300" onClick={() => { setLastTab('Home'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}>
-                         <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative overflow-hidden rounded-lg bg-stone-100"><div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110"><img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" /></div></div>
-                         <div className="flex flex-col flex-1 py-1"><span className="text-[9px] font-bold text-pink-600 uppercase tracking-widest mb-1.5">{item.category}</span><h4 className="font-serif font-bold text-sm sm:text-base text-stone-900 group-hover:text-pink-700 transition-colors leading-snug line-clamp-2 mb-2">{item.title}</h4><div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1.5 mt-auto"><Calendar size={12} className="text-pink-400" /> {item.date}</div></div>
+                       <div 
+                         key={item.id} 
+                         className="group cursor-pointer flex gap-4 items-center bg-white p-3 rounded-xl border border-stone-200 hover:border-pink-300 hover:shadow-md transition-all duration-300"
+                         onClick={() => { setLastTab('Home'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}
+                       >
+                         <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative overflow-hidden rounded-lg bg-stone-100">
+                           <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110">
+                              <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt={item.title} />
+                           </div>
+                         </div>
+                         <div className="flex flex-col flex-1 py-1">
+                           <span className="text-[9px] font-bold text-pink-600 uppercase tracking-widest mb-1.5">{item.category}</span>
+                           <h4 className="font-serif font-bold text-sm sm:text-base text-stone-900 group-hover:text-pink-700 transition-colors leading-snug line-clamp-2 mb-2">
+                             {item.title}
+                           </h4>
+                           <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1.5 mt-auto">
+                             <Calendar size={12} className="text-pink-400" /> {item.date}
+                           </div>
+                         </div>
                        </div>
                      ))}
+                     {newsItems.length === 0 && <div className="p-8 text-center text-stone-400 border border-dashed rounded-xl"><p>Chưa có bản tin nào.</p></div>}
                    </div>
                  </div>
-                 <div className="mt-8 text-center sm:hidden"><button onClick={() => { setActiveTab('News'); window.scrollTo(0,0); }} className="inline-flex items-center gap-2 px-6 py-3 border border-pink-200 text-pink-700 font-bold text-[10px] uppercase tracking-widest rounded-full hover:bg-pink-50 transition-colors">Tất cả tin tức <ChevronRight size={14} /></button></div>
+
+                 <div className="mt-8 text-center sm:hidden">
+                   <button onClick={() => { setActiveTab('News'); window.scrollTo(0,0); }} className="inline-flex items-center gap-2 px-6 py-3 border border-pink-200 text-pink-700 font-bold text-[10px] uppercase tracking-widest rounded-full hover:bg-pink-50 transition-colors">
+                     Tất cả tin tức <ChevronRight size={14} />
+                   </button>
+                 </div>
+
                </div>
              </section>
+
           </div>
         );
       }
@@ -912,6 +1287,9 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(219, 39, 119, 0.6); }
       `}} />
 
+      {/* ========================================== */}
+      {/* TRÌNH ĐIỀU HƯỚNG (HEADER) */}
+      {/* ========================================== */}
       <header className={`fixed w-full z-[100] transition-all duration-500 ${isSolidHeader ? 'bg-white shadow-md py-3 border-b border-pink-50' : 'bg-transparent py-5 text-white'}`}>
         <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center space-x-3 cursor-pointer group relative" onClick={() => { setActiveTab('Home'); window.scrollTo(0,0); }}>
@@ -923,7 +1301,7 @@ export default function App() {
               <p className={`text-[9px] lg:text-[10px] font-bold uppercase tracking-[0.1em] lg:tracking-[0.15em] leading-none line-clamp-1 ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
             </div>
           </div>
-          <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6">
+          <nav className="hidden lg:flex items-center space-x-6">
             {navLinks.map((link) => (
               <button key={link.id} onClick={() => { setActiveTab(link.id); window.scrollTo(0,0); }} className={`text-[12px] xl:text-[13px] whitespace-nowrap font-bold uppercase tracking-widest relative pb-1 group transition-colors ${activeTab === link.id ? 'text-pink-600' : (isSolidHeader ? 'text-stone-600 hover:text-pink-900' : 'text-white/80 hover:text-white')}`}>
                 {link.name}<span className={`absolute bottom-0 left-0 h-[2px] bg-pink-500 transition-all duration-300 rounded-full ${activeTab === link.id ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
@@ -933,11 +1311,12 @@ export default function App() {
           </nav>
           <button className={`lg:hidden p-1.5 transition-all active:scale-90 ${isSolidHeader ? 'text-pink-950' : 'text-white'}`} onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={32} /> : <Menu size={32} />}</button>
         </div>
+        {/* Mobile Menu */}
         <div className={`fixed inset-0 top-0 left-0 w-full h-screen bg-pink-950/98 backdrop-blur-md z-[90] transition-all duration-500 lg:hidden flex flex-col items-center justify-center p-8 ${isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
            <div className="w-full flex flex-col items-center space-y-8 text-white">
               <Logo isSolid={false} sizeClass="w-24 h-24" config={logoConfig} />
               <div className="flex flex-col items-center space-y-5 w-full">
-                {navLinks.map((link) => (<button key={link.id} onClick={() => { setActiveTab(link.id); setIsMenuOpen(false); window.scrollTo(0,0); }} className={`text-lg font-bold uppercase tracking-widest transition-all ${activeTab === link.id ? 'text-pink-400 scale-105' : 'text-white/70 hover:text-white'}`}>{link.name}</button>))}
+                {navLinks.map((link) => (<button key={link.id} onClick={() => { setActiveTab(link.id); setIsMenuOpen(false); window.scrollTo(0,0); }} className={`text-2xl font-bold uppercase tracking-widest transition-all ${activeTab === link.id ? 'text-pink-400 scale-105' : 'text-white/70 hover:text-white'}`}>{link.name}</button>))}
               </div>
               <div className="h-px w-16 bg-pink-500/40"></div>
               <button onClick={() => setIsMenuOpen(false)} className="text-white/50 uppercase tracking-widest text-[13px] font-bold border border-white/20 px-6 py-2.5 rounded-full">Đóng Menu</button>
@@ -945,8 +1324,10 @@ export default function App() {
         </div>
       </header>
 
+      {/* NỘI DUNG CHÍNH */}
       <main className="pt-0 min-h-[70vh] bg-white">{renderContent()}</main>
 
+      {/* CHÂN TRANG (FOOTER) */}
       <footer className="bg-[#1a0f12] text-pink-200/60 pt-20 pb-10 border-t-4 border-pink-950 relative group">
         {isAdmin && <button onClick={() => { setTempFooter(footerData); setTempContact(contactInfo); setEditingFooter(true); }} className="absolute top-6 right-6 z-20 p-2 bg-white/10 text-white rounded-full shadow-md transition active:scale-90 hover:bg-pink-600"><Edit3 size={16}/></button>}
         <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-10 text-left">
@@ -957,7 +1338,7 @@ export default function App() {
         </div>
         <div className="max-w-6xl mx-auto px-4 mt-16 pt-6 border-t border-white/10 text-[9px] uppercase font-bold opacity-40 flex items-center justify-between tracking-widest">
           <p onClick={() => !isAdmin && setShowLoginModal(true)} className="cursor-pointer hover:opacity-100 hover:text-white transition-all select-none">© 2026 GIÁO XỨ HOÀNG YÊN.</p>
-          {isAdmin && <span onClick={handleLogout} className="cursor-pointer hover:text-white transition-all">Thoát Quản Trị</span>}
+          {isAdmin && <span onClick={() => setIsAdmin(false)} className="cursor-pointer hover:text-white transition-all">Thoát Quản Trị</span>}
         </div>
       </footer>
 
@@ -971,7 +1352,8 @@ export default function App() {
         <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center border-t-4 border-pink-600 relative">
              <button onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}} className="absolute top-3 right-3 text-stone-400 hover:text-stone-600"><X size={18}/></button>
-            <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">Đăng Nhập Admin</h3>
+            <h3 className="text-xl font-bold text-pink-950 mb-2 uppercase tracking-tight">Đăng Nhập Admin</h3>
+            <p className="text-[10px] text-stone-500 mb-6 uppercase tracking-widest">Nhập 'admin' để dùng thử</p>
             <input type="password" placeholder="Nhập mật khẩu" className={`w-full border p-3 mb-2 text-center text-sm outline-none focus:border-pink-500 font-serif rounded ${loginError ? 'border-red-400' : 'border-pink-200'}`} value={password} onChange={(e) => {setPassword(e.target.value); setLoginError('');}} onKeyDown={(e) => e.key === 'Enter' && handleLoginSubmit()} />
             <div className="h-6 mb-2">{loginError && <p className="text-red-500 text-xs font-bold animate-in slide-in-from-top-1">{loginError}</p>}</div>
             <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={handleLoginSubmit}>Xác Nhận</button></div>
@@ -992,11 +1374,7 @@ export default function App() {
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Giờ làm việc</label><input className="w-full border border-pink-200 p-2.5 rounded outline-none text-sm font-serif focus:border-pink-500" value={tempContact.hours || ''} onChange={e => setTempContact({...tempContact, hours: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Link Nhúng Bản Đồ (Google Maps Embed src)</label><textarea className="w-full border border-pink-200 p-2.5 rounded outline-none text-[11px] h-20 font-mono focus:border-pink-500 custom-scrollbar" value={tempContact.mapUrl || ''} onChange={e => setTempContact({...tempContact, mapUrl: e.target.value})} placeholder="https://www.google.com/maps/embed?..." /></div>
             </div>
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingContact(false)}>Hủy</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('contactInfo', tempContact); 
-              setContactInfo(tempContact); // Optimistic UI
-              setEditingContact(false); 
-            }}>Lưu Lại</button></div>
+            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingContact(false)}>Hủy</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('contactInfo', tempContact); setEditingContact(false); }}>Lưu Lại</button></div>
           </div>
         </div>
       )}
@@ -1009,16 +1387,12 @@ export default function App() {
             <div className="mb-5"><RichTextEditor value={tempQuote.text || ''} onChange={(val) => setTempQuote({...tempQuote, text: val})} /></div>
             <label className="block text-[10px] font-bold text-stone-500 uppercase mb-1 tracking-widest">Nguồn (Ví dụ: Ga 1, 1)</label>
             <input className="w-full border border-pink-200 p-3 mb-6 text-sm font-bold text-pink-800 rounded focus:border-pink-500 outline-none" value={tempQuote.ref || ''} onChange={(e) => setTempQuote({...tempQuote, ref: e.target.value})} />
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingQuote(false)}>Hủy</button><button className="flex-[2] bg-pink-700 text-white rounded py-3 font-bold uppercase text-[10px] tracking-widest shadow active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('quote', tempQuote); 
-              setQuote(tempQuote); // Optimistic UI
-              setEditingQuote(false); 
-            }}>Lưu Lại</button></div>
+            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingQuote(false)}>Hủy</button><button className="flex-[2] bg-pink-700 text-white rounded py-3 font-bold uppercase text-[10px] tracking-widest shadow active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('quote', tempQuote); setEditingQuote(false); }}>Lưu Lại</button></div>
           </div>
         </div>
       )}
 
-      {editingNews !== null && tempNews && (
+      {!!editingNews && tempNews && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
           <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
             <button onClick={() => setEditingNews(null)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
@@ -1049,34 +1423,25 @@ export default function App() {
             </div>
             <div className="flex gap-4 border-t pt-5 mt-6">
               {editingNews !== 'new' && <button className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={async () => { 
-                setNewsItems(newsItems.filter(n => n.id !== tempNews.id)); // Optimistic UI
-                if (selectedNews?.id === tempNews.id) { setSelectedNews(null); setActiveTab(lastTab); }
-                setEditingNews(null);
-                if (db) {
-                   try { await deleteDoc(doc(db, 'hoangyen_news', tempNews.id.toString())); } 
-                   catch (e) { console.error("Lỗi Firebase: " + e.message); }
-                } 
+                if(!db) return;
+                try {
+                  await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', tempNews.id.toString())); 
+                  if (selectedNews?.id === tempNews.id) { setSelectedNews(null); setActiveTab(lastTab); } 
+                  setEditingNews(null); 
+                } catch(e) { alert("Lỗi khi xóa bài: Không có quyền truy cập.") }
               }}>Xóa Bản Tin</button>}
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingNews(null)}>Hủy Bỏ</button>
               <button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={async () => { 
-                if (!tempNews.title) return; 
-                const id = tempNews.id || Date.now();
-                const d = { ...tempNews, id };
-                
-                // Optimistic UI
-                if (editingNews === 'new') setNewsItems([d, ...newsItems]); 
-                else { 
-                  setNewsItems(newsItems.map(n => n.id === id ? d : n)); 
+                if (!tempNews.title) return alert('Vui lòng nhập tiêu đề'); 
+                if (!db) return alert('Chưa kết nối CSDL');
+                try {
+                  const id = tempNews.id || Date.now();
+                  const d = { ...tempNews, id };
+                  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id.toString()), d);
                   if (selectedNews?.id === id) setSelectedNews(d); 
-                }
-                setEditingNews(null); 
-
-                // DB Save
-                if (db) {
-                   try { await setDoc(doc(db, 'hoangyen_news', id.toString()), d); } 
-                   catch (e) { console.error("Lỗi lưu Firebase: " + e.message); }
-                }
+                  setEditingNews(null); 
+                } catch(e) { alert("Lỗi khi lưu bài: Không có quyền truy cập.") }
               }}>Lưu Bài Viết</button>
             </div>
           </div>
@@ -1092,11 +1457,7 @@ export default function App() {
             <input className="w-full border border-pink-200 p-3 rounded mb-5 text-base font-serif font-bold bg-white outline-none focus:border-pink-500" value={tempHistory.title || ''} onChange={(e) => setTempHistory({...tempHistory, title: e.target.value})} />
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Nội dung Lịch Sử (Chọn ảnh và bấm các nút Căn trái/phải trên thanh công cụ để sắp xếp ảnh dọc theo văn bản)</label>
             <RichTextEditor value={tempHistory.content || ''} onChange={(val) => setTempHistory({...tempHistory, content: val})} minHeight="400px" />
-            <div className="flex gap-4 pt-6 border-t mt-6"><div className="flex-1"></div><button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingHistory(false)}>Hủy</button><button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('historyData', tempHistory); 
-              setHistoryData(tempHistory); // Optimistic UI
-              setEditingHistory(false); 
-            }}>Cập Nhật Lịch Sử</button></div>
+            <div className="flex gap-4 pt-6 border-t mt-6"><div className="flex-1"></div><button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingHistory(false)}>Hủy</button><button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('historyData', tempHistory); setEditingHistory(false); }}>Cập Nhật Lịch Sử</button></div>
           </div>
         </div>
       )}
@@ -1106,11 +1467,7 @@ export default function App() {
           <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full border-t-4 border-pink-600 relative">
             <h3 className="text-lg font-bold text-pink-950 mb-5 uppercase text-center tracking-tight">Sửa Tiêu Đề Gia Sản</h3>
             <input className="w-full border border-pink-200 p-3 mb-6 rounded text-center text-base font-serif outline-none focus:border-pink-500 font-bold text-pink-950" value={tempHeritageTitle || ''} onChange={(e) => setTempHeritageTitle(e.target.value)} />
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] hover:bg-stone-200 transition" onClick={() => setEditingHeritageTitle(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] shadow hover:bg-pink-800 transition" onClick={() => { 
-              saveConfigToDB('heritageTitle', tempHeritageTitle); 
-              setHeritageTitle(tempHeritageTitle); // Optimistic UI
-              setEditingHeritageTitle(false); 
-            }}>Lưu Lại</button></div>
+            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] hover:bg-stone-200 transition" onClick={() => setEditingHeritageTitle(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] shadow hover:bg-pink-800 transition" onClick={() => { saveConfigToDB('heritageTitle', tempHeritageTitle); setEditingHeritageTitle(false); }}>Lưu Lại</button></div>
           </div>
         </div>
       )}
@@ -1133,22 +1490,15 @@ export default function App() {
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 mt-6 block">Tiểu sử sơ lược</label>
             <textarea className="w-full border border-pink-200 p-3 rounded h-28 text-sm font-serif leading-relaxed outline-none focus:border-pink-500 custom-scrollbar" value={tempHeritageItem.brief || ''} onChange={(e) => setTempHeritageItem({...tempHeritageItem, brief: e.target.value})} placeholder="Nhập sơ lược tiểu sử..." />
             <div className="flex gap-4 pt-6 border-t mt-6">
-              {editingHeritageItem !== 'new' && <button className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={() => { 
-                const nl = heritageList.filter(item => item.id !== tempHeritageItem.id); 
-                saveConfigToDB('heritageList', nl); 
-                setHeritageList(nl); // Optimistic UI
-                setEditingHeritageItem(null); 
-              }}>Xóa Vị Thánh</button>}
+              {editingHeritageItem !== 'new' && <button className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={() => { const nl = heritageList.filter(item => item.id !== tempHeritageItem.id); saveConfigToDB('heritageList', nl); setEditingHeritageItem(null); }}>Xóa Vị Thánh</button>}
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-6 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingHeritageItem(null)}>Hủy</button>
               <button className="bg-pink-700 text-white px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-                if (!tempHeritageItem.name) return; 
+                if (!tempHeritageItem.name) return alert('Vui lòng nhập tên'); 
                 let nl;
                 if (editingHeritageItem === 'new') nl = [tempHeritageItem, ...heritageList]; 
                 else nl = heritageList.map(item => item.id === tempHeritageItem.id ? tempHeritageItem : item); 
-                
                 saveConfigToDB('heritageList', nl); 
-                setHeritageList(nl); // Optimistic UI
                 setEditingHeritageItem(null); 
               }}>Lưu Lại</button>
             </div>
@@ -1165,11 +1515,7 @@ export default function App() {
             <input className="w-full border border-pink-200 p-3 rounded mb-5 text-base font-serif font-bold bg-white outline-none focus:border-pink-500" value={tempPastoral.title || ''} onChange={(e) => setTempPastoral({...tempPastoral, title: e.target.value})} />
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Nội dung Định Hướng</label>
             <RichTextEditor value={tempPastoral.content || ''} onChange={(val) => setTempPastoral({...tempPastoral, content: val})} minHeight="300px" />
-            <div className="flex gap-4 pt-6 border-t mt-6"><div className="flex-1"></div><button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingPastoral(false)}>Hủy</button><button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('pastoralData', tempPastoral); 
-              setPastoralData(tempPastoral); // Optimistic UI
-              setEditingPastoral(false); 
-            }}>Lưu Định Hướng</button></div>
+            <div className="flex gap-4 pt-6 border-t mt-6"><div className="flex-1"></div><button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingPastoral(false)}>Hủy</button><button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('pastoralData', tempPastoral); setEditingPastoral(false); }}>Lưu Định Hướng</button></div>
           </div>
         </div>
       )}
@@ -1205,34 +1551,25 @@ export default function App() {
             <div className="mb-6"><RichTextEditor value={tempPilgrimage.content || ''} onChange={(val) => setTempPilgrimage({...tempPilgrimage, content: val})} minHeight="250px" /></div>
             <div className="flex gap-4 border-t pt-5 mt-6">
               {editingPilgrimage !== 'new' && <button className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={async () => { 
-                setPilgrimagePlans(pilgrimagePlans.filter(p => p.id !== tempPilgrimage.id)); // Optimistic UI
-                if (selectedPilgrimage?.id === tempPilgrimage.id) { setSelectedPilgrimage(null); setActiveTab('Pilgrimage'); } 
-                setEditingPilgrimage(null); 
-                if (db) {
-                   try { await deleteDoc(doc(db, 'hoangyen_pilgrimages', tempPilgrimage.id.toString())); }
-                   catch(e) { console.error("Lỗi xóa Firebase: " + e.message); }
-                }
+                if(!db) return;
+                try {
+                  await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pilgrimages', tempPilgrimage.id.toString())); 
+                  if (selectedPilgrimage?.id === tempPilgrimage.id) { setSelectedPilgrimage(null); setActiveTab('Pilgrimage'); } 
+                  setEditingPilgrimage(null); 
+                } catch(e) { alert("Lỗi xóa: Không có quyền truy cập.") }
               }}>Xóa Kế Hoạch</button>}
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingPilgrimage(null)}>Hủy Bỏ</button>
               <button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={async () => { 
-                if (!tempPilgrimage.title || tempPilgrimage.title.trim() === '') return;
-                const id = tempPilgrimage.id || Date.now();
-                const d = { ...tempPilgrimage, id };
-                
-                // Optimistic UI
-                if (editingPilgrimage === 'new') setPilgrimagePlans([d, ...pilgrimagePlans]); 
-                else { 
-                  setPilgrimagePlans(pilgrimagePlans.map(p => p.id === id ? d : p)); 
+                if (!tempPilgrimage.title || tempPilgrimage.title.trim() === '') return alert('Vui lòng nhập tên chương trình');
+                if(!db) return alert("Chưa kết nối CSDL");
+                try {
+                  const id = tempPilgrimage.id || Date.now();
+                  const d = { ...tempPilgrimage, id };
+                  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pilgrimages', id.toString()), d);
                   if (selectedPilgrimage?.id === id) setSelectedPilgrimage(d); 
-                } 
-                setEditingPilgrimage(null); 
-
-                // DB Save
-                if (db) {
-                   try { await setDoc(doc(db, 'hoangyen_pilgrimages', id.toString()), d); }
-                   catch(e) { console.error("Lỗi lưu Firebase: " + e.message); }
-                }
+                  setEditingPilgrimage(null); 
+                } catch(e) { alert("Lỗi lưu: Không có quyền truy cập.") }
               }}>Lưu Kế Hoạch</button>
             </div>
           </div>
@@ -1252,27 +1589,21 @@ export default function App() {
             <textarea className="w-full border border-pink-200 p-3 rounded h-24 text-sm font-serif leading-relaxed outline-none focus:border-pink-500 custom-scrollbar" value={tempLiturgyEvent.desc || ''} onChange={e => setTempLiturgyEvent({...tempLiturgyEvent, desc: e.target.value})} placeholder="Thêm mô tả chi tiết nếu có..." />
             <div className="flex gap-3 pt-6 border-t mt-4">
               <button className="text-red-600 px-4 py-3 font-bold text-[10px] uppercase border border-red-100 hover:bg-red-50 transition-all rounded tracking-widest" onClick={async () => { 
-                setLiturgyEvents(liturgyEvents.filter(e => e.date !== tempLiturgyEvent.date)); // Optimistic UI
-                setEditingLiturgyEvent(false); 
-                if (db) {
-                   try { await deleteDoc(doc(db, 'hoangyen_liturgy', tempLiturgyEvent.date)); }
-                   catch(e) { console.error("Lỗi xóa Firebase: " + e.message); }
-                }
+                if(!db) return;
+                try {
+                  await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'liturgy', tempLiturgyEvent.date)); 
+                  setEditingLiturgyEvent(false); 
+                } catch(e) { alert("Lỗi xóa: Không có quyền truy cập.") }
               }}>Xóa</button>
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-6 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingLiturgyEvent(false)}>Hủy</button>
               <button className="bg-pink-700 text-white px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={async () => {
-                if (!tempLiturgyEvent.title || tempLiturgyEvent.title.trim() === '') return;
-                const n = liturgyEvents.filter(e => e.date !== tempLiturgyEvent.date);
-                n.push(tempLiturgyEvent);
-                
-                setLiturgyEvents(n); // Optimistic UI
-                setEditingLiturgyEvent(false);
-
-                if (db) {
-                   try { await setDoc(doc(db, 'hoangyen_liturgy', tempLiturgyEvent.date), tempLiturgyEvent); }
-                   catch(e) { console.error("Lỗi lưu Firebase: " + e.message); }
-                }
+                if (!tempLiturgyEvent.title || tempLiturgyEvent.title.trim() === '') return alert('Vui lòng nhập tên sự kiện');
+                if(!db) return alert("Chưa kết nối CSDL");
+                try {
+                  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'liturgy', tempLiturgyEvent.date), tempLiturgyEvent);
+                  setEditingLiturgyEvent(false);
+                } catch(e) { alert("Lỗi lưu: Không có quyền truy cập.") }
               }}>Lưu Lại</button>
             </div>
           </div>
@@ -1302,11 +1633,7 @@ export default function App() {
                 <input className="w-full border border-pink-200 p-2.5 rounded text-sm font-bold text-pink-600 outline-none focus:border-pink-500" value={tempReception.item3Phone || ''} onChange={e => setTempReception({...tempReception, item3Phone: e.target.value})} placeholder="Số điện thoại Hotline..." />
               </div>
             </div>
-            <div className="flex gap-4 pt-6 border-t mt-6"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingReception(false)}>Hủy Bỏ</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('receptionInfo', tempReception); 
-              setReceptionInfo(tempReception); // Optimistic UI
-              setEditingReception(false); 
-            }}>Lưu Lại</button></div>
+            <div className="flex gap-4 pt-6 border-t mt-6"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingReception(false)}>Hủy Bỏ</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('receptionInfo', tempReception); setEditingReception(false); }}>Lưu Lại</button></div>
           </div>
         </div>
       )}
@@ -1320,11 +1647,7 @@ export default function App() {
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Tiêu đề</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-sm" value={tempConfession.title || ''} onChange={(e) => setTempConfession({...tempConfession, title: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Nội dung</label><textarea className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 text-sm font-serif h-24 custom-scrollbar leading-relaxed" value={tempConfession.desc || ''} onChange={(e) => setTempConfession({...tempConfession, desc: e.target.value})} /></div>
             </div>
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingConfession(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('confessionData', tempConfession); 
-              setConfessionData(tempConfession); // Optimistic UI
-              setEditingConfession(false); 
-            }}>Lưu Lại</button></div>
+            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingConfession(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('confessionData', tempConfession); setEditingConfession(false); }}>Lưu Lại</button></div>
           </div>
         </div>
       )}
@@ -1338,25 +1661,18 @@ export default function App() {
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Tiêu đề</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-sm" value={tempAdoration.title || ''} onChange={(e) => setTempAdoration({...tempAdoration, title: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Nội dung</label><textarea className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 text-sm font-serif h-24 custom-scrollbar leading-relaxed" value={tempAdoration.desc || ''} onChange={(e) => setTempAdoration({...tempAdoration, desc: e.target.value})} /></div>
             </div>
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingAdoration(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('adorationData', tempAdoration); 
-              setAdorationData(tempAdoration); // Optimistic UI
-              setEditingAdoration(false); 
-            }}>Lưu Lại</button></div>
+            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingAdoration(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('adorationData', tempAdoration); setEditingAdoration(false); }}>Lưu Lại</button></div>
           </div>
         </div>
       )}
 
       {editingMass && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
-          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar">
+          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
+             <button onClick={() => setEditingMass(false)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-8 uppercase text-center tracking-tight">Sửa Giờ Lễ</h3>
             <div className="space-y-6">{tempMass.map((item, idx) => (<div key={idx} className="p-4 border border-pink-100 bg-pink-50/30 rounded-lg"><label className="block text-[10px] font-bold text-pink-800 uppercase mb-2 tracking-widest">{item.day}</label><input className="w-full border border-pink-200 p-2.5 rounded text-sm font-bold focus:border-pink-500 outline-none" value={item.times.join(', ')} onChange={(e) => { const n = [...tempMass]; n[idx].times = e.target.value.split(',').map(t => t.trim()); setTempMass(n); }}/></div>))}</div>
-            <div className="flex gap-4 pt-8 border-t mt-8"><button className="flex-1 bg-stone-100 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingMass(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('massSchedules', tempMass); 
-              setMassSchedules(tempMass); // Optimistic UI
-              setEditingMass(false); 
-            }}>Lưu Giờ Lễ</button></div>
+            <div className="flex gap-4 pt-8 border-t mt-8"><button className="flex-1 bg-stone-100 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingMass(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('massSchedules', tempMass); setEditingMass(false); }}>Lưu Giờ Lễ</button></div>
           </div>
         </div>
       )}
@@ -1372,11 +1688,7 @@ export default function App() {
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Bổn mạng</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-sm" value={tempStats.patron || ''} onChange={(e) => setTempStats({...tempStats, patron: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Địa chỉ</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-sm" value={tempStats.address || ''} onChange={(e) => setTempStats({...tempStats, address: e.target.value})} /></div>
             </div>
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingStats(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('parishStats', tempStats); 
-              setParishStats(tempStats); // Optimistic UI
-              setEditingStats(false); 
-            }}>Lưu Lại</button></div>
+            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingStats(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('parishStats', tempStats); setEditingStats(false); }}>Lưu Lại</button></div>
           </div>
         </div>
       )}
@@ -1394,11 +1706,7 @@ export default function App() {
             </div>
             <ImageAdjuster data={tempHero} setData={setTempHero} aspectClass="aspect-[21/9] w-full rounded-lg" />
 
-            <div className="flex gap-3 mt-6"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingHero(false)}>Hủy</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('heroData', tempHero); 
-              setHeroData(tempHero); // Optimistic UI
-              setEditingHero(false); 
-            }}>Lưu Hình Nền</button></div>
+            <div className="flex gap-3 mt-6"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingHero(false)}>Hủy</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('heroData', tempHero); setEditingHero(false); }}>Lưu Hình Nền</button></div>
           </div>
         </div>
       )}
@@ -1412,12 +1720,7 @@ export default function App() {
               <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-2">Số điện thoại Hotline</label>
               <input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-lg text-center" value={tempContact.phone || ''} onChange={(e) => setTempContact({...tempContact, phone: e.target.value})} placeholder="Nhập số điện thoại..." />
             </div>
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingQuickPhone(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              const newContact = {...contactInfo, phone: tempContact.phone};
-              saveConfigToDB('contactInfo', newContact); 
-              setContactInfo(newContact); // Optimistic UI
-              setEditingQuickPhone(false); 
-            }}>Lưu Lại</button></div>
+            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingQuickPhone(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('contactInfo', {...contactInfo, phone: tempContact.phone}); setEditingQuickPhone(false); }}>Lưu Lại</button></div>
           </div>
         </div>
       )}
@@ -1434,13 +1737,7 @@ export default function App() {
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Email liên hệ</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 text-sm" value={tempContact.email || ''} onChange={(e) => setTempContact({...tempContact, email: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Link Fanpage Facebook</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 text-sm text-blue-600" value={tempFooter.facebookLink || ''} onChange={(e) => setTempFooter({...tempFooter, facebookLink: e.target.value})} placeholder="https://facebook.com/..." /></div>
             </div>
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingFooter(false)}>Hủy</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('footerData', tempFooter); 
-              saveConfigToDB('contactInfo', tempContact); 
-              setFooterData(tempFooter); // Optimistic UI
-              setContactInfo(tempContact); // Optimistic UI
-              setEditingFooter(false); 
-            }}>Lưu Thay Đổi</button></div>
+            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingFooter(false)}>Hủy</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('footerData', tempFooter); saveConfigToDB('contactInfo', tempContact); setEditingFooter(false); }}>Lưu Thay Đổi</button></div>
           </div>
         </div>
       )}
@@ -1458,11 +1755,7 @@ export default function App() {
             </div>
             <ImageAdjuster data={tempLogoConfig} setData={setTempLogoConfig} aspectClass="w-40 h-40 rounded-full" />
 
-            <div className="flex gap-3 mt-6"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingLogo(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-              saveConfigToDB('logoConfig', tempLogoConfig); 
-              setLogoConfig(tempLogoConfig); // Optimistic UI
-              setEditingLogo(false); 
-            }}>Lưu Logo</button></div>
+            <div className="flex gap-3 mt-6"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingLogo(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('logoConfig', tempLogoConfig); setEditingLogo(false); }}>Lưu Logo</button></div>
           </div>
         </div>
       )}
