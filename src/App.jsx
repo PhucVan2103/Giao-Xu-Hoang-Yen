@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// CẤU HÌNH FIREBASE
+// CẤU HÌNH FIREBASE THỰC TẾ
 // ==========================================
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
@@ -35,7 +35,7 @@ try {
   console.error("Lỗi khởi tạo Firebase:", error);
 }
 
-const DB_ROOT_PATH = 'giao-xu-hoang-yen-main';
+const ADMIN_PASSWORD = "admin";
 
 // ==========================================
 // 1. COMPONENT DÙNG CHUNG (GLOBAL COMPONENTS)
@@ -164,12 +164,7 @@ const ImageAdjuster = ({ data, setData, aspectClass = "aspect-[21/9] w-full roun
       <div className="flex flex-col md:flex-row gap-8 items-center">
         <div className="w-full md:w-1/2 flex justify-center items-center">
           <div className={`overflow-hidden border-2 border-pink-300 shadow-sm bg-stone-200 relative flex-shrink-0 ${aspectClass}`}>
-             <img
-               src={data.image}
-               style={getImgStyle(data)}
-               className="w-full h-full block max-w-none"
-               alt="Preview"
-             />
+             <img src={data.image} style={getImgStyle(data)} className="w-full h-full block max-w-none" alt="Preview" />
              <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 opacity-20 divide-x divide-y divide-black/20" style={{ borderRadius: 'inherit' }}>
                <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
              </div>
@@ -205,7 +200,7 @@ const ImageAdjuster = ({ data, setData, aspectClass = "aspect-[21/9] w-full roun
 
 
 // ==========================================
-// 2. DỮ LIỆU TĨNH (MOCKUP DATA)
+// 2. DỮ LIỆU TĨNH (SEED DATA)
 // ==========================================
 
 const navLinks = [
@@ -224,39 +219,14 @@ const initialMassSchedules = [
 ];
 
 const initialNewsData = [
-  { 
-    id: 1, title: 'Đại lễ Kính Các Thánh Tử Đạo Việt Nam', date: '14/11/2023', category: 'Sự kiện', isFeatured: true,
-    desc: '<p>Chương trình hành hương và đại lễ mừng kính tại Giáo xứ Hoàng Yên diễn ra trọng thể...</p>',
-    image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50,
-    content: '<p>Chương trình hành hương trang trọng diễn ra trong 3 ngày với sự tham gia của hàng nghìn giáo dân từ khắp nơi đổ về Đền Thánh.</p>'
-  },
-  { 
-    id: 2, title: 'Thông báo Giáo lý niên khóa mới', date: '10/11/2023', category: 'Giáo lý', isFeatured: true,
-    desc: '<p>Giáo xứ bắt đầu nhận hồ sơ đăng ký cho các lớp Đồng cỏ non, Khai tâm...</p>',
-    image: 'https://images.unsplash.com/photo-1437603562860-1950e3ca6eab?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50,
-    content: '<p>Văn phòng Giáo lý xin thông báo chi tiết về thời gian đăng ký và khai giảng niên khóa mới cho các em thiếu nhi.</p>'
-  },
-  { 
-    id: 3, title: 'Bản tin Bác ái: Chuyến đi thăm mái ấm tình thương', date: '05/11/2023', category: 'Bác ái', isFeatured: false,
-    desc: '<p>Hành trình mang yêu thương đến với các cụ già neo đơn tại cơ sở xã hội...</p>',
-    image: 'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50,
-    content: '<p>Hành trình mang yêu thương đến với các cụ già neo đơn tại cơ sở xã hội do Ban Bác Ái giáo xứ tổ chức đã thành công tốt đẹp.</p>'
-  }
+  { id: 1, title: 'Đại lễ Kính Các Thánh Tử Đạo Việt Nam', date: '14/11/2023', category: 'Sự kiện', isFeatured: true, desc: '<p>Chương trình hành hương và đại lễ mừng kính tại Giáo xứ Hoàng Yên diễn ra trọng thể...</p>', image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50, content: '<p>Chương trình hành hương trang trọng diễn ra trong 3 ngày với sự tham gia của hàng nghìn giáo dân từ khắp nơi đổ về Đền Thánh.</p>'},
+  { id: 2, title: 'Thông báo Giáo lý niên khóa mới', date: '10/11/2023', category: 'Giáo lý', isFeatured: true, desc: '<p>Giáo xứ bắt đầu nhận hồ sơ đăng ký cho các lớp Đồng cỏ non, Khai tâm...</p>', image: 'https://images.unsplash.com/photo-1437603562860-1950e3ca6eab?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50, content: '<p>Văn phòng Giáo lý xin thông báo chi tiết về thời gian đăng ký và khai giảng niên khóa mới cho các em thiếu nhi.</p>'},
+  { id: 3, title: 'Bản tin Bác ái: Chuyến đi thăm mái ấm tình thương', date: '05/11/2023', category: 'Bác ái', isFeatured: false, desc: '<p>Hành trình mang yêu thương đến với các cụ già neo đơn tại cơ sở xã hội...</p>', image: 'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50, content: '<p>Hành trình mang yêu thương đến với các cụ già neo đơn tại cơ sở xã hội do Ban Bác Ái giáo xứ tổ chức đã thành công tốt đẹp.</p>'}
 ];
 
 const initialPilgrimageData = [
-  {
-    id: 1, title: 'Hành Hương Đức Mẹ La Vang - Thánh Địa Trà Kiệu', date: '15/06/2024', duration: '3 Ngày 2 Đêm', status: 'Đang mở đăng ký',
-    desc: 'Hành trình thiêng liêng về với Đức Mẹ, kết hợp tham quan các di tích lịch sử Công giáo miền Trung.',
-    image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50,
-    content: '<h3>Chương trình chi tiết</h3><p><strong>Ngày 1:</strong> Khởi hành từ Giáo xứ lúc 5h00 sáng. Dừng chân nghỉ ngơi và dùng bữa trưa tại đèo Hải Vân...</p><p><strong>Ngày 2:</strong> Viếng Trung Tâm Hành Hương Thánh Mẫu La Vang. Tham dự Thánh Lễ chung...</p>'
-  },
-  {
-    id: 2, title: 'Chương Trình Đón Tiếp Đoàn Hành Hương Giáo Phận', date: '24/11/2024', duration: '1 Ngày', status: 'Sắp diễn ra',
-    desc: 'Đền Thánh hân hoan chuẩn bị chương trình đón tiếp các phái đoàn hành hương từ khắp nơi đổ về trong dịp đại lễ Bổn mạng.',
-    image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50,
-    content: '<h3>Thông báo dành cho các Trưởng đoàn</h3><p>Ban Hành Giáo xin thông báo lịch trình đón tiếp như sau...</p><ul><li>Đăng ký vị trí đỗ xe trước 3 ngày.</li><li>Nhận phiếu ăn trưa tại Văn phòng Đền Thánh.</li></ul>'
-  }
+  { id: 1, title: 'Hành Hương Đức Mẹ La Vang - Thánh Địa Trà Kiệu', date: '15/06/2024', duration: '3 Ngày 2 Đêm', status: 'Đang mở đăng ký', desc: 'Hành trình thiêng liêng về với Đức Mẹ, kết hợp tham quan các di tích lịch sử Công giáo miền Trung.', image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50, content: '<h3>Chương trình chi tiết</h3><p><strong>Ngày 1:</strong> Khởi hành từ Giáo xứ lúc 5h00 sáng. Dừng chân nghỉ ngơi và dùng bữa trưa tại đèo Hải Vân...</p><p><strong>Ngày 2:</strong> Viếng Trung Tâm Hành Hương Thánh Mẫu La Vang. Tham dự Thánh Lễ chung...</p>'},
+  { id: 2, title: 'Chương Trình Đón Tiếp Đoàn Hành Hương Giáo Phận', date: '24/11/2024', duration: '1 Ngày', status: 'Sắp diễn ra', desc: 'Đền Thánh hân hoan chuẩn bị chương trình đón tiếp các phái đoàn hành hương từ khắp nơi đổ về trong dịp đại lễ Bổn mạng.', image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50, content: '<h3>Thông báo dành cho các Trưởng đoàn</h3><p>Ban Hành Giáo xin thông báo lịch trình đón tiếp như sau...</p><ul><li>Đăng ký vị trí đỗ xe trước 3 ngày.</li><li>Nhận phiếu ăn trưa tại Văn phòng Đền Thánh.</li></ul>'}
 ];
 
 const getInitialLiturgyEvents = () => {
@@ -264,10 +234,14 @@ const getInitialLiturgyEvents = () => {
   const y = today.getFullYear();
   const m = String(today.getMonth() + 1).padStart(2, '0');
   return [
-    { date: `${y}-${m}-01`, title: 'Thứ Sáu Đầu Tháng - Kính Thánh Tâm', colorType: 'red', desc: 'Kính mời cộng đoàn tham dự Thánh lễ và Chầu Thánh Thể lúc 18h30.' },
-    { date: `${y}-${m}-15`, title: 'Thánh Lễ Bổn Mạng Giáo Khu', colorType: 'white', desc: 'Thánh lễ tạ ơn và cầu nguyện cho các gia đình trong giáo khu.' }
+    { date: `${y}-${m}-01`, title: 'Thứ Sáu Đầu Tháng - Kính Thánh Tâm', colorType: 'red', desc: 'Kính mời cộng đoàn tham dự Thánh lễ và Chầu Thánh Thể lúc 18h30.' }
   ];
 };
+
+const initialHeritageList = [
+    { id: 1, name: 'Thánh Anrê Trần An Dũng Lạc', brief: 'Linh mục, tử đạo năm 1839. Mẫu gương sáng ngời về lòng trung kiên.', image: 'https://images.unsplash.com/photo-1550404618-c2b61f879685?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
+    { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì che giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 }
+];
 
 const litColors = {
   white: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800', name: 'Trắng/Vàng' },
@@ -316,13 +290,12 @@ export default function App() {
   const itemsPerPage = 4;
   const newsPerPage = 6;
   
-  // --- Giữ quyền Admin qua LocalStorage ---
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // --- States Tùy chỉnh Giao diện ---
+  // --- States Giao Diện ---
   const [logoConfig, setLogoConfig] = useState({ image: './logo.svg', imgFit: 'contain', imgScale: 1, imgPosX: 50, imgPosY: 50 });
   const [editingLogo, setEditingLogo] = useState(false);
   const [tempLogoConfig, setTempLogoConfig] = useState({});
@@ -331,63 +304,35 @@ export default function App() {
   const [editingHero, setEditingHero] = useState(false);
   const [tempHero, setTempHero] = useState({});
 
-  const [footerData, setFooterData] = useState({
-    aboutText: 'Lạy Chúa, xin cho chúng con được hiệp nhất trong tình yêu và sự phục vụ.',
-    facebookLink: '#'
-  });
+  const [footerData, setFooterData] = useState({ aboutText: 'Lạy Chúa, xin cho chúng con được hiệp nhất trong tình yêu và sự phục vụ.', facebookLink: '#' });
   const [editingFooter, setEditingFooter] = useState(false);
   const [tempFooter, setTempFooter] = useState({});
   const [editingQuickPhone, setEditingQuickPhone] = useState(false);
 
-  // --- States Dữ Liệu Chung ---
+  // --- States Dữ Liệu ---
   const [parishStats, setParishStats] = useState({ population: '5,420', priest: 'Lm. Giuse Nguyễn Văn A', patron: 'Các Thánh Tử Đạo VN', address: '123 Các Thánh Tử Đạo, TP.HCM' });
   const [quote, setQuote] = useState({ text: "<p>Ta là bánh hằng sống từ trời xuống. Ai ăn bánh này, sẽ được sống muôn đời.</p>", ref: "Ga 6, 51" });
   const [massSchedules, setMassSchedules] = useState(initialMassSchedules);
   
-  // --- States Tab Liên Hệ ---
-  const [contactInfo, setContactInfo] = useState({
-    title: "Liên Hệ Văn Phòng Giáo Xứ",
-    address: "123 Các Thánh Tử Đạo, Phường Hoàng Yên, Quận 1, TP. HCM",
-    phone: "(028) 1234 5678",
-    email: "vanphong@giaoxuhoangyen.vn",
-    hours: "Sáng: 08:00 - 11:30 | Chiều: 14:00 - 17:00 (Nghỉ Thứ Hai)",
-    mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.5132741062075!2d106.69744577481812!3d10.771944789376665!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f40a3b49e59%3A0xa1bd14e483a602db!2sNotre%20Dame%20Cathedral%20of%20Saigon!5e0!3m2!1sen!2s!4v1714202353111!5m2!1sen!2s"
-  });
+  const [contactInfo, setContactInfo] = useState({ title: "Liên Hệ Văn Phòng Giáo Xứ", address: "123 Các Thánh Tử Đạo, Phường Hoàng Yên, Quận 1, TP. HCM", phone: "(028) 1234 5678", email: "vanphong@giaoxuhoangyen.vn", hours: "Sáng: 08:00 - 11:30 | Chiều: 14:00 - 17:00 (Nghỉ Thứ Hai)", mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.5132741062075!2d106.69744577481812!3d10.771944789376665!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f40a3b49e59%3A0xa1bd14e483a602db!2sNotre%20Dame%20Cathedral%20of%20Saigon!5e0!3m2!1sen!2s!4v1714202353111!5m2!1sen!2s" });
   const [formStatus, setFormStatus] = useState('');
 
-  // --- States Tab Phụng Vụ ---
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [liturgyEvents, setLiturgyEvents] = useState(getInitialLiturgyEvents());
   const [confessionData, setConfessionData] = useState({ title: "Bí Tích Giao Hòa", desc: "Trước các Thánh lễ ngày thường 30 phút và vào các giờ cố định chiều Thứ Bảy hằng tuần." });
   const [adorationData, setAdorationData] = useState({ title: "Chầu Thánh Thể", desc: "Thứ Năm hằng tuần từ 19:00 - 20:00 và Thứ Sáu đầu tháng sau lễ chiều." });
 
-  // --- States Tab Giới Thiệu ---
-  const [historyData, setHistoryData] = useState({
-    title: "Dấu Ấn Lịch Sử",
-    content: "<img src='https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop' style='float: left; margin: 0.5rem 1.5rem 1rem 0; width: 40%; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);' /><p>Giáo xứ Hoàng Yên được hình thành từ những hạt giống tin mừng đầu tiên gieo rắc vào cuối thế kỷ 19.</p>"
-  });
+  const [historyData, setHistoryData] = useState({ title: "Dấu Ấn Lịch Sử", content: "<img src='https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop' style='float: left; margin: 0.5rem 1.5rem 1rem 0; width: 40%; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);' /><p>Giáo xứ Hoàng Yên được hình thành từ những hạt giống tin mừng đầu tiên gieo rắc vào cuối thế kỷ 19.</p>" });
   const [heritageTitle, setHeritageTitle] = useState("Gia Sản Thiêng Liêng");
-  const [heritageList, setHeritageList] = useState([
-    { id: 1, name: 'Thánh Anrê Trần An Dũng Lạc', brief: 'Linh mục, tử đạo năm 1839. Mẫu gương sáng ngời về lòng trung kiên.', image: 'https://images.unsplash.com/photo-1550404618-c2b61f879685?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 }
-  ]);
-  const [pastoralData, setPastoralData] = useState({
-    title: "Định Hướng Mục Vụ",
-    content: `<h4>01. Đào Tạo Đức Tin Giới Trẻ</h4><p>Chú trọng sâu sát vào việc giáo dục nhân bản và giáo lý cho thiếu nhi, thanh giới trẻ.</p>`
-  });
+  const [heritageList, setHeritageList] = useState(initialHeritageList);
+  const [pastoralData, setPastoralData] = useState({ title: "Định Hướng Mục Vụ", content: `<h4>01. Đào Tạo Đức Tin Giới Trẻ</h4><p>Chú trọng sâu sát vào việc giáo dục nhân bản và giáo lý cho thiếu nhi.</p>` });
 
-  // --- States Tab Hành Hương ---
   const [pilgrimagePlans, setPilgrimagePlans] = useState(initialPilgrimageData);
-  const [receptionInfo, setReceptionInfo] = useState({
-    item1Title: "Đăng ký đoàn", item1Desc: "Quý đoàn vui lòng báo trước 3 ngày để Giáo xứ sắp xếp giờ lễ riêng.",
-    item2Title: "Cơ sở vật chất", item2Desc: "Khuôn viên có bãi đỗ xe rộng rãi cho xe khách 45 chỗ.",
-    item3Title: "Hỗ trợ trực tiếp", item3Desc: "Liên hệ Văn phòng Đền Thánh để được hỗ trợ tốt nhất.", item3Phone: "090.123.4567"
-  });
+  const [receptionInfo, setReceptionInfo] = useState({ item1Title: "Đăng ký đoàn", item1Desc: "Quý đoàn vui lòng báo trước 3 ngày để Giáo xứ sắp xếp giờ lễ riêng.", item2Title: "Cơ sở vật chất", item2Desc: "Khuôn viên có bãi đỗ xe rộng rãi cho xe khách 45 chỗ.", item3Title: "Hỗ trợ trực tiếp", item3Desc: "Liên hệ Văn phòng Đền Thánh để được hỗ trợ tốt nhất.", item3Phone: "090.123.4567" });
 
-  // --- States Tab Tin Tức ---
   const [newsItems, setNewsItems] = useState(initialNewsData);
 
-  // --- States View Detail & Pagination ---
   const [selectedNews, setSelectedNews] = useState(null);
   const [selectedPilgrimage, setSelectedPilgrimage] = useState(null);
   const [lastTab, setLastTab] = useState('Home');
@@ -395,7 +340,6 @@ export default function App() {
   const [pilgrimagePage, setPilgrimagePage] = useState(1);
   const [returnToNews, setReturnToNews] = useState(false);
 
-  // --- States Quản lý Modals Edit ---
   const [editingQuote, setEditingQuote] = useState(false); const [tempQuote, setTempQuote] = useState({});
   const [editingStats, setEditingStats] = useState(false); const [tempStats, setTempStats] = useState({});
   const [editingMass, setEditingMass] = useState(false); const [tempMass, setTempMass] = useState([]);
@@ -413,72 +357,74 @@ export default function App() {
 
 
   // ==========================================
-  // FIREBASE INITIALIZATION & SYNC
+  // FIREBASE SYNC & AUTO SEEDING
   // ==========================================
-  
   useEffect(() => {
     if (!db) return;
 
-    // Lắng nghe Tin Tức
-    const unsubNews = onSnapshot(collection(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'news'), (snapshot) => {
-        if (!snapshot.empty) {
-          const items = []; snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
-          setNewsItems(items.sort((a,b) => b.id - a.id));
+    // Lắng nghe và tự động tạo dữ liệu mẫu nếu CSDL trống (Auto-Seeding)
+    const unsubConfig = onSnapshot(doc(db, 'hoangyen_db', 'config'), (docSnap) => {
+        if (!docSnap.exists()) {
+            console.log("Firebase trống. Đang khởi tạo dữ liệu mẫu...");
+            setDoc(doc(db, 'hoangyen_db', 'config'), {
+                parishStats, quote, massSchedules, contactInfo, confessionData, adorationData, 
+                historyData, heritageTitle, heritageList, pastoralData, receptionInfo, logoConfig, heroData, footerData
+            }, { merge: true });
+        } else {
+            const d = docSnap.data();
+            if (d.parishStats) setParishStats(d.parishStats);
+            if (d.massSchedules) setMassSchedules(d.massSchedules);
+            if (d.quote) setQuote(d.quote);
+            if (d.contactInfo) setContactInfo(d.contactInfo);
+            if (d.confessionData) setConfessionData(d.confessionData);
+            if (d.adorationData) setAdorationData(d.adorationData);
+            if (d.historyData) setHistoryData(d.historyData);
+            if (d.heritageTitle) setHeritageTitle(d.heritageTitle);
+            if (d.heritageList) setHeritageList(d.heritageList);
+            if (d.pastoralData) setPastoralData(d.pastoralData);
+            if (d.receptionInfo) setReceptionInfo(d.receptionInfo);
+            if (d.logoConfig) setLogoConfig(d.logoConfig);
+            if (d.heroData) setHeroData(d.heroData);
+            if (d.footerData) setFooterData(d.footerData);
         }
-    }, (err) => console.error(err));
+    });
 
-    // Lắng nghe Hành Hương
-    const unsubPilgrimages = onSnapshot(collection(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'pilgrimages'), (snapshot) => {
-        if (!snapshot.empty) {
-          const items = []; snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
-          setPilgrimagePlans(items);
+    const unsubNews = onSnapshot(collection(db, 'hoangyen_news'), (snapshot) => {
+        if (snapshot.empty) {
+            initialNewsData.forEach(async (item) => { await setDoc(doc(db, 'hoangyen_news', item.id.toString()), item); });
+        } else {
+            const items = []; snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+            setNewsItems(items.sort((a,b) => b.id - a.id));
         }
-    }, (err) => console.error(err));
+    });
 
-    // Lắng nghe Lịch Phụng Vụ
-    const unsubLiturgy = onSnapshot(collection(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'liturgy'), (snapshot) => {
-        if (!snapshot.empty) {
-          const items = []; snapshot.forEach(doc => items.push(doc.data()));
-          setLiturgyEvents(items);
+    const unsubPilgrimages = onSnapshot(collection(db, 'hoangyen_pilgrimages'), (snapshot) => {
+        if (snapshot.empty) {
+            initialPilgrimageData.forEach(async (item) => { await setDoc(doc(db, 'hoangyen_pilgrimages', item.id.toString()), item); });
+        } else {
+            const items = []; snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+            setPilgrimagePlans(items);
         }
-    }, (err) => console.error(err));
+    });
 
-    // Lắng nghe Configs Chung
-    const unsubConfig = onSnapshot(doc(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'config', 'main'), (docSnap) => {
-        if (docSnap.exists()) {
-          const d = docSnap.data();
-          if (d.parishStats) setParishStats(d.parishStats);
-          if (d.massSchedules) setMassSchedules(d.massSchedules);
-          if (d.quote) setQuote(d.quote);
-          if (d.contactInfo) setContactInfo(d.contactInfo);
-          if (d.confessionData) setConfessionData(d.confessionData);
-          if (d.adorationData) setAdorationData(d.adorationData);
-          if (d.historyData) setHistoryData(d.historyData);
-          if (d.heritageTitle) setHeritageTitle(d.heritageTitle);
-          if (d.heritageList) setHeritageList(d.heritageList);
-          if (d.pastoralData) setPastoralData(d.pastoralData);
-          if (d.receptionInfo) setReceptionInfo(d.receptionInfo);
-          if (d.logoConfig) setLogoConfig(d.logoConfig);
-          if (d.heroData) setHeroData(d.heroData);
-          if (d.footerData) setFooterData(d.footerData);
+    const unsubLiturgy = onSnapshot(collection(db, 'hoangyen_liturgy'), (snapshot) => {
+        if (snapshot.empty) {
+            getInitialLiturgyEvents().forEach(async (item) => { await setDoc(doc(db, 'hoangyen_liturgy', item.date), item); });
+        } else {
+            const items = []; snapshot.forEach(doc => items.push(doc.data()));
+            setLiturgyEvents(items);
         }
-    }, (err) => console.error(err));
+    });
 
-    return () => { unsubNews(); unsubPilgrimages(); unsubLiturgy(); unsubConfig(); };
+    return () => { unsubConfig(); unsubNews(); unsubPilgrimages(); unsubLiturgy(); };
   }, []);
 
-  // --- Hàm ghi dữ liệu lên Firebase an toàn (Bao bọc Error) ---
+  // Hàm ghi dữ liệu an toàn
   const saveConfigToDB = async (key, value) => {
-    if (!db) { alert("Kết nối Firebase bị lỗi!"); return; }
-    try {
-      // LUÔN LUÔN merge: true để KHÔNG XÓA ĐÈ các dữ liệu khác
-      await setDoc(doc(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'config', 'main'), { [key]: value }, { merge: true });
-    } catch (err) { 
-      console.error("Lỗi khi lưu DB:", err);
-      alert("Lỗi lưu Firebase: " + err.message);
-    }
+    if (!db) return;
+    try { await setDoc(doc(db, 'hoangyen_db', 'config'), { [key]: value }, { merge: true }); } 
+    catch (err) { console.error("Lỗi khi lưu DB:", err); }
   };
-
 
   // ==========================================
   // HANDLERS
@@ -503,23 +449,11 @@ export default function App() {
   }, [activeTab, returnToNews]);
 
   const handleLoginSubmit = () => {
-    // Sử dụng mật khẩu cố định thay vì import.meta để tương thích với chuẩn es2015
-    const envPass = "admin";
-    if (password === envPass) { 
-      setIsAdmin(true); 
-      localStorage.setItem('isAdmin', 'true'); // Lưu vào LocalStorage
-      setShowLoginModal(false); 
-      setPassword(''); 
-      setLoginError(''); 
-    }
+    if (password === ADMIN_PASSWORD) { setIsAdmin(true); localStorage.setItem('isAdmin', 'true'); setShowLoginModal(false); setPassword(''); setLoginError(''); }
     else setLoginError('Mật khẩu không chính xác!');
   };
 
-  const handleLogout = () => {
-    setIsAdmin(false);
-    localStorage.removeItem('isAdmin');
-  };
-
+  const handleLogout = () => { setIsAdmin(false); localStorage.removeItem('isAdmin'); };
   const handleContactSubmit = (e) => { e.preventDefault(); setFormStatus('success'); setTimeout(() => setFormStatus(''), 4000); e.target.reset(); };
   const getTodayFormattedStr = () => { const today = new Date(); return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`; };
 
@@ -528,10 +462,7 @@ export default function App() {
     for (let index in items) {
       const item = items[index];
       if (item.kind === 'file' && item.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result }));
-        reader.readAsDataURL(item.getAsFile());
-        e.preventDefault(); break;
+        const reader = new FileReader(); reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result })); reader.readAsDataURL(item.getAsFile()); e.preventDefault(); break;
       }
     }
   };
@@ -543,16 +474,11 @@ export default function App() {
 
   const prevMonth = () => { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1)); };
   const nextMonth = () => { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1)); };
-
   const isSolidHeader = scrolled || activeTab !== 'Home';
 
   // --- RENDER CONTENT THÔNG MINH ---
   const renderContent = () => {
     switch (activeTab) {
-      
-      // ==========================================
-      // TAB: LIÊN HỆ
-      // ==========================================
       case 'Contact': {
         return (
           <div className="py-20 md:py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
@@ -575,13 +501,8 @@ export default function App() {
                       <li className="flex gap-4"><div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><Clock size={18} className="text-pink-600"/></div><div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Giờ làm việc</span><p className="text-sm font-serif text-stone-700 italic">{contactInfo.hours || ''}</p></div></li>
                     </ul>
                   </div>
-
                   <div className="bg-stone-200 rounded-2xl flex-1 min-h-[300px] shadow-inner overflow-hidden relative border border-stone-300 flex items-center justify-center">
-                    {contactInfo.mapUrl ? (
-                      <iframe src={contactInfo.mapUrl} className="w-full h-full absolute inset-0" style={{ border: 0 }} allowFullScreen="" loading="lazy" referrerPolicy="no-referrer-when-downgrade"></iframe>
-                    ) : (
-                      <div className="text-center opacity-40"><MapPin size={48} className="mx-auto mb-2"/><p className="text-xs font-bold uppercase tracking-widest">Bản đồ Đền Thánh</p></div>
-                    )}
+                    {contactInfo.mapUrl ? <iframe src={contactInfo.mapUrl} className="w-full h-full absolute inset-0" style={{ border: 0 }} allowFullScreen="" loading="lazy" referrerPolicy="no-referrer-when-downgrade"></iframe> : <div className="text-center opacity-40"><MapPin size={48} className="mx-auto mb-2"/><p className="text-xs font-bold uppercase tracking-widest">Bản đồ Đền Thánh</p></div>}
                   </div>
                 </div>
 
@@ -604,9 +525,6 @@ export default function App() {
         );
       }
 
-      // ==========================================
-      // TAB: PHỤNG VỤ
-      // ==========================================
       case 'Liturgy': {
         const selectedDateStr = formatDateString(selectedDate);
         const eventOfDay = liturgyEvents.find(e => e.date === selectedDateStr);
@@ -683,9 +601,6 @@ export default function App() {
         );
       }
 
-      // ==========================================
-      // TAB: HÀNH HƯƠNG (PILGRIMAGE)
-      // ==========================================
       case 'Pilgrimage': {
         const totalPilgrimagePages = Math.ceil(pilgrimagePlans.length / itemsPerPage);
         const currentPilgrimagePlans = pilgrimagePlans.slice((pilgrimagePage - 1) * itemsPerPage, pilgrimagePage * itemsPerPage);
@@ -749,9 +664,6 @@ export default function App() {
         );
       }
 
-      // ==========================================
-      // TAB: CHI TIẾT HÀNH HƯƠNG
-      // ==========================================
       case 'PilgrimageDetail': {
         if (!selectedPilgrimage) return null;
         return (
@@ -774,9 +686,6 @@ export default function App() {
         );
       }
 
-      // ==========================================
-      // TAB: GIỚI THIỆU (ABOUT)
-      // ==========================================
       case 'About': {
         return (
           <div className="py-20 md:py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
@@ -823,7 +732,10 @@ export default function App() {
 
               <div className="mb-16 relative group bg-white p-6 md:p-10 rounded-2xl border border-pink-50 shadow-md">
                 {isAdmin && <button onClick={() => { setTempPastoral(pastoralData); setEditingPastoral(true); }} className="absolute top-4 right-4 z-20 p-2 bg-pink-600 text-white rounded-full shadow-md transition hover:bg-pink-700 active:scale-90"><Edit3 size={14} /></button>}
-                <div className="text-center mb-8"><h3 className="text-2xl md:text-3xl font-serif font-bold text-pink-950 uppercase tracking-widest">{pastoralData.title || ''}</h3><div className="h-[2px] w-16 bg-pink-200 mx-auto mt-4"></div></div>
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl md:text-3xl font-serif font-bold text-pink-950 uppercase tracking-widest">{pastoralData.title || ''}</h3>
+                  <div className="h-[2px] w-16 bg-pink-200 mx-auto mt-4"></div>
+                </div>
                 <div className={`max-h-[1200px] overflow-y-auto custom-scrollbar pr-4 ${editorContentClasses}`} dangerouslySetInnerHTML={{ __html: pastoralData.content || '' }} />
               </div>
             </div>
@@ -831,9 +743,6 @@ export default function App() {
         );
       }
 
-      // ==========================================
-      // TAB: TIN TỨC (NEWS)
-      // ==========================================
       case 'News': {
         const featuredNews = newsItems.filter(n => n.isFeatured).slice(0, 2);
         const featuredIds = featuredNews.map(n => n.id);
@@ -892,9 +801,6 @@ export default function App() {
         );
       }
 
-      // ==========================================
-      // TAB: CHI TIẾT TIN TỨC
-      // ==========================================
       case 'NewsDetail': {
         if (!selectedNews) return null;
         return (
@@ -910,9 +816,6 @@ export default function App() {
         );
       }
 
-      // ==========================================
-      // TAB: TRANG CHỦ (HOME)
-      // ==========================================
       case 'Home':
       default: {
         return (
@@ -1150,14 +1053,14 @@ export default function App() {
                 if (selectedNews?.id === tempNews.id) { setSelectedNews(null); setActiveTab(lastTab); }
                 setEditingNews(null);
                 if (db) {
-                   try { await deleteDoc(doc(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'news', tempNews.id.toString())); } 
-                   catch (e) { alert("Lỗi Firebase: " + e.message); }
+                   try { await deleteDoc(doc(db, 'hoangyen_news', tempNews.id.toString())); } 
+                   catch (e) { console.error("Lỗi Firebase: " + e.message); }
                 } 
               }}>Xóa Bản Tin</button>}
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingNews(null)}>Hủy Bỏ</button>
               <button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={async () => { 
-                if (!tempNews.title) return alert('Vui lòng nhập tiêu đề'); 
+                if (!tempNews.title) return; 
                 const id = tempNews.id || Date.now();
                 const d = { ...tempNews, id };
                 
@@ -1171,8 +1074,8 @@ export default function App() {
 
                 // DB Save
                 if (db) {
-                   try { await setDoc(doc(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'news', id.toString()), d); } 
-                   catch (e) { alert("Lỗi lưu Firebase: " + e.message); }
+                   try { await setDoc(doc(db, 'hoangyen_news', id.toString()), d); } 
+                   catch (e) { console.error("Lỗi lưu Firebase: " + e.message); }
                 }
               }}>Lưu Bài Viết</button>
             </div>
@@ -1239,7 +1142,7 @@ export default function App() {
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-6 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingHeritageItem(null)}>Hủy</button>
               <button className="bg-pink-700 text-white px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-                if (!tempHeritageItem.name) return alert('Vui lòng nhập tên'); 
+                if (!tempHeritageItem.name) return; 
                 let nl;
                 if (editingHeritageItem === 'new') nl = [tempHeritageItem, ...heritageList]; 
                 else nl = heritageList.map(item => item.id === tempHeritageItem.id ? tempHeritageItem : item); 
@@ -1306,14 +1209,14 @@ export default function App() {
                 if (selectedPilgrimage?.id === tempPilgrimage.id) { setSelectedPilgrimage(null); setActiveTab('Pilgrimage'); } 
                 setEditingPilgrimage(null); 
                 if (db) {
-                   try { await deleteDoc(doc(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'pilgrimages', tempPilgrimage.id.toString())); }
-                   catch(e) { alert("Lỗi xóa Firebase: " + e.message); }
+                   try { await deleteDoc(doc(db, 'hoangyen_pilgrimages', tempPilgrimage.id.toString())); }
+                   catch(e) { console.error("Lỗi xóa Firebase: " + e.message); }
                 }
               }}>Xóa Kế Hoạch</button>}
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingPilgrimage(null)}>Hủy Bỏ</button>
               <button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={async () => { 
-                if (!tempPilgrimage.title || tempPilgrimage.title.trim() === '') return alert('Vui lòng nhập tên chương trình');
+                if (!tempPilgrimage.title || tempPilgrimage.title.trim() === '') return;
                 const id = tempPilgrimage.id || Date.now();
                 const d = { ...tempPilgrimage, id };
                 
@@ -1327,8 +1230,8 @@ export default function App() {
 
                 // DB Save
                 if (db) {
-                   try { await setDoc(doc(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'pilgrimages', id.toString()), d); }
-                   catch(e) { alert("Lỗi lưu Firebase: " + e.message); }
+                   try { await setDoc(doc(db, 'hoangyen_pilgrimages', id.toString()), d); }
+                   catch(e) { console.error("Lỗi lưu Firebase: " + e.message); }
                 }
               }}>Lưu Kế Hoạch</button>
             </div>
@@ -1352,14 +1255,14 @@ export default function App() {
                 setLiturgyEvents(liturgyEvents.filter(e => e.date !== tempLiturgyEvent.date)); // Optimistic UI
                 setEditingLiturgyEvent(false); 
                 if (db) {
-                   try { await deleteDoc(doc(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'liturgy', tempLiturgyEvent.date)); }
-                   catch(e) { alert("Lỗi xóa Firebase: " + e.message); }
+                   try { await deleteDoc(doc(db, 'hoangyen_liturgy', tempLiturgyEvent.date)); }
+                   catch(e) { console.error("Lỗi xóa Firebase: " + e.message); }
                 }
               }}>Xóa</button>
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-6 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingLiturgyEvent(false)}>Hủy</button>
               <button className="bg-pink-700 text-white px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={async () => {
-                if (!tempLiturgyEvent.title || tempLiturgyEvent.title.trim() === '') return alert('Vui lòng nhập tên sự kiện');
+                if (!tempLiturgyEvent.title || tempLiturgyEvent.title.trim() === '') return;
                 const n = liturgyEvents.filter(e => e.date !== tempLiturgyEvent.date);
                 n.push(tempLiturgyEvent);
                 
@@ -1367,8 +1270,8 @@ export default function App() {
                 setEditingLiturgyEvent(false);
 
                 if (db) {
-                   try { await setDoc(doc(db, 'artifacts', DB_ROOT_PATH, 'public', 'data', 'liturgy', tempLiturgyEvent.date), tempLiturgyEvent); }
-                   catch(e) { alert("Lỗi lưu Firebase: " + e.message); }
+                   try { await setDoc(doc(db, 'hoangyen_liturgy', tempLiturgyEvent.date), tempLiturgyEvent); }
+                   catch(e) { console.error("Lỗi lưu Firebase: " + e.message); }
                 }
               }}>Lưu Lại</button>
             </div>
