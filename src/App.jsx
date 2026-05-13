@@ -304,7 +304,8 @@ export default function App() {
   const itemsPerPage = 4;
   const newsPerPage = 6;
   
-  const [isAdmin, setIsAdmin] = useState(false);
+  // --- States Admin (Lưu bằng Local Storage để F5 không mất) ---
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -454,7 +455,7 @@ export default function App() {
     return () => { unsubNews(); unsubPilgrimages(); unsubLiturgy(); unsubConfig(); };
   }, []);
 
-  // --- Hàm ghi dữ liệu lên Firebase an toàn ---
+  // --- Hàm ghi dữ liệu lên Firebase an toàn (Có merge để không xóa đè) ---
   const saveConfigToDB = async (key, value) => {
     if (!db) return;
     try {
@@ -486,8 +487,19 @@ export default function App() {
   }, [activeTab, returnToNews]);
 
   const handleLoginSubmit = () => {
-    if (password === ADMIN_PASSWORD) { setIsAdmin(true); setShowLoginModal(false); setPassword(''); setLoginError(''); }
+    if (password === ADMIN_PASSWORD) { 
+      setIsAdmin(true); 
+      localStorage.setItem('isAdmin', 'true'); // Lưu vào LocalStorage
+      setShowLoginModal(false); 
+      setPassword(''); 
+      setLoginError(''); 
+    }
     else setLoginError('Mật khẩu không chính xác!');
+  };
+
+  const handleLogout = () => {
+    setIsAdmin(false);
+    localStorage.removeItem('isAdmin');
   };
 
   const handleContactSubmit = (e) => { e.preventDefault(); setFormStatus('success'); setTimeout(() => setFormStatus(''), 4000); e.target.reset(); };
@@ -1077,7 +1089,7 @@ export default function App() {
         </div>
         <div className="max-w-6xl mx-auto px-4 mt-16 pt-6 border-t border-white/10 text-[9px] uppercase font-bold opacity-40 flex items-center justify-between tracking-widest">
           <p onClick={() => !isAdmin && setShowLoginModal(true)} className="cursor-pointer hover:opacity-100 hover:text-white transition-all select-none">© 2026 GIÁO XỨ HOÀNG YÊN.</p>
-          {isAdmin && <span onClick={() => setIsAdmin(false)} className="cursor-pointer hover:text-white transition-all">Thoát Quản Trị</span>}
+          {isAdmin && <span onClick={handleLogout} className="cursor-pointer hover:text-white transition-all">Thoát Quản Trị</span>}
         </div>
       </footer>
 
