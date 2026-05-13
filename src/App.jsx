@@ -1295,10 +1295,9 @@ export default function App() {
           <div className="flex items-center space-x-3 cursor-pointer group relative" onClick={() => { setActiveTab('Home'); window.scrollTo(0,0); }}>
             {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempLogoConfig(logoConfig); setEditingLogo(true); }} className="absolute -top-3 -left-3 z-[110] p-1.5 bg-pink-600 text-white rounded-full shadow-md hover:bg-pink-700 transition active:scale-90"><Edit3 size={12} /></button>}
             <Logo sizeClass="w-16 h-16 md:w-20 md:h-20" isSolid={isSolidHeader} config={logoConfig} />
-            <div className={`border-l pl-4 hidden md:flex items-center gap-3 lg:gap-4 ${isSolidHeader ? 'border-pink-200' : 'border-white/20'}`}>
-              <h1 className={`font-bold text-lg md:text-xl lg:text-2xl leading-none uppercase tracking-tight whitespace-nowrap ${isSolidHeader ? 'text-pink-950' : 'text-white'}`}>GIÁO XỨ HOÀNG YÊN</h1>
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isSolidHeader ? 'bg-pink-300' : 'bg-white/40'}`}></span>
-              <p className={`text-[9px] lg:text-[10px] font-bold uppercase tracking-[0.1em] lg:tracking-[0.15em] leading-none line-clamp-1 ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
+            <div className={`border-l pl-4 hidden sm:flex flex-col justify-center gap-1.5 ${isSolidHeader ? 'border-pink-200' : 'border-white/20'}`}>
+              <h1 className={`font-bold text-xl md:text-2xl leading-none uppercase tracking-tight whitespace-nowrap ${isSolidHeader ? 'text-pink-950' : 'text-white'}`}>GIÁO XỨ HOÀNG YÊN</h1>
+              <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] leading-none whitespace-nowrap ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
             </div>
           </div>
           <nav className="hidden lg:flex items-center space-x-6">
