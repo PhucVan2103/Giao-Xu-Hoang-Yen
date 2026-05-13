@@ -15,12 +15,12 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDzl8FQDegLV3LVx2qTa4dLFF_3esa67XA",
-  authDomain: "giao-xu-hoang-yen.firebaseapp.com",
-  projectId: "giao-xu-hoang-yen",
-  storageBucket: "giao-xu-hoang-yen.firebasestorage.app",
-  messagingSenderId: "896647028768",
-  appId: "1:896647028768:web:5a9c6f6b7638a15a30dc45"
+  apiKey: "AIzaSyDzl8FQDegLV3LVx2qTa4dLFF_3esa67XA",
+  authDomain: "giao-xu-hoang-yen.firebaseapp.com",
+  projectId: "giao-xu-hoang-yen",
+  storageBucket: "giao-xu-hoang-yen.firebasestorage.app",
+  messagingSenderId: "896647028768",
+  appId: "1:896647028768:web:5a9c6f6b7638a15a30dc45"
 };
 
 let app, db;
