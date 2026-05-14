@@ -7,265 +7,29 @@ import {
   User, Star, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Send,
   MessageSquare, CheckCircle2
 } from 'lucide-react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import toast, { Toaster } from 'react-hot-toast';
 
-// Thiết lập mật khẩu quản trị viên.
-const ADMIN_PASSWORD = "admin";
+// Thiết lập mật khẩu quản trị viên từ biến môi trường (hỗ trợ cả Vite và Create React App).
+const ADMIN_PASSWORD = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ADMIN_PASSWORD) 
+  || (typeof process !== 'undefined' && process.env?.REACT_APP_ADMIN_PASSWORD) 
+  || "admin";
 
-// ==========================================
-// CẤU HÌNH FIREBASE VÀ ID BẢO MẬT
-// ==========================================
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { auth, db, storage, appId } from './utils/firebase';
+import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-let app, auth, db;
-try {
-  let firebaseConfig = null;
-  if (typeof __firebase_config !== 'undefined') {
-    firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
-  } else {
-    // Cấu hình fallback nếu không có môi trường truyền vào
-    firebaseConfig = {
-      apiKey: "AIzaSyDzl8FQDegLV3LVx2qTa4dLFF_3esa67XA",
-      authDomain: "giao-xu-hoang-yen.firebaseapp.com",
-      projectId: "giao-xu-hoang-yen",
-      storageBucket: "giao-xu-hoang-yen.firebasestorage.app",
-      messagingSenderId: "896647028768",
-      appId: "1:896647028768:web:5a9c6f6b7638a15a30dc45"
-    };
-  }
-  
-  if (firebaseConfig) {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-  }
-} catch (error) {
-  console.error("Lỗi khởi tạo Firebase:", error);
-}
-
-// XỬ LÝ LỖI INVALID COLLECTION REFERENCE: 
-// Mã hóa appId, thay thế các dấu '/' và '.' thành '-' để đường dẫn Firebase luôn là cấp bậc hợp lệ
-const rawAppId = typeof __app_id !== 'undefined' ? String(__app_id) : 'giao-xu-hoang-yen-app';
-const appId = rawAppId.replace(/[\/\.]/g, '-'); 
-
-// ==========================================
-// 1. COMPONENT DÙNG CHUNG (GLOBAL COMPONENTS)
-// ==========================================
-
-const FacebookIcon = ({ size = 20, className = "" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
-  </svg>
-);
-
-const getImgStyle = (data) => {
-  if (!data) return { objectFit: 'cover', objectPosition: '50% 50%', transform: 'scale(1)', transformOrigin: '50% 50%' };
-  const x = data.imgPosX ?? 50;
-  const y = data.imgPosY ?? 50;
-  const scale = data.imgScale || 1;
-  return {
-    objectFit: data.imgFit || 'cover',
-    objectPosition: `${x}% ${y}%`,
-    transformOrigin: `${x}% ${y}%`,
-    transform: `scale(${scale})`
-  };
-};
-
-const Logo = ({ sizeClass = "w-12 h-12", isSolid, config = {} }) => {
-  const [hasError, setHasError] = useState(false);
-  const imgSrc = config.image || "./logo.svg";
-
-  useEffect(() => {
-    setHasError(false);
-  }, [imgSrc]);
-
-  return (
-    <div className={`${sizeClass} bg-white rounded-full border-2 border-white flex items-center justify-center transition-all duration-700 shadow-md overflow-hidden flex-shrink-0`}>
-      {!hasError ? (
-        <img 
-          src={imgSrc} 
-          alt="Logo Giáo Xứ" 
-          style={getImgStyle(config)}
-          className="w-full h-full block" 
-          onError={() => setHasError(true)}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-pink-600 bg-pink-50">
-          <Church size={24} />
-        </div>
-      )}
-    </div>
-  );
-};
-
-const editorContentClasses = "font-serif text-stone-700 text-sm md:text-base leading-relaxed text-justify flow-root [&_img]:max-w-[90%] md:[&_img]:max-w-[45%] [&_img]:h-auto [&_img]:rounded-md [&_img]:shadow-sm [&_p]:mb-4 [&_h3]:text-xl md:[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-pink-900 [&_h3]:mt-6 [&_h3]:mb-3 [&_h4]:text-lg md:[&_h4]:text-xl [&_h4]:font-bold [&_h4]:text-pink-700 [&_h4]:mt-5 [&_h4]:mb-2 [&_blockquote]:border-l-3 [&_blockquote]:border-pink-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-stone-500 [&_blockquote]:my-4";
-
-const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
-  const editorRef = useRef(null);
-  const [selectedImg, setSelectedImg] = useState(null);
-
-  useEffect(() => {
-    if (editorRef.current && !editorRef.current.contains(document.activeElement) && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || '';
-    }
-  }, [value]);
-
-  const handleInput = () => { if (editorRef.current) onChange(editorRef.current.innerHTML); };
-  const execCmd = (command, val = null) => { document.execCommand(command, false, val); handleInput(); };
-
-  const handleAlign = (alignType) => {
-    if (selectedImg) {
-      if (alignType === 'left') { selectedImg.style.display = 'inline-block'; selectedImg.style.float = 'left'; selectedImg.style.margin = '0.5rem 1.5rem 1rem 0'; }
-      else if (alignType === 'right') { selectedImg.style.display = 'inline-block'; selectedImg.style.float = 'right'; selectedImg.style.margin = '0.5rem 0 1rem 1.5rem'; }
-      else { selectedImg.style.display = 'block'; selectedImg.style.float = 'none'; selectedImg.style.margin = '1.5rem auto'; }
-      selectedImg.style.outline = 'none'; setSelectedImg(null); handleInput();
-    } else {
-      const cmd = alignType === 'left' ? 'justifyLeft' : alignType === 'right' ? 'justifyRight' : 'justifyCenter';
-      document.execCommand(cmd, false, null); handleInput();
-    }
-  };
-
-  const handleInsertImage = (e) => {
-    e.preventDefault();
-    const url = prompt('Nhập đường dẫn (URL) của hình ảnh:');
-    if (url) execCmd('insertHTML', `<img src="${url}" style="display: inline-block; float: left; margin: 0.5rem 1.5rem 1rem 0;" />&nbsp;`);
-  };
-
-  const handlePaste = (e) => {
-    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-    for (let index in items) {
-      const item = items[index];
-      if (item.kind === 'file' && item.type.startsWith('image/')) {
-        e.preventDefault();
-        const reader = new FileReader();
-        reader.onload = (event) => execCmd('insertHTML', `<img src="${event.target.result}" style="display: inline-block; float: left; margin: 0.5rem 1.5rem 1rem 0;" />&nbsp;`);
-        reader.readAsDataURL(item.getAsFile());
-        return;
-      }
-    }
-  };
-
-  return (
-    <div className="border border-pink-200 rounded-sm flex flex-col bg-white overflow-hidden shadow-sm">
-      <div className="bg-pink-50 p-2 flex flex-wrap gap-1 border-b border-pink-200 items-center">
-        <select onMouseDown={e => e.preventDefault()} onChange={(e) => execCmd('formatBlock', e.target.value)} className="text-xs p-1 border border-pink-200 rounded bg-white font-bold outline-none"><option value="P">Đoạn văn</option><option value="H3">Tiêu đề Lớn</option><option value="H4">Tiêu đề Nhỏ</option></select>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('bold')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><Bold size={14}/></button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('italic')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><Italic size={14}/></button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('underline')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><Underline size={14}/></button>
-        <div className="w-px h-4 bg-pink-200 mx-1"></div>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('left')} className="p-1.5 hover:bg-pink-200 rounded ml-2 text-stone-700"><AlignLeft size={14}/></button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('center')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><AlignCenter size={14}/></button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('right')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><AlignRight size={14}/></button>
-        <div className="w-px h-4 bg-pink-200 mx-1"></div>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={handleInsertImage} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><ImageIcon size={14}/></button>
-      </div>
-      <div ref={editorRef} contentEditable onInput={handleInput} onPaste={handlePaste} onClick={(e) => { if (e.target.tagName === 'IMG') { e.target.style.outline = '3px solid #ec4899'; setSelectedImg(e.target); } else { if (selectedImg) selectedImg.style.outline='none'; setSelectedImg(null); } }} className={`p-4 focus:outline-none overflow-y-auto ${editorContentClasses}`} style={{ minHeight }} />
-    </div>
-  );
-};
-
-const ImageAdjuster = ({ data, setData, aspectClass = "aspect-[21/9] w-full rounded-lg" }) => {
-  if (!data?.image) return null;
-
-  return (
-    <div className="mt-4 p-5 bg-stone-50 border border-stone-200 rounded-xl shadow-inner">
-      <h4 className="text-xs font-bold uppercase text-stone-500 tracking-widest mb-5 flex items-center gap-2">
-        <ImageIcon size={14} /> Căn chỉnh hình ảnh
-      </h4>
-      <div className="flex flex-col md:flex-row gap-8 items-center">
-        {/* Box Preview */}
-        <div className="w-full md:w-1/2 flex justify-center items-center">
-          <div className={`overflow-hidden border-2 border-pink-300 shadow-sm bg-stone-200 relative flex-shrink-0 ${aspectClass}`}>
-             <img
-               src={data.image}
-               style={getImgStyle(data)}
-               className="w-full h-full block max-w-none"
-               alt="Preview"
-             />
-             {/* Grid overlay */}
-             <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 opacity-20 divide-x divide-y divide-black/20" style={{ borderRadius: 'inherit' }}>
-               <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
-             </div>
-          </div>
-        </div>
-        
-        {/* Controllers */}
-        <div className="w-full md:w-1/2 space-y-5">
-           <div className="flex items-center gap-4">
-              <label className="text-[10px] font-bold uppercase text-stone-500 w-20">Thu / Phóng</label>
-              <input type="range" min="0.5" max="3" step="0.05" value={data.imgScale || 1} onChange={e => setData({...data, imgScale: parseFloat(e.target.value)})} className="flex-1 accent-pink-600" />
-           </div>
-           <div className="flex items-center gap-4">
-              <label className="text-[10px] font-bold uppercase text-stone-500 w-20">Trái / Phải</label>
-              <input type="range" min="0" max="100" value={data.imgPosX ?? 50} onChange={e => setData({...data, imgPosX: parseFloat(e.target.value)})} className="flex-1 accent-pink-600" />
-           </div>
-           <div className="flex items-center gap-4">
-              <label className="text-[10px] font-bold uppercase text-stone-500 w-20">Lên / Xuống</label>
-              <input type="range" min="0" max="100" value={data.imgPosY ?? 50} onChange={e => setData({...data, imgPosY: parseFloat(e.target.value)})} className="flex-1 accent-pink-600" />
-           </div>
-           <div className="flex items-center gap-6 mt-2 pt-4 border-t border-stone-200">
-             <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-stone-600 uppercase tracking-wider">
-                <input type="radio" checked={(data.imgFit || 'cover') === 'cover'} onChange={() => setData({...data, imgFit: 'cover'})} className="accent-pink-600 w-4 h-4" /> Lấp đầy
-             </label>
-             <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-stone-600 uppercase tracking-wider">
-                <input type="radio" checked={data.imgFit === 'contain'} onChange={() => setData({...data, imgFit: 'contain'})} className="accent-pink-600 w-4 h-4" /> Vừa vặn
-             </label>
-           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-// ==========================================
-// 2. DỮ LIỆU TĨNH
-// ==========================================
-
-const navLinks = [
-  { name: 'Trang Chủ', id: 'Home' },
-  { name: 'Giới Thiệu', id: 'About' },
-  { name: 'Phụng Vụ', id: 'Liturgy' },
-  { name: 'Hành Hương', id: 'Pilgrimage' },
-  { name: 'Tin Tức', id: 'News' },
-  { name: 'Liên Hệ', id: 'Contact' },
-];
-
-const litColors = {
-  white: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800', name: 'Trắng/Vàng' },
-  red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800', name: 'Đỏ' },
-  green: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', name: 'Xanh Lá' },
-  purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', name: 'Tím' },
-  rose: { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-800', name: 'Hồng' }
-};
-
-const formatDateString = (dateObj) => {
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const d = String(dateObj.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
-
-const getDaysArray = (year, month) => {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDay = new Date(year, month, 1).getDay();
-  const startingDayIndex = firstDay === 0 ? 6 : firstDay - 1; 
-  const days = [];
-  for (let i = 0; i < startingDayIndex; i++) days.push(null);
-  for (let d = 1; d <= daysInMonth; d++) days.push(d);
-  return days;
-};
-
-const getStatusStyles = (status) => {
-  switch(status) {
-    case 'Đang mở đăng ký': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    case 'Đã kết thúc': return 'bg-stone-100 text-stone-500 border-stone-200';
-    case 'Sắp diễn ra':
-    default: return 'bg-blue-100 text-blue-700 border-blue-200';
-  }
-};
-
+import { getImgStyle, navLinks, litColors, formatDateString, getDaysArray, getStatusStyles } from './utils/helpers';
+import { FacebookIcon, Logo, editorContentClasses, RichTextEditor, ImageAdjuster } from './components/Shared';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import Home from './pages/Home';
+import About from './pages/About';
+import Contact from './pages/Contact';
+import Liturgy from './pages/Liturgy';
+import { Pilgrimage, PilgrimageDetail } from './pages/Pilgrimage';
+import { News, NewsDetail } from './pages/News';
 
 // ==========================================
 // 3. MAIN APP COMPONENT
@@ -273,14 +37,16 @@ const getStatusStyles = (status) => {
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('Home');
   const [scrolled, setScrolled] = useState(false);
   const [showTopBtn, setShowTopBtn] = useState(false);
   const itemsPerPage = 4;
   const newsPerPage = 6;
   
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // --- States Admin & Auth ---
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -288,65 +54,50 @@ export default function App() {
   // --- States Firebase User ---
   const [firebaseUser, setFirebaseUser] = useState(null);
 
+  // Đồng bộ trạng thái Admin vào Session Storage để không bị mất khi F5
+  useEffect(() => {
+    sessionStorage.setItem('isAdmin', isAdmin);
+  }, [isAdmin]);
+
   // --- States Tùy chỉnh Giao diện ---
   const [logoConfig, setLogoConfig] = useState({ image: './logo.svg', imgFit: 'contain', imgScale: 1, imgPosX: 50, imgPosY: 50 });
   const [editingLogo, setEditingLogo] = useState(false);
   const [tempLogoConfig, setTempLogoConfig] = useState({});
 
-  const [heroData, setHeroData] = useState({ image: 'https://travelplusvn.com/public/uploads/images/Bai_Viet/11_mon_do_khong_the_thieu/Nha-tho-Duc-Ba-1.jpg', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50 });
+  const [heroData, setHeroData] = useState({ image: '', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50 });
   const [editingHero, setEditingHero] = useState(false);
   const [tempHero, setTempHero] = useState({});
 
-  const [footerData, setFooterData] = useState({
-    aboutText: 'Lạy Chúa, xin cho chúng con được hiệp nhất trong tình yêu và sự phục vụ.',
-    facebookLink: '#'
-  });
+  const [footerData, setFooterData] = useState({});
   const [editingFooter, setEditingFooter] = useState(false);
   const [tempFooter, setTempFooter] = useState({});
   const [editingQuickPhone, setEditingQuickPhone] = useState(false);
 
   // --- States Dữ Liệu Chung ---
-  const [parishStats, setParishStats] = useState({ population: '5,420', priest: 'Lm. Giuse Nguyễn Văn A', patron: 'Các Thánh Tử Đạo VN', address: '123 Các Thánh Tử Đạo, TP.HCM' });
-  const [quote, setQuote] = useState({ text: "<p>Ta là bánh hằng sống từ trời xuống. Ai ăn bánh này, sẽ được sống muôn đời.</p>", ref: "Ga 6, 51" });
+  const [parishStats, setParishStats] = useState({});
+  const [quote, setQuote] = useState({});
   const [massSchedules, setMassSchedules] = useState([]);
   
   // --- States Tab Liên Hệ ---
-  const [contactInfo, setContactInfo] = useState({
-    title: "Liên Hệ Văn Phòng Giáo Xứ",
-    address: "123 Các Thánh Tử Đạo, Phường Hoàng Yên, Quận 1, TP. HCM",
-    phone: "(028) 1234 5678",
-    email: "vanphong@giaoxuhoangyen.vn",
-    hours: "Sáng: 08:00 - 11:30 | Chiều: 14:00 - 17:00 (Nghỉ Thứ Hai)",
-    mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.5132741062075!2d106.69744577481812!3d10.771944789376665!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f40a3b49e59%3A0xa1bd14e483a602db!2sNotre%20Dame%20Cathedral%20of%20Saigon!5e0!3m2!1sen!2s!4v1714202353111!5m2!1sen!2s"
-  });
+  const [contactInfo, setContactInfo] = useState({});
   const [formStatus, setFormStatus] = useState('');
 
   // --- States Tab Phụng Vụ ---
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [liturgyEvents, setLiturgyEvents] = useState([]);
-  const [confessionData, setConfessionData] = useState({ title: "Bí Tích Giao Hòa", desc: "Trước các Thánh lễ ngày thường 30 phút và vào các giờ cố định chiều Thứ Bảy hằng tuần." });
-  const [adorationData, setAdorationData] = useState({ title: "Chầu Thánh Thể", desc: "Thứ Năm hằng tuần từ 19:00 - 20:00 và Thứ Sáu đầu tháng sau lễ chiều." });
+  const [confessionData, setConfessionData] = useState({});
+  const [adorationData, setAdorationData] = useState({});
 
   // --- States Tab Giới Thiệu ---
-  const [historyData, setHistoryData] = useState({
-    title: "Dấu Ấn Lịch Sử",
-    content: "<img src='https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop' style='float: left; margin: 0.5rem 1.5rem 1rem 0; width: 40%; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);' /><p>Giáo xứ Hoàng Yên được hình thành từ những hạt giống tin mừng đầu tiên gieo rắc vào cuối thế kỷ 19. Trải qua bao thăng trầm của thời cuộc, nay đã trở thành trung tâm đức tin kiên trung của vùng đất này.</p>"
-  });
-  const [heritageTitle, setHeritageTitle] = useState("Gia Sản Thiêng Liêng");
+  const [historyData, setHistoryData] = useState({});
+  const [heritageTitle, setHeritageTitle] = useState("");
   const [heritageList, setHeritageList] = useState([]);
-  const [pastoralData, setPastoralData] = useState({
-    title: "Định Hướng Mục Vụ",
-    content: `<h4>01. Đào Tạo Đức Tin Giới Trẻ</h4><p>Chú trọng sâu sát vào việc giáo dục nhân bản và giáo lý cho thiếu nhi, thanh giới trẻ.</p>`
-  });
+  const [pastoralData, setPastoralData] = useState({});
 
   // --- States Tab Hành Hương ---
   const [pilgrimagePlans, setPilgrimagePlans] = useState([]);
-  const [receptionInfo, setReceptionInfo] = useState({
-    item1Title: "Đăng ký đoàn", item1Desc: "Quý đoàn vui lòng báo trước 3 ngày để Giáo xứ sắp xếp giờ lễ riêng.",
-    item2Title: "Cơ sở vật chất", item2Desc: "Khuôn viên có bãi đỗ xe rộng rãi cho xe khách 45 chỗ.",
-    item3Title: "Hỗ trợ trực tiếp", item3Desc: "Liên hệ Văn phòng Đền Thánh để được hỗ trợ tốt nhất.", item3Phone: "090.123.4567"
-  });
+  const [receptionInfo, setReceptionInfo] = useState({});
 
   // --- States Tab Tin Tức ---
   const [newsItems, setNewsItems] = useState([]);
@@ -354,10 +105,8 @@ export default function App() {
   // --- States View Detail & Pagination ---
   const [selectedNews, setSelectedNews] = useState(null);
   const [selectedPilgrimage, setSelectedPilgrimage] = useState(null);
-  const [lastTab, setLastTab] = useState('Home');
   const [newsPage, setNewsPage] = useState(1);
   const [pilgrimagePage, setPilgrimagePage] = useState(1);
-  const [returnToNews, setReturnToNews] = useState(false);
 
   // --- States Quản lý Modals Edit (Temp Data) ---
   const [editingQuote, setEditingQuote] = useState(false);
@@ -418,7 +167,10 @@ export default function App() {
 
   // 2. Data Synchronization (Bọc Try-Catch chống Crash)
   useEffect(() => {
-    if (!firebaseUser || !db) return;
+    // TỐI ƯU 2: Xóa check !firebaseUser để Web tải dữ liệu đồng thời với lúc Auth, cắt giảm 50% thời gian chờ
+    if (!db) {
+      return;
+    }
 
     let unsubNews, unsubPilgrimages, unsubLiturgy, unsubConfig;
 
@@ -454,25 +206,39 @@ export default function App() {
       );
 
       unsubConfig = onSnapshot(
-        doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'),
-        (docSnap) => {
-          if (docSnap.exists()) {
+        collection(db, 'artifacts', appId, 'public', 'data', 'config'),
+        (snapshot) => {
+          let updatedLogo = null;
+          let updatedHero = null;
+
+          snapshot.forEach((docSnap) => {
             const d = docSnap.data();
-            if (d.parishStats) setParishStats(d.parishStats);
-            if (d.massSchedules) setMassSchedules(d.massSchedules);
-            if (d.quote) setQuote(d.quote);
-            if (d.contactInfo) setContactInfo(d.contactInfo);
-            if (d.confessionData) setConfessionData(d.confessionData);
-            if (d.adorationData) setAdorationData(d.adorationData);
-            if (d.historyData) setHistoryData(d.historyData);
-            if (d.heritageTitle) setHeritageTitle(d.heritageTitle);
-            if (d.heritageList) setHeritageList(d.heritageList);
-            if (d.pastoralData) setPastoralData(d.pastoralData);
-            if (d.receptionInfo) setReceptionInfo(d.receptionInfo);
-            if (d.logoConfig) setLogoConfig(d.logoConfig);
-            if (d.heroData) setHeroData(d.heroData);
-            if (d.footerData) setFooterData(d.footerData);
-          }
+            if (docSnap.id === 'main') {
+              if (d.parishStats) setParishStats(d.parishStats);
+              if (d.massSchedules) setMassSchedules(d.massSchedules);
+              if (d.quote) setQuote(d.quote);
+              if (d.contactInfo) setContactInfo(d.contactInfo);
+              if (d.confessionData) setConfessionData(d.confessionData);
+              if (d.adorationData) setAdorationData(d.adorationData);
+              if (d.historyData) setHistoryData(d.historyData);
+              if (d.heritageTitle) setHeritageTitle(d.heritageTitle);
+              if (d.heritageList) setHeritageList(d.heritageList);
+              if (d.pastoralData) setPastoralData(d.pastoralData);
+              if (d.receptionInfo) setReceptionInfo(d.receptionInfo);
+              if (d.footerData) setFooterData(d.footerData);
+              
+              // Tương thích ngược: Vẫn đọc từ main nếu chưa từng tách ra doc riêng
+              if (d.logoConfig && !updatedLogo) updatedLogo = d.logoConfig;
+              if (d.heroData && !updatedHero) updatedHero = d.heroData;
+            } else if (docSnap.id === 'logo') {
+              if (d.logoConfig) updatedLogo = d.logoConfig;
+            } else if (docSnap.id === 'hero') {
+              if (d.heroData) updatedHero = d.heroData;
+            }
+          });
+          
+          if (updatedLogo) setLogoConfig(updatedLogo);
+          if (updatedHero) setHeroData(updatedHero);
         },
         (err) => console.error("Firebase lỗi lấy Config:", err)
       );
@@ -486,15 +252,53 @@ export default function App() {
       if(unsubLiturgy) unsubLiturgy();
       if(unsubConfig) unsubConfig();
     };
-  }, [firebaseUser]);
+  // TỐI ƯU 4: Xóa [firebaseUser] khỏi dependency array, tránh việc useEffect bị kích hoạt 2 lần gây lag
+  }, []);
 
   // --- Hàm hỗ trợ ghi dữ liệu lên Firebase ---
   const saveConfigToDB = async (key, value) => {
-    if (!db || !firebaseUser) return;
+    // Cập nhật state local ngay lập tức để giao diện không bị giật lag hoặc trong trường hợp tải ảnh lớn
+    switch(key) {
+      case 'contactInfo': setContactInfo(value); break;
+      case 'quote': setQuote(value); break;
+      case 'historyData': setHistoryData(value); break;
+      case 'heritageTitle': setHeritageTitle(value); break;
+      case 'heritageList': setHeritageList(value); break;
+      case 'pastoralData': setPastoralData(value); break;
+      case 'receptionInfo': setReceptionInfo(value); break;
+      case 'logoConfig': setLogoConfig(value); break;
+      case 'heroData': setHeroData(value); break;
+      case 'footerData': setFooterData(value); break;
+      case 'parishStats': setParishStats(value); break;
+      case 'massSchedules': setMassSchedules(value); break;
+      case 'confessionData': setConfessionData(value); break;
+      case 'adorationData': setAdorationData(value); break;
+      default: break;
+    }
+
+    if (!db || !firebaseUser) {
+      toast.error('Chưa kết nối CSDL Firebase. Dữ liệu chỉnh sửa chỉ lưu tạm.');
+      return;
+    }
+
+    // Phân luồng dữ liệu nặng ra các Document riêng biệt để tránh lỗi 1MB Limit
+    let docId = 'main';
+    if (key === 'logoConfig') docId = 'logo';
+    else if (key === 'heroData') docId = 'hero';
+
+    const loadingToast = toast.loading('Đang lưu cấu hình...');
     try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'), { [key]: value }, { merge: true });
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', docId), { [key]: value }, { merge: true });
+      toast.success('Lưu thành công!', { id: loadingToast });
     } catch (err) {
       console.error("Lỗi khi lưu DB:", err);
+      if (err.code === 'permission-denied') {
+        toast.error("Không có quyền ghi vào Database. Hãy mở Rules.", { id: loadingToast });
+      } else if (err.code === 'resource-exhausted' || err.message?.includes('exceeds the maximum')) {
+        toast.error("Hình ảnh quá lớn (Vượt quá 1MB).", { id: loadingToast });
+      } else {
+        toast.error("Lưu thất bại: " + err.message, { id: loadingToast });
+      }
     }
   };
 
@@ -509,19 +313,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'Home' && returnToNews) {
-      setTimeout(() => {
-        const el = document.getElementById('news-section');
-        if (el) {
-          const y = el.getBoundingClientRect().top + window.scrollY - 80;
-          window.scrollTo({ top: y, behavior: 'smooth' });
-        }
-      }, 100);
-      setReturnToNews(false);
-    } else {
-      window.scrollTo(0, 0);
-    }
-  }, [activeTab, returnToNews]);
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   const handleLoginSubmit = () => {
     if (password === ADMIN_PASSWORD) { setIsAdmin(true); setShowLoginModal(false); setPassword(''); setLoginError(''); }
@@ -566,720 +359,12 @@ export default function App() {
   const prevMonth = () => { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1)); };
   const nextMonth = () => { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1)); };
 
-  const isSolidHeader = scrolled || activeTab !== 'Home';
-
-  // --- RENDER CONTENT THÔNG MINH ---
-  const renderContent = () => {
-    switch (activeTab) {
-      
-      // ==========================================
-      // TAB: LIÊN HỆ
-      // ==========================================
-      case 'Contact': {
-        return (
-          <div className="py-20 md:py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
-            <div className="max-w-6xl mx-auto px-4 lg:px-6">
-              <div className="text-center mb-16">
-                <h2 className="text-3xl md:text-5xl font-serif font-bold text-pink-950 mb-4 uppercase tracking-widest leading-tight">Liên Hệ</h2>
-                <div className="flex items-center justify-center space-x-3 mb-6">
-                  <div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div>
-                </div>
-                <p className="text-stone-500 font-serif text-sm md:text-base max-w-2xl mx-auto italic text-center">"Hãy gõ, cửa sẽ mở cho anh em." (Mt 7, 7)</p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="flex flex-col h-full gap-6">
-                  <div className="bg-white p-8 rounded-2xl shadow-lg border border-pink-50 relative group">
-                    {isAdmin && <button onClick={() => { setTempContact(contactInfo); setEditingContact(true); }} className="absolute top-4 right-4 p-2 bg-pink-600 text-white rounded-full shadow-md transition active:scale-90 hover:bg-pink-700"><Edit3 size={14}/></button>}
-                    <h3 className="text-xl font-bold text-pink-950 uppercase mb-8 pb-4 border-b border-pink-50 flex items-center gap-3"><Mail className="text-pink-600" /> {contactInfo.title || ''}</h3>
-                    <ul className="space-y-6">
-                      <li className="flex gap-4">
-                        <div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><MapPin size={18} className="text-pink-600"/></div>
-                        <div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Địa chỉ</span><p className="text-sm font-serif text-stone-700 leading-relaxed">{contactInfo.address || ''}</p></div>
-                      </li>
-                      <li className="flex gap-4">
-                        <div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><Phone size={18} className="text-pink-600"/></div>
-                        <div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Điện thoại</span><p className="text-lg font-bold text-pink-900">{contactInfo.phone || ''}</p></div>
-                      </li>
-                      <li className="flex gap-4">
-                        <div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><Mail size={18} className="text-pink-600"/></div>
-                        <div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email</span><p className="text-sm font-serif text-stone-700">{contactInfo.email || ''}</p></div>
-                      </li>
-                      <li className="flex gap-4">
-                        <div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center flex-shrink-0"><Clock size={18} className="text-pink-600"/></div>
-                        <div><span className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Giờ làm việc</span><p className="text-sm font-serif text-stone-700 italic">{contactInfo.hours || ''}</p></div>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Bản đồ Google Maps */}
-                  <div className="bg-stone-200 rounded-2xl flex-1 min-h-[300px] shadow-inner overflow-hidden relative border border-stone-300 flex items-center justify-center">
-                    {contactInfo.mapUrl ? (
-                      <iframe 
-                        src={contactInfo.mapUrl} 
-                        className="w-full h-full absolute inset-0"
-                        style={{ border: 0 }} 
-                        allowFullScreen="" 
-                        loading="lazy" 
-                        referrerPolicy="no-referrer-when-downgrade"
-                      ></iframe>
-                    ) : (
-                      <div className="text-center opacity-40"><MapPin size={48} className="mx-auto mb-2"/><p className="text-xs font-bold uppercase tracking-widest">Bản đồ Đền Thánh</p></div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Form gửi yêu cầu */}
-                <div className="bg-white p-8 rounded-2xl shadow-lg border border-pink-50 h-full flex flex-col">
-                  <h3 className="text-xl font-bold text-pink-950 uppercase mb-6 pb-4 border-b border-pink-50 flex items-center gap-3"><MessageSquare className="text-pink-600" /> Gửi Ý Nguyện & Góp Ý</h3>
-                  {formStatus === 'success' && (
-                    <div className="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                      <CheckCircle2 size={20} className="text-emerald-500" />
-                      <span className="text-sm font-bold">Gửi thông tin thành công! Xin cảm ơn bạn.</span>
-                    </div>
-                  )}
-                  <form className="space-y-5 flex-1 flex flex-col" onSubmit={handleContactSubmit}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Họ và tên</label><input type="text" required className="w-full border border-stone-200 bg-stone-50 p-3 rounded text-sm focus:border-pink-500 focus:bg-white outline-none transition" placeholder="Tên của bạn..." /></div>
-                      <div><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Số điện thoại</label><input type="text" required className="w-full border border-stone-200 bg-stone-50 p-3 rounded text-sm focus:border-pink-500 focus:bg-white outline-none transition" placeholder="Số liên lạc..." /></div>
-                    </div>
-                    <div><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Chủ đề</label>
-                      <select className="w-full border border-stone-200 bg-stone-50 p-3 rounded text-sm focus:border-pink-500 focus:bg-white outline-none transition cursor-pointer">
-                        <option>Gửi ý lễ / Xin ơn</option>
-                        <option>Góp ý xây dựng Giáo xứ</option>
-                        <option>Hỏi đáp thủ tục Bí tích</option>
-                        <option>Liên hệ công việc khác</option>
-                      </select>
-                    </div>
-                    <div className="flex-1 flex flex-col"><label className="text-[10px] font-bold uppercase text-stone-400 mb-2 block tracking-widest">Nội dung</label><textarea required className="w-full flex-1 border border-stone-200 bg-stone-50 p-3 rounded text-sm min-h-[120px] focus:border-pink-500 focus:bg-white outline-none transition resize-none font-serif" placeholder="Nhập nội dung ý nguyện hoặc góp ý của bạn tại đây..."></textarea></div>
-                    <button type="submit" className="w-full bg-pink-700 hover:bg-pink-800 text-white font-bold py-4 rounded-lg shadow-md active:scale-95 transition-all uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-2 mt-4">Gửi Thông Tin <Send size={14}/></button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      // ==========================================
-      // TAB: PHỤNG VỤ
-      // ==========================================
-      case 'Liturgy': {
-        const selectedDateStr = formatDateString(selectedDate);
-        const eventOfDay = liturgyEvents.find(e => e.date === selectedDateStr);
-        const eventColor = eventOfDay ? (litColors[eventOfDay.colorType] || litColors.white) : litColors.white;
-        
-        return (
-          <div className="py-20 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
-            <div className="max-w-6xl mx-auto px-4 lg:px-6">
-              <div className="text-center mb-12"><h2 className="text-3xl md:text-5xl font-serif font-bold text-pink-950 uppercase tracking-widest leading-tight">Lịch Phụng Vụ</h2></div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-                <div className="bg-white p-6 shadow-lg shadow-pink-100 border-t-4 border-pink-500 rounded-xl relative group col-span-1 md:col-span-2 lg:col-span-1">
-                  {isAdmin && <button onClick={() => { setTempMass([...massSchedules]); setEditingMass(true); }} className="absolute top-3 right-3 p-1.5 bg-pink-600 text-white rounded-full shadow-md"><Edit3 size={14}/></button>}
-                  <h3 className="text-lg font-bold mb-5 uppercase text-pink-700 flex items-center gap-2"><Clock size={18}/> Giờ Lễ Chung</h3>
-                  <div className="space-y-3">
-                    {(massSchedules.length > 0 ? massSchedules : [{day: 'Trống', times:[]}]).map((item, idx) => (
-                      <div key={idx} className="flex justify-between p-3 bg-stone-50 rounded-lg text-[10px] font-bold">
-                        <span className="text-pink-800 uppercase">{item.day}</span>
-                        <div className="flex gap-1">{item.times.map((t, i) => <span key={i} className="bg-white border px-1.5 py-0.5 rounded">{t}</span>)}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="bg-white p-6 shadow-lg shadow-purple-100 border-t-4 border-purple-500 rounded-xl relative group">
-                  {isAdmin && <button onClick={() => { setTempConfession(confessionData); setEditingConfession(true); }} className="absolute top-3 right-3 p-1.5 bg-purple-600 text-white rounded-full shadow-md"><Edit3 size={14}/></button>}
-                  <h3 className="text-lg font-bold text-purple-700 mb-3 flex items-center gap-2"><Heart size={18}/> {confessionData.title || 'Bí Tích'}</h3>
-                  <p className="font-serif text-sm leading-relaxed text-stone-600 whitespace-pre-wrap">{confessionData.desc || 'Đang cập nhật'}</p>
-                </div>
-                <div className="bg-white p-6 shadow-lg shadow-amber-100 border-t-4 border-amber-500 rounded-xl relative group">
-                  {isAdmin && <button onClick={() => { setTempAdoration(adorationData); setEditingAdoration(true); }} className="absolute top-3 right-3 p-1.5 bg-amber-600 text-white rounded-full shadow-md"><Edit3 size={14}/></button>}
-                  <h3 className="text-lg font-bold text-amber-700 mb-3 flex items-center gap-2"><BookOpen size={18}/> {adorationData.title || 'Hoạt Động'}</h3>
-                  <p className="font-serif text-sm leading-relaxed text-stone-600 whitespace-pre-wrap">{adorationData.desc || 'Đang cập nhật'}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg border border-pink-100 p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <button onClick={prevMonth} className="p-2 text-pink-700 hover:bg-pink-50 rounded-full transition"><ChevronLeft size={20}/></button>
-                    <h3 className="text-xl font-bold font-serif text-pink-950 uppercase">Tháng {calendarDate.getMonth() + 1} / {calendarDate.getFullYear()}</h3>
-                    <button onClick={nextMonth} className="p-2 text-pink-700 hover:bg-pink-50 rounded-full transition"><ChevronRight size={20}/></button>
-                  </div>
-                  <div className="grid grid-cols-7 gap-2">
-                    {['T2','T3','T4','T5','T6','T7','CN'].map((d, i) => <div key={d} className={`text-center font-bold text-xs uppercase py-2 ${i === 6 ? 'text-red-600' : 'text-stone-400'}`}>{d}</div>)}
-                    {getDaysArray(calendarDate.getFullYear(), calendarDate.getMonth()).map((d, idx) => {
-                      if (!d) return <div key={idx}></div>;
-                      const dateStr = formatDateString(new Date(calendarDate.getFullYear(), calendarDate.getMonth(), d));
-                      const isSel = dateStr === selectedDateStr;
-                      const evt = liturgyEvents.find(e => e.date === dateStr);
-                      return (
-                        <div key={idx} onClick={() => setSelectedDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth(), d))} className={`min-h-[80px] p-1 rounded-xl border transition-all cursor-pointer flex flex-col ${isSel ? 'border-pink-500 bg-pink-50 shadow-md ring-2 ring-pink-100' : 'border-stone-50 bg-white hover:border-pink-200'}`}>
-                          <span className={`text-xs font-bold mb-auto ${idx % 7 === 6 ? 'text-red-600' : 'text-stone-700'}`}>{d}</span>
-                          {evt && <div className={`text-[8px] p-1 rounded border leading-tight ${litColors[evt.colorType] ? litColors[evt.colorType].bg : ''} ${litColors[evt.colorType] ? litColors[evt.colorType].text : ''} ${litColors[evt.colorType] ? litColors[evt.colorType].border : ''}`}>{evt.title}</div>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className={`rounded-2xl shadow-lg border p-6 flex flex-col transition-all duration-500 ${eventColor.bg} ${eventColor.border}`}>
-                   <div className="flex justify-between items-start mb-6">
-                      <span className="text-[10px] font-bold uppercase text-stone-500 flex items-center gap-2"><Calendar size={14} className="text-pink-500"/> {selectedDate.toLocaleDateString('vi-VN')}</span>
-                      {isAdmin && <button onClick={() => { setTempLiturgyEvent(eventOfDay || { date: selectedDateStr, title: '', colorType: 'white', desc: '' }); setEditingLiturgyEvent(true); }} className="p-1.5 bg-white/50 hover:bg-white rounded-full shadow-sm transition"><Edit3 size={12}/></button>}
-                   </div>
-                   {eventOfDay ? (
-                     <div>
-                      <h4 className={`text-xl font-serif font-bold mb-4 ${eventColor.text}`}>{eventOfDay.title}</h4>
-                      <p className="font-serif text-sm leading-relaxed text-stone-700 whitespace-pre-wrap">{eventOfDay.desc}</p>
-                     </div>
-                   ) : <div className="flex-1 flex flex-col items-center justify-center opacity-40 text-stone-500"><BookOpen size={32} className="mb-2"/><p className="text-xs text-center font-serif">Lịch cử hành theo ngày thường</p></div>}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      // ==========================================
-      // TAB: HÀNH HƯƠNG (PILGRIMAGE)
-      // ==========================================
-      case 'Pilgrimage': {
-        const totalPilgrimagePages = Math.ceil(pilgrimagePlans.length / itemsPerPage);
-        const currentPilgrimagePlans = pilgrimagePlans.slice((pilgrimagePage - 1) * itemsPerPage, pilgrimagePage * itemsPerPage);
-
-        return (
-          <div className="py-20 md:py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
-            <div className="max-w-5xl mx-auto px-4 lg:px-6">
-              <div className="text-center mb-16">
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-pink-950 mb-4 uppercase tracking-widest leading-tight text-center">Trung Tâm Hành Hương</h2>
-                <div className="flex items-center justify-center space-x-3 mb-6">
-                  <div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div>
-                </div>
-                <p className="text-stone-500 font-serif text-sm md:text-base max-w-2xl mx-auto italic text-center leading-relaxed">"Phúc thay ai lấy Chúa làm sức mạnh, quyết tâm tiến bước hành hương." (Tv 84, 6)</p>
-              </div>
-
-              <div className="mb-16">
-                <div className="flex justify-between items-center mb-8 border-b border-pink-100 pb-4 relative">
-                  <h3 className="text-xl md:text-2xl font-serif font-bold text-pink-950 uppercase tracking-widest">Kế Hoạch Hành Hương</h3>
-                  {isAdmin && (
-                    <button onClick={() => { setTempPilgrimage({ id: Date.now(), title: '', date: '', duration: '', status: 'Sắp diễn ra', desc: '', image: '', content: '' }); setEditingPilgrimage('new'); }} className="px-4 py-2 bg-pink-600 text-white text-[11px] font-bold rounded shadow-md transition-all active:scale-95 flex items-center gap-1">
-                      + Thêm Kế Hoạch
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-6">
-                  {currentPilgrimagePlans.map(plan => (
-                    <div 
-                      key={plan.id} 
-                      onClick={() => { setSelectedPilgrimage(plan); setActiveTab('PilgrimageDetail'); window.scrollTo(0,0); }}
-                      className="group flex flex-col sm:flex-row bg-white rounded-xl shadow-md border border-pink-50 overflow-hidden cursor-pointer hover:shadow-lg hover:border-pink-300 transition-all relative"
-                    >
-                      {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempPilgrimage(plan); setEditingPilgrimage(plan.id); }} className="absolute top-3 right-3 z-20 p-1.5 bg-white/80 backdrop-blur-sm text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={14} /></button>}
-                      
-                      <div className="sm:w-56 h-48 sm:h-auto flex-shrink-0 relative overflow-hidden bg-stone-100">
-                        <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
-                           <img src={plan.image} style={getImgStyle(plan)} className="w-full h-full block" alt={plan.title} />
-                        </div>
-                        <div className="absolute top-3 left-3">
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded shadow-sm border ${getStatusStyles(plan.status)} uppercase tracking-wider`}>{plan.status}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="p-6 flex flex-col justify-center flex-1">
-                        <h4 className="text-lg md:text-xl font-serif font-bold text-pink-950 mb-3 group-hover:text-pink-700 transition leading-snug line-clamp-2">{plan.title}</h4>
-                        <div className="flex flex-wrap gap-4 mb-4">
-                          <span className="flex items-center text-xs font-bold text-stone-500 uppercase tracking-widest"><Calendar size={14} className="mr-1.5 text-pink-500" /> {plan.date}</span>
-                          <span className="flex items-center text-xs font-bold text-stone-500 uppercase tracking-widest"><Clock size={14} className="mr-1.5 text-pink-500" /> {plan.duration}</span>
-                        </div>
-                        <p className="text-sm font-serif text-stone-600 leading-relaxed line-clamp-2">{plan.desc || ''}</p>
-                      </div>
-                    </div>
-                  ))}
-
-                  {pilgrimagePlans.length === 0 && (
-                    <div className="text-center py-12 bg-stone-50 rounded-xl border border-stone-100">
-                      <MapPin className="mx-auto text-stone-300 mb-4" size={32} />
-                      <p className="text-stone-500 font-serif">Hiện tại chưa có kế hoạch hành hương nào.</p>
-                    </div>
-                  )}
-                </div>
-
-                {totalPilgrimagePages > 1 && (
-                  <div className="flex justify-center items-center space-x-2 mt-10">
-                    <button onClick={() => setPilgrimagePage(p => Math.max(1, p - 1))} disabled={pilgrimagePage === 1} className="p-2 rounded border border-pink-200 text-pink-600 hover:bg-pink-50 disabled:opacity-30 disabled:hover:bg-transparent transition"><ChevronLeft size={16}/></button>
-                    {Array.from({length: totalPilgrimagePages}, (_, i) => (
-                      <button 
-                        key={i+1} 
-                        onClick={() => setPilgrimagePage(i+1)} 
-                        className={`w-8 h-8 rounded text-sm font-bold transition ${pilgrimagePage === i + 1 ? 'bg-pink-600 text-white shadow-md' : 'text-stone-600 hover:bg-pink-50 border border-transparent hover:border-pink-200'}`}
-                      >
-                        {i + 1}
-                      </button>
-                    ))}
-                    <button onClick={() => setPilgrimagePage(p => Math.min(totalPilgrimagePages, p + 1))} disabled={pilgrimagePage === totalPilgrimagePages} className="p-2 rounded border border-pink-200 text-pink-600 hover:bg-pink-50 disabled:opacity-30 disabled:hover:bg-transparent transition"><ChevronRight size={16}/></button>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-16 bg-pink-950 p-8 md:p-12 rounded-2xl shadow-xl text-pink-50 border-t-4 border-pink-400 relative group">
-                {isAdmin && <button onClick={() => { setTempReception(receptionInfo); setEditingReception(true); }} className="absolute top-4 right-4 z-20 p-2 bg-white/20 backdrop-blur-sm text-white rounded-full shadow-md transition hover:bg-pink-600 active:scale-90"><Edit3 size={16} /></button>}
-                <div className="text-center mb-10">
-                  <h3 className="text-2xl md:text-3xl font-serif font-bold text-white mb-4 uppercase tracking-tight flex items-center justify-center"><Heart className="mr-3 text-pink-400" size={28}/> Liên Hệ Đón Tiếp</h3>
-                  <div className="h-[2px] w-16 bg-pink-800 mx-auto"></div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
-                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50">
-                    <div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50">
-                      <Users className="text-pink-300" size={24} />
-                    </div>
-                    <h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item1Title || 'Đăng ký đoàn'}</h4>
-                    <p className="font-serif text-sm leading-relaxed opacity-90 whitespace-pre-wrap">{receptionInfo.item1Desc || ''}</p>
-                  </div>
-                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50">
-                    <div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50">
-                      <MapPin className="text-pink-300" size={24} />
-                    </div>
-                    <h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item2Title || 'Cơ sở vật chất'}</h4>
-                    <p className="font-serif text-sm leading-relaxed opacity-90 whitespace-pre-wrap">{receptionInfo.item2Desc || ''}</p>
-                  </div>
-                  <div className="flex flex-col items-center md:items-start p-6 bg-pink-900/50 rounded-xl border border-pink-800/50">
-                    <div className="w-14 h-14 bg-pink-800/60 rounded-full flex items-center justify-center mb-4 border border-pink-700/50">
-                      <Phone className="text-pink-300" size={24} />
-                    </div>
-                    <h4 className="font-bold text-pink-200 uppercase tracking-widest text-[10px] mb-2">{receptionInfo.item3Title || 'Hỗ trợ'}</h4>
-                    <p className="font-serif text-sm leading-relaxed opacity-90 mb-3 whitespace-pre-wrap">{receptionInfo.item3Desc || ''}</p>
-                    <strong className="text-xl text-white block mt-auto">{receptionInfo.item3Phone || ''}</strong>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        );
-      }
-
-      // ==========================================
-      // TAB: CHI TIẾT HÀNH HƯƠNG
-      // ==========================================
-      case 'PilgrimageDetail': {
-        if (!selectedPilgrimage) return null;
-        return (
-          <div className="py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
-            <div className="max-w-4xl mx-auto px-4 lg:px-6">
-              <button onClick={() => { setActiveTab('Pilgrimage'); window.scrollTo(0,0); }} className="flex items-center text-pink-700 hover:text-pink-900 mb-8 font-bold text-[11px] uppercase tracking-widest transition-transform hover:-translate-x-1"><ChevronLeft size={14} className="mr-1" /> Quay lại Kế hoạch Hành Hương</button>
-              
-              <div className="bg-white rounded-2xl shadow-xl border border-pink-50 overflow-hidden relative">
-                {isAdmin && <button onClick={() => { setTempPilgrimage(selectedPilgrimage); setEditingPilgrimage(selectedPilgrimage.id); }} className="absolute top-4 right-4 z-20 p-2.5 bg-white/80 backdrop-blur-sm text-pink-700 rounded-full shadow-md transition active:scale-90 hover:bg-pink-600 hover:text-white"><Edit3 size={16} /></button>}
-                
-                <div className="w-full aspect-[21/9] md:aspect-[21/7] overflow-hidden bg-stone-100 relative">
-                  <img src={selectedPilgrimage.image} style={getImgStyle(selectedPilgrimage)} className="w-full h-full block" alt="" />
-                </div>
-                
-                <div className="p-8 md:p-12">
-                  <div className="mb-4">
-                    <span className={`text-[10px] font-bold px-3 py-1.5 rounded shadow-sm border ${getStatusStyles(selectedPilgrimage.status)} uppercase tracking-wider`}>{selectedPilgrimage.status}</span>
-                  </div>
-                  <h1 className="text-3xl md:text-4xl font-serif font-bold text-pink-950 leading-tight mb-6">{selectedPilgrimage.title}</h1>
-                  
-                  <div className="flex flex-wrap gap-6 mb-10 pb-6 border-b border-pink-100">
-                    <span className="flex items-center text-xs font-bold text-stone-500 uppercase tracking-widest"><Calendar size={14} className="mr-2 text-pink-500" /> Ngày: {selectedPilgrimage.date}</span>
-                    <span className="flex items-center text-xs font-bold text-stone-500 uppercase tracking-widest"><Clock size={14} className="mr-2 text-pink-500" /> Thời lượng: {selectedPilgrimage.duration}</span>
-                  </div>
-
-                  <p className="text-lg font-serif italic text-stone-600 mb-10 leading-relaxed border-l-4 border-pink-300 pl-4">{selectedPilgrimage.desc}</p>
-                  <div className={editorContentClasses} dangerouslySetInnerHTML={{ __html: selectedPilgrimage.content || '' }} />
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      // ==========================================
-      // TAB: GIỚI THIỆU (ABOUT)
-      // ==========================================
-      case 'About': {
-        return (
-          <div className="py-20 md:py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
-            <div className="max-w-6xl mx-auto px-4 lg:px-6">
-              
-              <div className="text-center mb-16">
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-pink-950 mb-4 uppercase tracking-widest leading-tight text-center">Lịch Sử & Di Sản</h2>
-                <div className="flex items-center justify-center space-x-3 mb-6">
-                  <div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div>
-                </div>
-                <p className="text-stone-500 font-serif text-sm md:text-base max-w-2xl mx-auto italic text-center leading-relaxed">"Anh em hãy nhớ đến những người lãnh đạo đã giảng Lời Chúa cho anh em. Hãy nhìn xem kết cuộc đời họ mà noi gương đức tin của họ." (Dt 13, 7)</p>
-              </div>
-
-              <div className="mb-16 bg-white shadow-lg rounded-xl border border-pink-50 p-6 md:p-8 relative group">
-                {isAdmin && <button onClick={() => { setTempStats(parishStats); setEditingStats(true); }} className="absolute top-3 right-3 p-1.5 bg-pink-600 text-white rounded-full shadow-md"><Edit3 size={14} /></button>}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 divide-x-0 md:divide-x divide-pink-100">
-                  <div className="text-center px-2"><Users className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-2xl font-serif font-bold text-pink-950 tracking-tight mb-1">{parishStats.population || '0'}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Giáo dân</span></div>
-                  <div className="text-center px-2"><User className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-base md:text-lg font-serif font-bold text-pink-950 tracking-tight mb-1 line-clamp-1">{parishStats.priest || 'Đang cập nhật'}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Linh mục</span></div>
-                  <div className="text-center px-2"><Star className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-base md:text-lg font-serif font-bold text-pink-950 tracking-tight mb-1 line-clamp-1">{parishStats.patron || 'Đang cập nhật'}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Bổn mạng</span></div>
-                  <div className="text-center px-2"><MapPin className="mx-auto text-pink-500 mb-2" size={24} /><span className="block text-base md:text-lg font-serif font-bold text-pink-950 tracking-tight mb-1 line-clamp-1">{parishStats.address || 'Đang cập nhật'}</span><span className="text-[11px] uppercase font-bold text-stone-400 tracking-wider">Địa chỉ</span></div>
-                </div>
-              </div>
-
-              <div className="mb-16 relative group bg-white p-6 md:p-10 rounded-2xl border border-pink-50 shadow-md">
-                {isAdmin && <button onClick={() => { setTempHistory(historyData); setEditingHistory(true); }} className="absolute top-4 right-4 z-20 p-2 bg-pink-600 text-white rounded-full shadow-md transition hover:bg-pink-700 active:scale-90"><Edit3 size={14} /></button>}
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl md:text-3xl font-serif font-bold text-pink-950 uppercase tracking-widest">{historyData.title || ''}</h3>
-                  <div className="h-[2px] w-16 bg-pink-200 mx-auto mt-4"></div>
-                </div>
-                <div className={`max-h-[1200px] overflow-y-auto custom-scrollbar pr-4 ${editorContentClasses}`} dangerouslySetInnerHTML={{ __html: historyData.content || '' }} />
-              </div>
-
-              <div className="mb-16 relative group bg-white p-6 md:p-10 rounded-2xl border border-pink-50 shadow-md">
-                <div className="text-center mb-8 relative">
-                  <h3 className="text-2xl md:text-3xl font-serif font-bold text-pink-950 uppercase tracking-widest inline-flex items-center">
-                    {heritageTitle || 'Gia Sản Thiêng Liêng'}
-                  </h3>
-                  <div className="h-[2px] w-16 bg-pink-200 mx-auto mt-4"></div>
-                  {isAdmin && (
-                    <button onClick={() => { setTempHeritageTitle(heritageTitle); setEditingHeritageTitle(true); }} className="absolute top-0 right-10 md:right-14 p-2 bg-pink-100 text-pink-600 rounded-full hover:bg-pink-600 hover:text-white transition shadow-sm">
-                      <Edit3 size={14} />
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button onClick={() => { setTempHeritageItem({ id: Date.now(), name: '', brief: '', image: '', imgFit: 'cover' }); setEditingHeritageItem('new'); }} className="absolute top-0 right-0 p-2 bg-pink-600 text-white rounded-full shadow-sm hover:bg-pink-500 transition">
-                      <span className="font-bold px-1">+</span>
-                    </button>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {heritageList.map(saint => (
-                    <div key={saint.id} className="relative group/card flex flex-col sm:flex-row gap-4 bg-pink-50/40 p-5 rounded-xl border border-pink-100 hover:border-pink-300 hover:shadow-md transition-all duration-300 items-center sm:items-start">
-                      {isAdmin && (
-                        <button onClick={(e) => { e.stopPropagation(); setTempHeritageItem(saint); setEditingHeritageItem(saint.id); }} className="absolute top-3 right-3 z-20 p-1.5 bg-pink-100 text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12} /></button>
-                      )}
-                      <div className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0 relative overflow-hidden rounded-full border-[3px] border-white shadow-sm bg-stone-100">
-                        <div className="absolute inset-0 transition-transform duration-300 group-hover/card:scale-110">
-                           <img src={saint.image} style={getImgStyle(saint)} className="w-full h-full block" alt={saint.name} />
-                        </div>
-                      </div>
-                      <div className="flex flex-col justify-center text-center sm:text-left flex-1">
-                        <h4 className="text-base md:text-lg font-bold text-pink-950 mb-2 font-serif tracking-wide">{saint.name || ''}</h4>
-                        <p className="text-xs md:text-sm font-serif text-stone-600 leading-relaxed">{saint.brief || ''}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mb-16 relative group bg-white p-6 md:p-10 rounded-2xl border border-pink-50 shadow-md">
-                {isAdmin && <button onClick={() => { setTempPastoral(pastoralData); setEditingPastoral(true); }} className="absolute top-4 right-4 z-20 p-2 bg-pink-600 text-white rounded-full shadow-md transition hover:bg-pink-700 active:scale-90"><Edit3 size={14} /></button>}
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl md:text-3xl font-serif font-bold text-pink-950 uppercase tracking-widest">{pastoralData.title || ''}</h3>
-                  <div className="h-[2px] w-16 bg-pink-200 mx-auto mt-4"></div>
-                </div>
-                <div className={`max-h-[1200px] overflow-y-auto custom-scrollbar pr-4 ${editorContentClasses}`} dangerouslySetInnerHTML={{ __html: pastoralData.content || '' }} />
-              </div>
-
-            </div>
-          </div>
-        );
-      }
-
-      // ==========================================
-      // TAB: TIN TỨC (NEWS)
-      // ==========================================
-      case 'News': {
-        const featuredNews = newsItems.filter(n => n.isFeatured).slice(0, 2);
-        const featuredIds = featuredNews.map(n => n.id);
-        const regularNews = newsItems.filter(n => !featuredIds.includes(n.id));
-        
-        const totalNewsPages = Math.ceil(regularNews.length / newsPerPage);
-        const currentRegularNews = regularNews.slice((newsPage - 1) * newsPerPage, newsPage * newsPerPage);
-
-        return (
-          <div className="py-20 md:py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
-            <div className="max-w-6xl mx-auto px-4 lg:px-6">
-              
-              <div className="text-center mb-12 relative">
-                <h2 className="text-pink-600 font-bold uppercase tracking-widest text-[10px] mb-2">Truyền thông Công giáo</h2>
-                <h3 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-pink-950 uppercase tracking-widest leading-tight">Tin Tức & Thông Báo</h3>
-                <div className="flex items-center justify-center space-x-3 mt-6 mb-8">
-                  <div className="h-[1px] w-16 bg-pink-200"></div><div className="text-pink-300 text-lg">❦</div><div className="h-[1px] w-16 bg-pink-200"></div>
-                </div>
-                {isAdmin && (
-                  <button onClick={() => { setTempNews({ id: Date.now(), title: '', date: getTodayFormattedStr(), category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false, imgFit: 'cover' }); setEditingNews('new'); }} className="absolute right-0 top-6 px-4 py-2 bg-pink-600 text-white text-[11px] font-bold rounded shadow-md transition-all active:scale-95 hidden md:flex items-center gap-1">
-                    + Thêm Bản Tin
-                  </button>
-                )}
-              </div>
-              {isAdmin && (
-                <button onClick={() => { setTempNews({ id: Date.now(), title: '', date: getTodayFormattedStr(), category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false, imgFit: 'cover' }); setEditingNews('new'); }} className="mb-8 w-full py-3 bg-pink-600 text-white text-xs font-bold rounded shadow-md transition active:scale-95 flex md:hidden items-center justify-center gap-2">
-                  + Thêm Bản Tin
-                </button>
-              )}
-
-              {/* TIN NỔI BẬT */}
-              {featuredNews.length > 0 && (
-                <div className="mb-16">
-                  <div className="flex items-center mb-6">
-                    <span className="bg-pink-100 text-pink-700 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-sm border border-pink-200 flex items-center"><Star size={12} className="mr-1.5" /> Tin Nổi Bật</span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {featuredNews.map(item => (
-                      <div 
-                        key={item.id} 
-                        onClick={() => { setLastTab('News'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}
-                        className="group cursor-pointer relative flex flex-col rounded-2xl overflow-hidden shadow-lg border border-pink-50 h-[380px] bg-white hover:shadow-xl hover:border-pink-200 transition-all duration-300"
-                      >
-                        {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempNews(item); setEditingNews(item.id); }} className="absolute top-4 right-4 z-20 p-2 bg-white/90 backdrop-blur-sm text-pink-700 rounded-full shadow-md transition hover:bg-pink-600 hover:text-white"><Edit3 size={14} /></button>}
-                        <div className="h-[220px] w-full overflow-hidden relative bg-stone-100">
-                          <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
-                             <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" />
-                          </div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-80"></div>
-                          <span className="absolute bottom-4 left-4 bg-pink-600 text-white text-[9px] font-bold px-2 py-1 rounded inline-block shadow-sm uppercase tracking-wider">{item.category}</span>
-                        </div>
-                        <div className="p-6 flex flex-col flex-1">
-                          <h4 className="font-serif font-bold text-xl text-pink-950 mb-3 group-hover:text-pink-700 transition leading-snug line-clamp-2">{item.title}</h4>
-                          <div className="text-stone-500 text-sm line-clamp-2 leading-relaxed font-serif mb-4 flex-1" dangerouslySetInnerHTML={{ __html: item.desc || '' }} />
-                          <p className="text-[10px] font-bold text-stone-400 uppercase flex items-center tracking-widest mt-auto"><Calendar size={12} className="mr-1.5 text-pink-400" />{item.date}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* DANH SÁCH TIN TỨC */}
-              <div>
-                <h3 className="text-xl font-serif font-bold text-pink-950 uppercase tracking-widest mb-6 pb-4 border-b border-pink-100">Điểm Tin Giáo Xứ</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {currentRegularNews.map((item) => (
-                    <div 
-                      key={item.id} 
-                      onClick={() => { setLastTab('News'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}
-                      className="group cursor-pointer relative bg-white p-4 rounded-xl border border-pink-50 shadow-sm hover:border-pink-300 hover:shadow-md transition-all flex flex-col"
-                    >
-                      {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempNews(item); setEditingNews(item.id); }} className="absolute top-2 right-2 z-20 p-1.5 bg-pink-100 text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12} /></button>}
-                      <div className="w-full h-48 mb-4 relative overflow-hidden rounded-lg shadow-sm bg-stone-100">
-                        <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
-                           <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" />
-                        </div>
-                        <span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-pink-700 text-[9px] font-bold px-2 py-1 rounded shadow-sm uppercase tracking-wider">{item.category}</span>
-                      </div>
-                      <div className="flex flex-col flex-1">
-                        <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest flex items-center mb-2"><Calendar size={10} className="mr-1.5" />{item.date}</p>
-                        <h4 className="font-serif font-bold text-lg text-pink-950 mb-2 group-hover:text-pink-700 transition leading-snug line-clamp-2">{item.title}</h4>
-                        <div className="text-stone-500 text-sm line-clamp-3 leading-relaxed font-serif mt-auto" dangerouslySetInnerHTML={{ __html: item.desc || '' }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {totalNewsPages > 1 && (
-                  <div className="flex justify-center items-center space-x-2 mt-12">
-                    <button onClick={() => setNewsPage(p => Math.max(1, p - 1))} disabled={newsPage === 1} className="p-2 rounded border border-pink-200 text-pink-600 hover:bg-pink-50 disabled:opacity-30 disabled:hover:bg-transparent transition"><ChevronLeft size={16}/></button>
-                    {Array.from({length: totalNewsPages}, (_, i) => (
-                      <button 
-                        key={i+1} 
-                        onClick={() => setNewsPage(i+1)} 
-                        className={`w-8 h-8 rounded text-sm font-bold transition ${newsPage === i + 1 ? 'bg-pink-600 text-white shadow-md' : 'text-stone-600 hover:bg-pink-50 border border-transparent hover:border-pink-200'}`}
-                      >
-                        {i + 1}
-                      </button>
-                    ))}
-                    <button onClick={() => setNewsPage(p => Math.min(totalNewsPages, p + 1))} disabled={newsPage === totalNewsPages} className="p-2 rounded border border-pink-200 text-pink-600 hover:bg-pink-50 disabled:opacity-30 disabled:hover:bg-transparent transition"><ChevronRight size={16}/></button>
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </div>
-        );
-      }
-
-      // ==========================================
-      // TAB: CHI TIẾT TIN TỨC
-      // ==========================================
-      case 'NewsDetail': {
-        if (!selectedNews) return null;
-        return (
-          <div className="py-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
-            <div className="max-w-4xl mx-auto px-4 lg:px-6">
-              <button onClick={() => { setActiveTab(lastTab); if(lastTab === 'Home') setReturnToNews(true); window.scrollTo(0,0); }} className="flex items-center text-pink-700 hover:text-pink-900 mb-8 font-bold text-[11px] uppercase tracking-widest transition-transform hover:-translate-x-1"><ChevronLeft size={14} className="mr-1" /> Quay lại {lastTab === 'Home' ? 'Trang chủ' : 'Tin Tức'}</button>
-              <div className="flex justify-between items-start mb-5 gap-4">
-                <h1 className="text-2xl md:text-4xl font-serif font-bold text-pink-950 leading-tight">{selectedNews.title}</h1>
-                {isAdmin && <button onClick={() => { setTempNews(selectedNews); setEditingNews(selectedNews.id); }} className="p-2.5 bg-pink-600 text-white rounded-full shadow-md flex-shrink-0 transition active:scale-90"><Edit3 size={16} /></button>}
-              </div>
-              <div className="flex items-center text-stone-500 mb-8 text-[11px] md:text-xs font-bold uppercase tracking-wider border-b border-pink-100 pb-4">
-                <Calendar size={12} className="mr-1.5 text-pink-500" /> {selectedNews.date}
-              </div>
-              <div className="w-full aspect-[21/9] rounded-lg mb-8 shadow-sm overflow-hidden bg-stone-100">
-                 <img src={selectedNews.image} style={getImgStyle(selectedNews)} className="w-full h-full block" alt="" />
-              </div>
-              <div className={editorContentClasses} dangerouslySetInnerHTML={{ __html: selectedNews.content || selectedNews.desc || '' }} />
-            </div>
-          </div>
-        );
-      }
-
-      // ==========================================
-      // TAB: TRANG CHỦ (HOME)
-      // ==========================================
-      case 'Home':
-      default: {
-        return (
-          <div className="animate-in fade-in duration-500">
-             <section className="relative h-[85vh] flex items-center justify-center text-white overflow-hidden group">
-                {isAdmin && <button onClick={() => { setTempHero(heroData); setEditingHero(true); }} className="absolute top-24 right-4 z-50 p-2 bg-white/20 backdrop-blur-sm text-white rounded-full shadow-md transition active:scale-90 hover:bg-pink-600"><Edit3 size={16}/></button>}
-                <div className="absolute inset-0 bg-black/40 z-20"></div>
-                <div className="absolute inset-0 overflow-hidden z-10">
-                   <div className="w-full h-full transition-transform duration-[30000ms] scale-105">
-                     <img src={heroData.image} style={getImgStyle({...heroData, imgFit: heroData.imgFit || 'cover'})} className="w-full h-full block" alt="" />
-                   </div>
-                </div>
-                <div className="relative z-30 max-w-5xl px-4 text-center">
-                  <h2 className="text-pink-200 text-xs md:text-sm uppercase tracking-[0.6em] mb-4 font-bold">Chào mừng quý vị đến với</h2>
-                  <h1 className="text-4xl md:text-7xl font-serif font-bold tracking-tight uppercase leading-tight">GIÁO XỨ HOÀNG YÊN</h1>
-                  <p className="text-base md:text-xl font-serif font-light text-pink-50 mt-6 italic tracking-wider opacity-90 uppercase">ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
-                  <div className="mt-12 flex flex-col sm:flex-row justify-center gap-4">
-                    <button onClick={() => { setActiveTab('Liturgy'); window.scrollTo(0,0); }} className="px-10 py-3 bg-pink-700 hover:bg-pink-800 text-white rounded font-bold text-[10px] uppercase tracking-widest shadow-xl transition-all active:scale-95">Lịch Phụng Vụ</button>
-                    <button onClick={() => { setActiveTab('Pilgrimage'); window.scrollTo(0,0); }} className="px-10 py-3 bg-transparent hover:bg-white/10 text-white border border-white/50 rounded font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95">Hành Hương</button>
-                  </div>
-                </div>
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 animate-bounce text-pink-200/50"><ChevronDown size={32} /></div>
-             </section>
-
-             <section className="py-16 bg-[#fffcfd] relative z-20 border-b border-pink-50">
-                <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-10">
-                   <div className="bg-white p-8 rounded-2xl shadow-md border border-pink-100 flex flex-col items-center text-center relative group">
-                      <Quote size={40} className="text-pink-100 mb-4"/>
-                      <h3 className="text-lg font-bold text-pink-900 uppercase border-b border-pink-50 pb-2 mb-6 tracking-tighter">Lời Chúa Hôm Nay</h3>
-                      <div className="text-stone-700 font-serif italic text-base leading-relaxed mb-6" dangerouslySetInnerHTML={{ __html: quote.text || '' }} />
-                      <p className="text-pink-800 font-bold text-[11px] uppercase tracking-widest mt-auto">{quote.ref || ''}</p>
-                      {isAdmin && <button onClick={() => { setTempQuote({ text: quote.text, ref: quote.ref }); setEditingQuote(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-600 text-white rounded-full shadow"><Edit3 size={12}/></button>}
-                   </div>
-                   <div className="bg-pink-950 p-8 rounded-2xl shadow-xl text-white flex flex-col items-center text-center border-t-4 border-pink-400 relative group">
-                      <Clock size={32} className="text-pink-300 mb-4"/>
-                      <h3 className="text-xl font-bold uppercase text-pink-100 tracking-tight mb-8">Giờ Thánh Lễ</h3>
-                      <div className="w-full space-y-4">
-                        {(massSchedules.length > 0 ? massSchedules : [{day: 'Trống', times:[]}]).map((item, idx) => (
-                          <div key={idx} className="border-b border-pink-900/50 pb-2 last:border-0 flex justify-between items-center"><p className="font-bold text-pink-300 uppercase text-[9px] tracking-wider">{item.day}</p><div className="flex gap-2">{item.times.slice(0,2).map((t, i) => <span key={i} className="text-[9px] bg-pink-900/50 px-1.5 py-0.5 rounded border border-pink-800">{t}</span>)}</div></div>
-                        ))}
-                      </div>
-                      {isAdmin && <button onClick={() => { setTempMass([...massSchedules]); setEditingMass(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-600 text-white rounded-full shadow"><Edit3 size={12}/></button>}
-                   </div>
-                   <div className="bg-white p-8 rounded-2xl shadow-md border border-pink-100 flex flex-col relative group">
-                      {isAdmin && <button onClick={() => { setTempContact(contactInfo); setEditingQuickPhone(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-100 text-pink-600 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12}/></button>}
-                      <h3 className="text-lg font-bold text-pink-900 uppercase border-b border-pink-50 pb-2 mb-6 tracking-tighter text-center">Liên Hệ & Văn Phòng</h3>
-                      
-                      <ul className="space-y-4 flex-1">
-                        <li className="flex items-start gap-3">
-                          <MapPin size={16} className="text-pink-500 mt-0.5 flex-shrink-0" />
-                          <div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Địa chỉ</span><p className="text-sm font-serif text-stone-700 leading-snug line-clamp-2">{contactInfo.address || 'Đang cập nhật'}</p></div>
-                        </li>
-                        <li className="flex items-center gap-3">
-                          <Phone size={16} className="text-pink-500 flex-shrink-0" />
-                          <div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Điện thoại</span><p className="text-lg font-bold text-pink-900">{contactInfo.phone || 'Đang cập nhật'}</p></div>
-                        </li>
-                        <li className="flex items-center gap-3">
-                          <Mail size={16} className="text-pink-500 flex-shrink-0" />
-                          <div><span className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email</span><p className="text-sm font-serif text-stone-700 line-clamp-1">{contactInfo.email || 'Đang cập nhật'}</p></div>
-                        </li>
-                      </ul>
-                      
-                      <div className="mt-6 pt-5 border-t border-pink-50 text-center flex items-center justify-center gap-2 text-stone-500 text-sm font-serif italic">
-                        <Clock size={16} className="text-pink-400" />
-                        <span>{contactInfo.hours || 'Đang cập nhật'}</span>
-                      </div>
-                   </div>
-                </div>
-             </section>
-
-             <section id="news-section" className="py-20 bg-stone-50">
-               <div className="max-w-6xl mx-auto px-4 lg:px-6">
-                 
-                 <div className="flex justify-between items-end mb-10 border-b border-pink-100 pb-4">
-                   <div>
-                     <h2 className="text-pink-600 font-bold uppercase tracking-widest text-[10px] mb-2 flex items-center gap-2"><Bell size={14} /> Tin Tức Giáo Xứ</h2>
-                     <h3 className="text-3xl md:text-4xl font-serif font-bold text-pink-950 tracking-tight">Thông Báo Mới</h3>
-                   </div>
-                   <button onClick={() => { setActiveTab('News'); window.scrollTo(0,0); }} className="hidden sm:flex items-center gap-2 text-xs font-bold text-pink-600 uppercase tracking-widest hover:text-pink-800 transition-colors">
-                     Xem tất cả <ChevronRight size={16} />
-                   </button>
-                 </div>
-
-                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:h-[420px]">
-                   {newsItems.length > 0 && (
-                     <div 
-                       className="lg:col-span-7 group cursor-pointer relative rounded-2xl overflow-hidden shadow-md border border-stone-200 hover:border-pink-300 transition-all duration-300 h-[350px] lg:h-full bg-white flex flex-col"
-                       onClick={() => { setLastTab('Home'); setSelectedNews(newsItems[0]); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}
-                     >
-                       <div className="absolute inset-0 bg-stone-100 overflow-hidden">
-                         <img src={newsItems[0].image} style={getImgStyle(newsItems[0])} className="w-full h-full block transition-transform duration-700 group-hover:scale-105" alt={newsItems[0].title} />
-                       </div>
-                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-90 transition-opacity group-hover:opacity-100"></div>
-                       
-                       <div className="relative z-10 flex flex-col justify-end h-full p-6 md:p-8">
-                         <div>
-                           <span className="bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-sm inline-block shadow-sm uppercase tracking-widest mb-4">
-                             {newsItems[0].category}
-                           </span>
-                         </div>
-                         <h4 className="font-serif font-bold text-2xl md:text-3xl text-white mb-3 leading-tight line-clamp-2 drop-shadow-md group-hover:text-pink-200 transition-colors">
-                           {newsItems[0].title}
-                         </h4>
-                         <div className="text-stone-300 text-sm leading-relaxed line-clamp-2 font-serif mb-4 [&_p]:mb-0 drop-shadow" dangerouslySetInnerHTML={{ __html: newsItems[0].desc || '' }} />
-                         <div className="text-[11px] font-bold text-pink-300 uppercase tracking-widest flex items-center gap-2">
-                           <Calendar size={14} /> {newsItems[0].date}
-                         </div>
-                       </div>
-                     </div>
-                   )}
-
-                   <div className="lg:col-span-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 h-full">
-                     {newsItems.slice(1, 6).map((item) => (
-                       <div 
-                         key={item.id} 
-                         className="group cursor-pointer flex gap-4 items-center bg-white p-3 rounded-xl border border-stone-200 hover:border-pink-300 hover:shadow-md transition-all duration-300"
-                         onClick={() => { setLastTab('Home'); setSelectedNews(item); setActiveTab('NewsDetail'); window.scrollTo(0,0); }}
-                       >
-                         <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative overflow-hidden rounded-lg bg-stone-100">
-                           <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110">
-                              <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt={item.title} />
-                           </div>
-                         </div>
-                         <div className="flex flex-col flex-1 py-1">
-                           <span className="text-[9px] font-bold text-pink-600 uppercase tracking-widest mb-1.5">{item.category}</span>
-                           <h4 className="font-serif font-bold text-sm sm:text-base text-stone-900 group-hover:text-pink-700 transition-colors leading-snug line-clamp-2 mb-2">
-                             {item.title}
-                           </h4>
-                           <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1.5 mt-auto">
-                             <Calendar size={12} className="text-pink-400" /> {item.date}
-                           </div>
-                         </div>
-                       </div>
-                     ))}
-                     {newsItems.length === 0 && <div className="p-8 text-center text-stone-400 border border-dashed rounded-xl"><p>Chưa có bản tin nào.</p></div>}
-                   </div>
-                 </div>
-
-                 <div className="mt-8 text-center sm:hidden">
-                   <button onClick={() => { setActiveTab('News'); window.scrollTo(0,0); }} className="inline-flex items-center gap-2 px-6 py-3 border border-pink-200 text-pink-700 font-bold text-[10px] uppercase tracking-widest rounded-full hover:bg-pink-50 transition-colors">
-                     Tất cả tin tức <ChevronRight size={14} />
-                   </button>
-                 </div>
-
-               </div>
-             </section>
-
-          </div>
-        );
-      }
-    }
-  };
+  const isSolidHeader = scrolled || location.pathname !== '/';
 
   return (
     <div className="min-h-screen bg-white font-serif selection:bg-pink-100 antialiased relative overflow-x-hidden">
+      <Toaster position="bottom-right" toastOptions={{ style: { fontSize: '12px', fontWeight: 'bold', fontFamily: 'sans-serif' } }} />
+      
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -1290,56 +375,43 @@ export default function App() {
       {/* ========================================== */}
       {/* TRÌNH ĐIỀU HƯỚNG (HEADER) */}
       {/* ========================================== */}
-      <header className={`fixed w-full z-[100] transition-all duration-500 ${isSolidHeader ? 'bg-white shadow-md py-3 border-b border-pink-50' : 'bg-transparent py-5 text-white'}`}>
-        <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
-          <div className="flex items-center space-x-3 cursor-pointer group relative" onClick={() => { setActiveTab('Home'); window.scrollTo(0,0); }}>
-            {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempLogoConfig(logoConfig); setEditingLogo(true); }} className="absolute -top-3 -left-3 z-[110] p-1.5 bg-pink-600 text-white rounded-full shadow-md hover:bg-pink-700 transition active:scale-90"><Edit3 size={12} /></button>}
-            <Logo sizeClass="w-16 h-16 md:w-20 md:h-20" isSolid={isSolidHeader} config={logoConfig} />
-            <div className={`border-l pl-4 hidden sm:flex flex-col justify-center gap-1.5 ${isSolidHeader ? 'border-pink-200' : 'border-white/20'}`}>
-              <h1 className={`font-bold text-xl md:text-2xl leading-none uppercase tracking-tight whitespace-nowrap ${isSolidHeader ? 'text-pink-950' : 'text-white'}`}>GIÁO XỨ HOÀNG YÊN</h1>
-              <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] leading-none whitespace-nowrap ${isSolidHeader ? 'text-pink-700' : 'text-pink-300'}`}>ĐỀN THÁNH NỮ VƯƠNG CÁC THÁNH TỬ ĐẠO VIỆT NAM</p>
-            </div>
-          </div>
-          <nav className="hidden lg:flex items-center space-x-6">
-            {navLinks.map((link) => (
-              <button key={link.id} onClick={() => { setActiveTab(link.id); window.scrollTo(0,0); }} className={`text-[12px] xl:text-[13px] whitespace-nowrap font-bold uppercase tracking-widest relative pb-1 group transition-colors ${activeTab === link.id ? 'text-pink-600' : (isSolidHeader ? 'text-stone-600 hover:text-pink-900' : 'text-white/80 hover:text-white')}`}>
-                {link.name}<span className={`absolute bottom-0 left-0 h-[2px] bg-pink-500 transition-all duration-300 rounded-full ${activeTab === link.id ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-              </button>
-            ))}
-            <button className={`p-1 transition-all hover:scale-110 ${isSolidHeader ? 'text-stone-400 hover:text-pink-600' : 'text-white/50 hover:text-white'}`}><Search size={22} /></button>
-          </nav>
-          <button className={`lg:hidden p-1.5 transition-all active:scale-90 ${isSolidHeader ? 'text-pink-950' : 'text-white'}`} onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={32} /> : <Menu size={32} />}</button>
-        </div>
-        {/* Mobile Menu */}
-        <div className={`fixed inset-0 top-0 left-0 w-full h-screen bg-pink-950/98 backdrop-blur-md z-[90] transition-all duration-500 lg:hidden flex flex-col items-center justify-center p-8 ${isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
-           <div className="w-full flex flex-col items-center space-y-8 text-white">
-              <Logo isSolid={false} sizeClass="w-24 h-24" config={logoConfig} />
-              <div className="flex flex-col items-center space-y-5 w-full">
-                {navLinks.map((link) => (<button key={link.id} onClick={() => { setActiveTab(link.id); setIsMenuOpen(false); window.scrollTo(0,0); }} className={`text-2xl font-bold uppercase tracking-widest transition-all ${activeTab === link.id ? 'text-pink-400 scale-105' : 'text-white/70 hover:text-white'}`}>{link.name}</button>))}
-              </div>
-              <div className="h-px w-16 bg-pink-500/40"></div>
-              <button onClick={() => setIsMenuOpen(false)} className="text-white/50 uppercase tracking-widest text-[13px] font-bold border border-white/20 px-6 py-2.5 rounded-full">Đóng Menu</button>
-           </div>
-        </div>
-      </header>
+      <Header 
+        isAdmin={isAdmin}
+        isSolidHeader={isSolidHeader}
+        isMenuOpen={isMenuOpen}
+        setIsMenuOpen={setIsMenuOpen}
+        logoConfig={logoConfig}
+        setTempLogoConfig={setTempLogoConfig}
+        setEditingLogo={setEditingLogo}
+      />
 
       {/* NỘI DUNG CHÍNH */}
-      <main className="pt-0 min-h-[70vh] bg-white">{renderContent()}</main>
+      <main className="pt-0 min-h-[70vh] bg-white">
+        <Routes>
+          <Route path="/" element={<Home isAdmin={isAdmin} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} quote={quote} setTempQuote={setTempQuote} setEditingQuote={setEditingQuote} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} contactInfo={contactInfo} setTempContact={setTempContact} setEditingQuickPhone={setEditingQuickPhone} newsItems={newsItems} setSelectedNews={setSelectedNews} />} />
+          <Route path="/gioi-thieu" element={<About isAdmin={isAdmin} parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} historyData={historyData} setTempHistory={setTempHistory} setEditingHistory={setEditingHistory} heritageTitle={heritageTitle} setTempHeritageTitle={setTempHeritageTitle} setEditingHeritageTitle={setEditingHeritageTitle} heritageList={heritageList} setTempHeritageItem={setTempHeritageItem} setEditingHeritageItem={setEditingHeritageItem} pastoralData={pastoralData} setTempPastoral={setTempPastoral} setEditingPastoral={setEditingPastoral} />} />
+          <Route path="/phung-vu" element={<Liturgy isAdmin={isAdmin} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calendarDate={calendarDate} prevMonth={prevMonth} nextMonth={nextMonth} liturgyEvents={liturgyEvents} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} />} />
+          <Route path="/hanh-huong" element={<Pilgrimage isAdmin={isAdmin} pilgrimagePlans={pilgrimagePlans} pilgrimagePage={pilgrimagePage} setPilgrimagePage={setPilgrimagePage} itemsPerPage={itemsPerPage} setSelectedPilgrimage={setSelectedPilgrimage} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
+          <Route path="/hanh-huong/chi-tiet" element={<PilgrimageDetail isAdmin={isAdmin} selectedPilgrimage={selectedPilgrimage} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} />} />
+          <Route path="/tin-tuc" element={<News isAdmin={isAdmin} newsItems={newsItems} newsPage={newsPage} setNewsPage={setNewsPage} newsPerPage={newsPerPage} setSelectedNews={setSelectedNews} setTempNews={setTempNews} setEditingNews={setEditingNews} getTodayFormattedStr={getTodayFormattedStr} />} />
+          <Route path="/tin-tuc/chi-tiet" element={<NewsDetail isAdmin={isAdmin} selectedNews={selectedNews} setTempNews={setTempNews} setEditingNews={setEditingNews} />} />
+          <Route path="/lien-he" element={<Contact isAdmin={isAdmin} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} formStatus={formStatus} handleContactSubmit={handleContactSubmit} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
 
       {/* CHÂN TRANG (FOOTER) */}
-      <footer className="bg-[#1a0f12] text-pink-200/60 pt-20 pb-10 border-t-4 border-pink-950 relative group">
-        {isAdmin && <button onClick={() => { setTempFooter(footerData); setTempContact(contactInfo); setEditingFooter(true); }} className="absolute top-6 right-6 z-20 p-2 bg-white/10 text-white rounded-full shadow-md transition active:scale-90 hover:bg-pink-600"><Edit3 size={16}/></button>}
-        <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-10 text-left">
-          <div><div className="flex items-center space-x-3 mb-6"><Logo sizeClass="w-16 h-16" isSolid={true} config={logoConfig} /><h2 className="font-bold text-white text-lg uppercase tracking-widest">GIÁO XỨ HOÀNG YÊN</h2></div><p className="text-xs italic leading-relaxed opacity-70 whitespace-pre-wrap">{footerData.aboutText}</p></div>
-          <div><h3 className="text-pink-100 font-bold text-xs uppercase mb-6 border-b border-pink-900/50 pb-3 tracking-widest">Thông Tin</h3><ul className="space-y-3 text-xs opacity-80"><li>{contactInfo.address}</li><li>{contactInfo.phone}</li><li>{contactInfo.email}</li></ul></div>
-          <div><h3 className="text-pink-100 font-bold text-xs uppercase mb-6 border-b border-pink-900/50 pb-3 tracking-widest">Liên Kết</h3><ul className="space-y-3 text-[10px] uppercase opacity-80 tracking-widest"><li className="cursor-pointer hover:text-pink-300" onClick={() => {setActiveTab('Liturgy'); window.scrollTo(0,0);}}>Lịch Phụng Vụ</li><li className="cursor-pointer hover:text-pink-300" onClick={() => {setActiveTab('Contact'); window.scrollTo(0,0);}}>Liên Hệ Văn Phòng</li><li className="cursor-pointer hover:text-pink-300" onClick={() => {setActiveTab('Pilgrimage'); window.scrollTo(0,0);}}>Đăng ký Hành Hương</li></ul></div>
-          <div><h3 className="text-pink-100 font-bold text-xs uppercase mb-6 border-b border-pink-900/50 pb-3 tracking-widest">Kết Nối</h3><a href={footerData.facebookLink} target="_blank" rel="noreferrer" className="flex items-center gap-3 hover:text-pink-300 transition-colors"><div className="w-8 h-8 rounded-full bg-pink-900/40 flex items-center justify-center border border-pink-800/50"><FacebookIcon size={14} className="text-pink-200" /></div><span>Facebook Giáo Xứ</span></a></div>
-        </div>
-        <div className="max-w-6xl mx-auto px-4 mt-16 pt-6 border-t border-white/10 text-[9px] uppercase font-bold opacity-40 flex items-center justify-between tracking-widest">
-          <p onClick={() => !isAdmin && setShowLoginModal(true)} className="cursor-pointer hover:opacity-100 hover:text-white transition-all select-none">© 2026 GIÁO XỨ HOÀNG YÊN.</p>
-          {isAdmin && <span onClick={() => setIsAdmin(false)} className="cursor-pointer hover:text-white transition-all">Thoát Quản Trị</span>}
-        </div>
-      </footer>
+      <Footer 
+        isAdmin={isAdmin}
+        footerData={footerData}
+        contactInfo={contactInfo}
+        logoConfig={logoConfig}
+        setTempFooter={setTempFooter}
+        setTempContact={setTempContact}
+        setEditingFooter={setEditingFooter}
+        setShowLoginModal={setShowLoginModal}
+        setIsAdmin={setIsAdmin}
+      />
 
       {showTopBtn && <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-6 right-6 p-2.5 bg-pink-700 text-white rounded-full shadow-xl z-50 active:scale-90 transition-all hover:bg-pink-800"><ArrowUp size={20} /></button>}
 
@@ -1351,8 +423,7 @@ export default function App() {
         <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center border-t-4 border-pink-600 relative">
              <button onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}} className="absolute top-3 right-3 text-stone-400 hover:text-stone-600"><X size={18}/></button>
-            <h3 className="text-xl font-bold text-pink-950 mb-2 uppercase tracking-tight">Đăng Nhập Admin</h3>
-            <p className="text-[10px] text-stone-500 mb-6 uppercase tracking-widest">Nhập 'admin' để dùng thử</p>
+            <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">Đăng Nhập Admin</h3>
             <input type="password" placeholder="Nhập mật khẩu" className={`w-full border p-3 mb-2 text-center text-sm outline-none focus:border-pink-500 font-serif rounded ${loginError ? 'border-red-400' : 'border-pink-200'}`} value={password} onChange={(e) => {setPassword(e.target.value); setLoginError('');}} onKeyDown={(e) => e.key === 'Enter' && handleLoginSubmit()} />
             <div className="h-6 mb-2">{loginError && <p className="text-red-500 text-xs font-bold animate-in slide-in-from-top-1">{loginError}</p>}</div>
             <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={handleLoginSubmit}>Xác Nhận</button></div>
@@ -1421,11 +492,11 @@ export default function App() {
               <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Nội dung chi tiết</label><RichTextEditor value={tempNews.content || ''} onChange={(val) => setTempNews({...tempNews, content: val})} minHeight="250px" /></div>
             </div>
             <div className="flex gap-4 border-t pt-5 mt-6">
-              {editingNews !== 'new' && <button className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={async () => { 
+              {editingNews !== 'new' && <button type="button" className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={async () => { 
                 if(!db) return;
                 try {
                   await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', tempNews.id.toString())); 
-                  if (selectedNews?.id === tempNews.id) { setSelectedNews(null); setActiveTab(lastTab); } 
+                  if (selectedNews?.id === tempNews.id) { setSelectedNews(null); navigate('/tin-tuc'); } 
                   setEditingNews(null); 
                 } catch(e) { alert("Lỗi khi xóa bài: Không có quyền truy cập.") }
               }}>Xóa Bản Tin</button>}
@@ -1549,11 +620,11 @@ export default function App() {
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Nội dung chương trình chi tiết</label>
             <div className="mb-6"><RichTextEditor value={tempPilgrimage.content || ''} onChange={(val) => setTempPilgrimage({...tempPilgrimage, content: val})} minHeight="250px" /></div>
             <div className="flex gap-4 border-t pt-5 mt-6">
-              {editingPilgrimage !== 'new' && <button className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={async () => { 
+              {editingPilgrimage !== 'new' && <button type="button" className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={async () => { 
                 if(!db) return;
                 try {
                   await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pilgrimages', tempPilgrimage.id.toString())); 
-                  if (selectedPilgrimage?.id === tempPilgrimage.id) { setSelectedPilgrimage(null); setActiveTab('Pilgrimage'); } 
+                  if (selectedPilgrimage?.id === tempPilgrimage.id) { setSelectedPilgrimage(null); navigate('/hanh-huong'); } 
                   setEditingPilgrimage(null); 
                 } catch(e) { alert("Lỗi xóa: Không có quyền truy cập.") }
               }}>Xóa Kế Hoạch</button>}
