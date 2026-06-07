@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 let app, auth, db, storage;
@@ -23,7 +23,11 @@ try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   
-  db = getFirestore(app);
+  // TỐI ƯU PERFORMANCE: Bật bộ nhớ đệm (Offline Cache) an toàn
+  // Giúp lấy dữ liệu ngay lập tức (0ms) từ trình duyệt mà không cần chờ tải từ mạng.
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache()
+  });
 
   storage = getStorage(app);
 } catch (error) { console.error("Lỗi khởi tạo Firebase:", error); }

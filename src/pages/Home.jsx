@@ -94,7 +94,7 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
                  onClick={() => { setSelectedNews(newsItems[0]); navigate('/tin-tuc/chi-tiet'); }}
                >
                  <div className="absolute inset-0 bg-stone-100 overflow-hidden">
-                   <img src={newsItems[0].image} style={getImgStyle(newsItems[0])} className="w-full h-full block transition-transform duration-700 group-hover:scale-105" alt={newsItems[0].title} />
+                 <img src={newsItems[0].image} style={getImgStyle(newsItems[0])} className="w-full h-full block transition-transform duration-700 group-hover:scale-105" alt={newsItems[0].title} loading="lazy" />
                  </div>
                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-90 transition-opacity group-hover:opacity-100"></div>
                  
@@ -124,7 +124,7 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
                  >
                    <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative overflow-hidden rounded-lg bg-stone-100">
                      <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110">
-                        <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt={item.title} />
+                    <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt={item.title} loading="lazy" />
                      </div>
                    </div>
                    <div className="flex flex-col flex-1 py-1">

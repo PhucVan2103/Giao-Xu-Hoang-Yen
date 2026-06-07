@@ -44,6 +44,7 @@ export default function App() {
   
   const navigate = useNavigate();
   const location = useLocation();
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   // --- States Admin & Auth ---
   const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true');
@@ -288,7 +289,9 @@ export default function App() {
 
     const loadingToast = toast.loading('Đang lưu cấu hình...');
     try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', docId), { [key]: value }, { merge: true });
+      // Loại bỏ các giá trị undefined, NaN hoặc object không hợp lệ (như File/Event)
+      const cleanValue = JSON.parse(JSON.stringify(value));
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', docId), { [key]: cleanValue }, { merge: true });
       toast.success('Lưu thành công!', { id: loadingToast });
     } catch (err) {
       console.error("Lỗi khi lưu DB:", err);
@@ -313,7 +316,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    window.scrollTo(0, 0);
+    // Hiệu ứng thanh tiến trình (Progress bar) & Smooth Scroll khi chuyển trang
+    setLoadingProgress(30);
+    const timer1 = setTimeout(() => setLoadingProgress(70), 150);
+    const timer2 = setTimeout(() => setLoadingProgress(100), 400);
+    const timer3 = setTimeout(() => setLoadingProgress(0), 700);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return () => { clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3); };
   }, [location.pathname]);
 
   const handleLoginSubmit = () => {
@@ -333,26 +342,55 @@ export default function App() {
     return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
   };
 
-  const handleImagePaste = (e, setterFunction) => {
+  const handleImagePaste = async (e, setterFunction) => {
     const items = (e.clipboardData || e.originalEvent.clipboardData).items;
     for (let index in items) {
       const item = items[index];
       if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile();
         const reader = new FileReader();
         reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result }));
-        reader.readAsDataURL(item.getAsFile());
+        reader.readAsDataURL(file);
         e.preventDefault();
+        
+        if (storage) {
+          const toastId = toast.loading('Đang tải ảnh lên Storage...');
+          try {
+            const fileRef = ref(storage, `images/paste_${Date.now()}.png`);
+            await uploadBytes(fileRef, file);
+            const url = await getDownloadURL(fileRef);
+            setterFunction(prev => ({ ...prev, image: url }));
+            toast.success('Tải ảnh thành công!', { id: toastId });
+          } catch (error) {
+            console.error("Lỗi upload ảnh:", error);
+            toast.error('Lỗi 403: Không có quyền ghi vào Storage!', { id: toastId });
+          }
+        }
         break;
       }
     }
   };
 
-  const handleImageUpload = (e, setterFunction) => {
+  const handleImageUpload = async (e, setterFunction) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result }));
       reader.readAsDataURL(file);
+
+      if (storage) {
+        const toastId = toast.loading('Đang tải ảnh lên Storage...');
+        try {
+          const fileRef = ref(storage, `images/upload_${Date.now()}_${file.name}`);
+          await uploadBytes(fileRef, file);
+          const url = await getDownloadURL(fileRef);
+          setterFunction(prev => ({ ...prev, image: url }));
+          toast.success('Tải ảnh thành công!', { id: toastId });
+        } catch (error) {
+          console.error("Lỗi upload ảnh:", error);
+          toast.error('Lỗi 403: Không có quyền ghi vào Storage!', { id: toastId });
+        }
+      }
     }
   };
 
@@ -365,6 +403,14 @@ export default function App() {
     <div className="min-h-screen bg-white font-serif selection:bg-pink-100 antialiased relative overflow-x-hidden">
       <Toaster position="bottom-right" toastOptions={{ style: { fontSize: '12px', fontWeight: 'bold', fontFamily: 'sans-serif' } }} />
       
+      {/* Thanh Tiến trình Tải trang */}
+      {loadingProgress > 0 && (
+        <div 
+          className="fixed top-0 left-0 h-1 bg-pink-500 z-[200] transition-all duration-300 ease-out"
+          style={{ width: `${loadingProgress}%`, opacity: loadingProgress === 100 ? 0 : 1 }}
+        ></div>
+      )}
+
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -507,7 +553,8 @@ export default function App() {
                 if (!db) return alert('Chưa kết nối CSDL');
                 try {
                   const id = tempNews.id || Date.now();
-                  const d = { ...tempNews, id };
+          // Làm sạch dữ liệu trước khi lưu Firebase
+          const d = JSON.parse(JSON.stringify({ ...tempNews, id }));
                   await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id.toString()), d);
                   if (selectedNews?.id === id) setSelectedNews(d); 
                   setEditingNews(null); 
@@ -635,7 +682,8 @@ export default function App() {
                 if(!db) return alert("Chưa kết nối CSDL");
                 try {
                   const id = tempPilgrimage.id || Date.now();
-                  const d = { ...tempPilgrimage, id };
+          // Làm sạch dữ liệu trước khi lưu Firebase
+          const d = JSON.parse(JSON.stringify({ ...tempPilgrimage, id }));
                   await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pilgrimages', id.toString()), d);
                   if (selectedPilgrimage?.id === id) setSelectedPilgrimage(d); 
                   setEditingPilgrimage(null); 
@@ -671,7 +719,8 @@ export default function App() {
                 if (!tempLiturgyEvent.title || tempLiturgyEvent.title.trim() === '') return alert('Vui lòng nhập tên sự kiện');
                 if(!db) return alert("Chưa kết nối CSDL");
                 try {
-                  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'liturgy', tempLiturgyEvent.date), tempLiturgyEvent);
+          const cleanEvent = JSON.parse(JSON.stringify(tempLiturgyEvent));
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'liturgy', tempLiturgyEvent.date), cleanEvent);
                   setEditingLiturgyEvent(false);
                 } catch(e) { alert("Lỗi lưu: Không có quyền truy cập.") }
               }}>Lưu Lại</button>
