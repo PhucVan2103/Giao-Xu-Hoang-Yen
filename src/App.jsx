@@ -305,6 +305,92 @@ export default function App() {
     }
   };
 
+  // --- KHỞI TẠO DỮ LIỆU MẪU (MOCK DATA) ---
+  const handleInitMockData = async () => {
+    if (!db) return toast.error('Chưa kết nối CSDL');
+    if (!window.confirm('Hành động này sẽ khởi tạo dữ liệu mẫu lên CSDL. Bạn có chắc chắn không?')) return;
+
+    const toastId = toast.loading('Đang khởi tạo dữ liệu mẫu...');
+    try {
+      const mockConfig = {
+        parishStats: { population: '5,420', priest: 'Lm. Giuse Nguyễn Văn A', patron: 'Các Thánh Tử Đạo VN', address: '123 Các Thánh Tử Đạo, TP.HCM' },
+        quote: { text: "<p>Ta là bánh hằng sống từ trời xuống. Ai ăn bánh này, sẽ được sống muôn đời.</p>", ref: "Ga 6, 51" },
+        massSchedules: [
+          { day: 'Ngày Thường', times: ['05:00', '17:30'] },
+          { day: 'Thứ Bảy', times: ['05:00', '17:30 (Lễ Chúa Nhật)'] },
+          { day: 'Chúa Nhật', times: ['05:30', '07:30 (Thiếu Nhi)', '16:30', '18:30'] },
+        ],
+        contactInfo: {
+          title: "Liên Hệ Văn Phòng Giáo Xứ",
+          address: "123 Các Thánh Tử Đạo, Phường Hoàng Yên, Quận 1, TP. HCM",
+          phone: "(028) 1234 5678",
+          email: "vanphong@giaoxuhoangyen.vn",
+          hours: "Sáng: 08:00 - 11:30 | Chiều: 14:00 - 17:00 (Nghỉ Thứ Hai)"
+        },
+        confessionData: { title: "Bí Tích Giao Hòa", desc: "Trước các Thánh lễ ngày thường 30 phút và vào các giờ cố định chiều Thứ Bảy hằng tuần." },
+        adorationData: { title: "Chầu Thánh Thể", desc: "Thứ Năm hằng tuần từ 19:00 - 20:00 và Thứ Sáu đầu tháng sau lễ chiều." },
+        historyData: {
+          title: "Dấu Ấn Lịch Sử",
+          content: "<img src='https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop' style='float: left; margin: 0.5rem 1.5rem 1rem 0; width: 40%; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);' /><p>Giáo xứ Hoàng Yên được hình thành từ những hạt giống tin mừng đầu tiên gieo rắc vào cuối thế kỷ 19.</p>"
+        },
+        heritageTitle: "Gia Sản Thiêng Liêng",
+        heritageList: [
+          { id: 1, name: 'Thánh Anrê Trần An Dũng Lạc', brief: 'Linh mục, tử đạo năm 1839. Mẫu gương sáng ngời về lòng trung kiên.', image: 'https://images.unsplash.com/photo-1550404618-c2b61f879685?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
+          { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì che giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 }
+        ],
+        pastoralData: {
+          title: "Định Hướng Mục Vụ",
+          content: "<h4>01. Đào Tạo Đức Tin Giới Trẻ</h4><p>Chú trọng sâu sát vào việc giáo dục nhân bản và giáo lý cho thiếu nhi, thanh giới trẻ.</p>"
+        },
+        receptionInfo: {
+          item1Title: "Đăng ký đoàn", item1Desc: "Quý đoàn vui lòng báo trước 3 ngày để Giáo xứ sắp xếp.",
+          item2Title: "Cơ sở vật chất", item2Desc: "Khuôn viên có bãi đỗ xe rộng rãi cho xe khách 45 chỗ.",
+          item3Title: "Hỗ trợ trực tiếp", item3Desc: "Liên hệ Văn phòng Đền Thánh để được hỗ trợ tốt nhất.", item3Phone: "090.123.4567"
+        },
+        footerData: {
+          aboutText: 'Lạy Chúa, xin cho chúng con được hiệp nhất trong tình yêu và sự phục vụ.',
+          facebookLink: '#'
+        }
+      };
+
+      const mockHero = { image: 'https://travelplusvn.com/public/uploads/images/Bai_Viet/11_mon_do_khong_the_thieu/Nha-tho-Duc-Ba-1.jpg', imgFit: 'cover', imgScale: 1, imgPosX: 50, imgPosY: 50 };
+
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'), mockConfig, { merge: true });
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'hero'), { heroData: mockHero }, { merge: true });
+
+      const initialNewsData = [
+        { id: 1, title: 'Đại lễ Kính Các Thánh Tử Đạo Việt Nam', date: '14/11/2023', category: 'Sự kiện', isFeatured: true, desc: '<p>Chương trình hành hương và đại lễ mừng kính tại Giáo xứ Hoàng Yên diễn ra trọng thể...</p>', image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', content: '<p>Chương trình hành hương trang trọng diễn ra trong 3 ngày...</p>' },
+        { id: 2, title: 'Thông báo Giáo lý niên khóa mới', date: '10/11/2023', category: 'Giáo lý', isFeatured: true, desc: '<p>Giáo xứ bắt đầu nhận hồ sơ đăng ký cho các lớp Đồng cỏ non, Khai tâm...</p>', image: 'https://images.unsplash.com/photo-1437603562860-1950e3ca6eab?q=80&w=800&auto=format&fit=crop', content: '<p>Văn phòng Giáo lý xin thông báo chi tiết về thời gian đăng ký...</p>' }
+      ];
+      for (const item of initialNewsData) {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', item.id.toString()), item);
+      }
+
+      const initialPilgrimageData = [
+        { id: 1, title: 'Hành Hương Đức Mẹ La Vang', date: '15/06/2024', duration: '3 Ngày 2 Đêm', status: 'Đang mở đăng ký', desc: 'Hành trình thiêng liêng về với Đức Mẹ.', image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', content: '<p>Chương trình chi tiết...</p>' }
+      ];
+      for (const item of initialPilgrimageData) {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pilgrimages', item.id.toString()), item);
+      }
+
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, '0');
+      const initialLiturgy = [
+        { date: `${y}-${m}-01`, title: 'Thứ Sáu Đầu Tháng', colorType: 'red', desc: 'Thánh lễ lúc 18h30.' },
+        { date: `${y}-${m}-15`, title: 'Lễ Bổn Mạng', colorType: 'white', desc: 'Thánh lễ tạ ơn.' }
+      ];
+      for (const item of initialLiturgy) {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'liturgy', item.date), item);
+      }
+
+      toast.success('Đã khởi tạo dữ liệu mẫu thành công!', { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi khi khởi tạo dữ liệu: ' + err.message, { id: toastId });
+    }
+  };
+
   // ==========================================
   // HANDLERS
   // ==========================================
@@ -460,6 +546,12 @@ export default function App() {
       />
 
       {showTopBtn && <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-6 right-6 p-2.5 bg-pink-700 text-white rounded-full shadow-xl z-50 active:scale-90 transition-all hover:bg-pink-800"><ArrowUp size={20} /></button>}
+
+      {isAdmin && (
+        <button onClick={handleInitMockData} className="fixed bottom-6 left-6 px-4 py-2 bg-stone-800 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xl z-50 hover:bg-stone-900 transition-all">
+          🚀 Khởi Tạo Dữ Liệu Mẫu
+        </button>
+      )}
 
       {/* ========================================== */}
       {/* MODALS QUẢN TRỊ (ADMIN) */}
