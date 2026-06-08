@@ -102,6 +102,7 @@ export default function App() {
 
   // --- States Tab Tin Tức ---
   const [newsItems, setNewsItems] = useState([]);
+  const [newsCategories, setNewsCategories] = useState(['Tin Tức', 'Sự kiện', 'Giáo lý', 'Thông báo']);
 
   // --- States View Detail & Pagination ---
   const [selectedNews, setSelectedNews] = useState(null);
@@ -227,6 +228,7 @@ export default function App() {
               if (d.pastoralData) setPastoralData(d.pastoralData);
               if (d.receptionInfo) setReceptionInfo(d.receptionInfo);
               if (d.footerData) setFooterData(d.footerData);
+              if (d.newsCategories) setNewsCategories(d.newsCategories);
               
               // Tương thích ngược: Vẫn đọc từ main nếu chưa từng tách ra doc riêng
               if (d.logoConfig && !updatedLogo) updatedLogo = d.logoConfig;
@@ -274,6 +276,7 @@ export default function App() {
       case 'massSchedules': setMassSchedules(value); break;
       case 'confessionData': setConfessionData(value); break;
       case 'adorationData': setAdorationData(value); break;
+      case 'newsCategories': setNewsCategories(value); break;
       default: break;
     }
 
@@ -524,9 +527,9 @@ export default function App() {
           <Route path="/gioi-thieu" element={<About isAdmin={isAdmin} parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} historyData={historyData} setTempHistory={setTempHistory} setEditingHistory={setEditingHistory} heritageTitle={heritageTitle} setTempHeritageTitle={setTempHeritageTitle} setEditingHeritageTitle={setEditingHeritageTitle} heritageList={heritageList} setTempHeritageItem={setTempHeritageItem} setEditingHeritageItem={setEditingHeritageItem} pastoralData={pastoralData} setTempPastoral={setTempPastoral} setEditingPastoral={setEditingPastoral} />} />
           <Route path="/phung-vu" element={<Liturgy isAdmin={isAdmin} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calendarDate={calendarDate} prevMonth={prevMonth} nextMonth={nextMonth} liturgyEvents={liturgyEvents} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} />} />
           <Route path="/hanh-huong" element={<Pilgrimage isAdmin={isAdmin} pilgrimagePlans={pilgrimagePlans} pilgrimagePage={pilgrimagePage} setPilgrimagePage={setPilgrimagePage} itemsPerPage={itemsPerPage} setSelectedPilgrimage={setSelectedPilgrimage} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
-          <Route path="/hanh-huong/chi-tiet" element={<PilgrimageDetail isAdmin={isAdmin} selectedPilgrimage={selectedPilgrimage} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} />} />
+          <Route path="/hanh-huong/:id" element={<PilgrimageDetail isAdmin={isAdmin} pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} />} />
           <Route path="/tin-tuc" element={<News isAdmin={isAdmin} newsItems={newsItems} newsPage={newsPage} setNewsPage={setNewsPage} newsPerPage={newsPerPage} setSelectedNews={setSelectedNews} setTempNews={setTempNews} setEditingNews={setEditingNews} getTodayFormattedStr={getTodayFormattedStr} />} />
-          <Route path="/tin-tuc/chi-tiet" element={<NewsDetail isAdmin={isAdmin} selectedNews={selectedNews} setTempNews={setTempNews} setEditingNews={setEditingNews} />} />
+          <Route path="/tin-tuc/:id" element={<NewsDetail isAdmin={isAdmin} newsItems={newsItems} setTempNews={setTempNews} setEditingNews={setEditingNews} />} />
           <Route path="/lien-he" element={<Contact isAdmin={isAdmin} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} formStatus={formStatus} handleContactSubmit={handleContactSubmit} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -607,7 +610,7 @@ export default function App() {
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">{editingNews === 'new' ? 'Tạo Bản Tin Mới' : 'Chỉnh Sửa Bản Tin'}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
               <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Ngày đăng</label><input className="w-full border border-pink-200 p-3 rounded text-sm bg-stone-50 outline-none focus:border-pink-500" value={tempNews.date || ''} onChange={(e) => setTempNews({...tempNews, date: e.target.value})} /></div>
-              <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Chuyên mục</label><select className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none cursor-pointer focus:border-pink-500" value={tempNews.category || 'Tin Tức'} onChange={(e) => setTempNews({...tempNews, category: e.target.value})}><option value="Tin Tức">Tin Tức</option><option value="Sự kiện">Sự kiện</option><option value="Giáo lý">Giáo lý</option><option value="Thông báo">Thông báo</option></select></div>
+              <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Chuyên mục</label><div className="flex gap-2"><select className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none cursor-pointer focus:border-pink-500 flex-1" value={tempNews.category || newsCategories[0]} onChange={(e) => setTempNews({...tempNews, category: e.target.value})}>{newsCategories.map(c => <option key={c} value={c}>{c}</option>)}</select><button type="button" onClick={() => { const res = prompt("Nhập các chuyên mục mới, cách nhau bằng dấu phẩy (,)", newsCategories.join(", ")); if (res !== null) { const arr = res.split(",").map(s => s.trim()).filter(Boolean); if (arr.length) saveConfigToDB('newsCategories', arr); } }} className="px-3 bg-pink-50 text-pink-700 rounded border border-pink-200 hover:bg-pink-100 transition" title="Chỉnh sửa danh sách chuyên mục"><Edit3 size={16} /></button></div></div>
             </div>
             <div className="mb-6 flex items-center">
               <label className="flex items-center gap-2 cursor-pointer group">

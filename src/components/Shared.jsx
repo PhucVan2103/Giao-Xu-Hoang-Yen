@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Church, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon } from 'lucide-react';
+import { Church, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Video, Link as LinkIcon, Paperclip } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../utils/firebase';
+import toast from 'react-hot-toast';
 import { getImgStyle } from '../utils/helpers';
 
 export const FacebookIcon = ({ size = 20, className = "" }) => (
@@ -7,6 +10,18 @@ export const FacebookIcon = ({ size = 20, className = "" }) => (
     <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
   </svg>
 );
+
+export const FacebookShareButton = ({ url, title = "Chia sẻ lên Facebook" }) => {
+  const handleShare = () => {
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url || window.location.href)}`;
+    window.open(shareUrl, 'facebook-share-dialog', 'width=800,height=600');
+  };
+  return (
+    <button onClick={handleShare} title={title} className="flex items-center justify-center w-10 h-10 bg-[#1877f2] hover:bg-[#166fe5] text-white rounded-full transition-all shadow-md active:scale-95">
+      <FacebookIcon size={18} className="text-white" />
+    </button>
+  );
+};
 
 export const Logo = ({ sizeClass = "w-12 h-12", isSolid, config = {} }) => {
   const [hasError, setHasError] = useState(false);
@@ -35,11 +50,12 @@ export const Logo = ({ sizeClass = "w-12 h-12", isSolid, config = {} }) => {
   );
 };
 
-export const editorContentClasses = "font-serif text-stone-700 text-sm md:text-base leading-relaxed text-justify flow-root [&_img]:max-w-[90%] md:[&_img]:max-w-[45%] [&_img]:h-auto [&_img]:rounded-md [&_img]:shadow-sm [&_p]:mb-4 [&_h3]:text-xl md:[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-pink-900 [&_h3]:mt-6 [&_h3]:mb-3 [&_h4]:text-lg md:[&_h4]:text-xl [&_h4]:font-bold [&_h4]:text-pink-700 [&_h4]:mt-5 [&_h4]:mb-2 [&_blockquote]:border-l-3 [&_blockquote]:border-pink-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-stone-500 [&_blockquote]:my-4";
+export const editorContentClasses = "font-serif text-stone-700 text-sm md:text-base leading-relaxed text-justify flow-root [&_img]:max-w-[90%] md:[&_img]:max-w-[45%] [&_img]:h-auto [&_img]:rounded-md [&_img]:shadow-sm [&_p]:mb-4 [&_h3]:text-xl md:[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-pink-900 [&_h3]:mt-6 [&_h3]:mb-3 [&_h4]:text-lg md:[&_h4]:text-xl [&_h4]:font-bold [&_h4]:text-pink-700 [&_h4]:mt-5 [&_h4]:mb-2 [&_blockquote]:border-l-3 [&_blockquote]:border-pink-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-stone-500 [&_blockquote]:my-4 [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-lg [&_iframe]:my-4 [&_iframe]:shadow-sm [&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800";
 
 export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
   const editorRef = useRef(null);
   const [selectedImg, setSelectedImg] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (editorRef.current && !editorRef.current.contains(document.activeElement) && editorRef.current.innerHTML !== value) {
@@ -68,6 +84,75 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
     if (url) execCmd('insertHTML', `<img src="${url}" style="display: inline-block; float: left; margin: 0.5rem 1.5rem 1rem 0;" />&nbsp;`);
   };
 
+  const handleInsertLink = (e) => {
+    e.preventDefault();
+    const url = prompt('Nhập đường dẫn liên kết (URL):', 'https://');
+    if (url) {
+      const selection = window.getSelection();
+      const selectedText = selection.toString();
+      if (selectedText) {
+        execCmd('insertHTML', `<a href="${url}" target="_blank" rel="noopener noreferrer">${selectedText}</a>`);
+      } else {
+        execCmd('insertHTML', `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+      }
+    }
+  };
+
+  const handleInsertVideo = (e) => {
+    e.preventDefault();
+    const url = prompt('Nhập đường dẫn (URL) video Youtube hoặc Facebook:\n(Ví dụ: https://www.youtube.com/... hoặc https://www.facebook.com/...)');
+    if (!url) return;
+
+    let embedUrl = '';
+
+    // Xử lý link YouTube
+    if (url.includes('youtube.com/watch?v=')) {
+      const videoId = url.split('v=')[1].split('&')[0];
+      embedUrl = `https://www.youtube.com/embed/${videoId}`;
+    } else if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1].split('?')[0];
+      embedUrl = `https://www.youtube.com/embed/${videoId}`;
+    } 
+    // Xử lý link Facebook
+    else if (url.includes('facebook.com') || url.includes('fb.watch')) {
+      embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0`;
+    }
+
+    if (embedUrl) {
+      const iframeHtml = `<iframe src="${embedUrl}" style="width: 100%; aspect-ratio: 16/9; border: none; border-radius: 0.5rem; margin: 1rem 0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen="true"></iframe><p><br></p>`;
+      execCmd('insertHTML', iframeHtml);
+    } else {
+      alert("Đường dẫn video không hợp lệ. Vui lòng sử dụng link từ Youtube hoặc Facebook!");
+    }
+  };
+
+  const handleAttachmentUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (storage) {
+      const toastId = toast.loading('Đang tải tài liệu lên...');
+      try {
+        const fileRef = ref(storage, `documents/${Date.now()}_${file.name}`);
+        
+        // Cấp Content-Type chuẩn để trình duyệt tự động đọc (View) PDF thay vì tải về (Download)
+        let mimeType = file.type || 'application/octet-stream';
+        if (file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+        
+        await uploadBytes(fileRef, file, { contentType: mimeType });
+        const url = await getDownloadURL(fileRef);
+        execCmd('insertHTML', `<a href="${url}" target="_blank" rel="noopener noreferrer">📎 ${file.name}</a>&nbsp;`);
+        toast.success('Tải tài liệu thành công!', { id: toastId });
+      } catch (error) {
+        console.error("Lỗi upload tài liệu:", error);
+        toast.error('Lỗi tải tài liệu lên!', { id: toastId });
+      }
+    } else {
+      toast.error('Chưa kết nối CSDL!');
+    }
+    e.target.value = null; // Reset input sau khi upload
+  };
+
   const handlePaste = (e) => {
     const items = (e.clipboardData || e.originalEvent.clipboardData).items;
     for (let index in items) {
@@ -90,12 +175,20 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('italic')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><Italic size={14}/></button>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('underline')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><Underline size={14}/></button>
         <div className="w-px h-4 bg-pink-200 mx-1"></div>
+        <input type="color" onInput={(e) => execCmd('foreColor', e.target.value)} className="w-6 h-6 p-0 bg-transparent border-0 cursor-pointer rounded hover:scale-110 transition-transform" title="Đổi màu chữ" />
+        <input type="color" onInput={(e) => execCmd('backColor', e.target.value)} defaultValue="#ffff00" className="w-6 h-6 p-0 bg-transparent border-0 cursor-pointer rounded hover:scale-110 transition-transform" title="Tô màu nền (Highlight)" />
+        <div className="w-px h-4 bg-pink-200 mx-1"></div>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={handleInsertLink} className="p-1.5 hover:bg-pink-200 rounded text-stone-700" title="Chèn liên kết (Link)"><LinkIcon size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-pink-200 rounded text-stone-700" title="Đính kèm tài liệu (PDF, Word, Excel)"><Paperclip size={14}/></button>
+        <div className="w-px h-4 bg-pink-200 mx-1"></div>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('left')} className="p-1.5 hover:bg-pink-200 rounded ml-2 text-stone-700"><AlignLeft size={14}/></button>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('center')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><AlignCenter size={14}/></button>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('right')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><AlignRight size={14}/></button>
         <div className="w-px h-4 bg-pink-200 mx-1"></div>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={handleInsertImage} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><ImageIcon size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={handleInsertVideo} className="p-1.5 hover:bg-pink-200 rounded text-stone-700" title="Chèn Video YouTube/Facebook"><Video size={14}/></button>
       </div>
+      <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" ref={fileInputRef} onChange={handleAttachmentUpload} className="hidden" />
       <div ref={editorRef} contentEditable onInput={handleInput} onPaste={handlePaste} onClick={(e) => { if (e.target.tagName === 'IMG') { e.target.style.outline = '3px solid #ec4899'; setSelectedImg(e.target); } else { if (selectedImg) selectedImg.style.outline='none'; setSelectedImg(null); } }} className={`p-4 focus:outline-none overflow-y-auto ${editorContentClasses}`} style={{ minHeight }} />
     </div>
   );

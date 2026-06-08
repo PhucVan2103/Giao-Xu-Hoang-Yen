@@ -91,7 +91,7 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
              {newsItems.length > 0 && (
                <div 
                  className="lg:col-span-7 group cursor-pointer relative rounded-2xl overflow-hidden shadow-md border border-stone-200 hover:border-pink-300 transition-all duration-300 h-[350px] lg:h-full bg-white flex flex-col"
-                 onClick={() => { setSelectedNews(newsItems[0]); navigate('/tin-tuc/chi-tiet'); }}
+                   onClick={() => navigate(`/tin-tuc/${newsItems[0].id}`)}
                >
                  <div className="absolute inset-0 bg-stone-100 overflow-hidden">
                  <img src={newsItems[0].image} style={getImgStyle(newsItems[0])} className="w-full h-full block transition-transform duration-700 group-hover:scale-105" alt={newsItems[0].title} loading="lazy" />
@@ -120,7 +120,7 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
                  <div 
                    key={item.id} 
                    className="group cursor-pointer flex gap-4 items-center bg-white p-3 rounded-xl border border-stone-200 hover:border-pink-300 hover:shadow-md transition-all duration-300"
-                   onClick={() => { setSelectedNews(item); navigate('/tin-tuc/chi-tiet'); }}
+                       onClick={() => navigate(`/tin-tuc/${item.id}`)}
                  >
                    <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative overflow-hidden rounded-lg bg-stone-100">
                      <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110">

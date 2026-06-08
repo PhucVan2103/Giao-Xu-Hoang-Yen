@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, Search, Edit3 } from 'lucide-react';
+import { Menu, X, Search, Edit3, RefreshCw } from 'lucide-react';
 import { Logo } from './Shared';
 import { navLinks } from '../utils/helpers';
 
@@ -26,9 +26,15 @@ export default function Header({ isAdmin, isSolidHeader, isMenuOpen, setIsMenuOp
               {link.name}<span className={`absolute bottom-0 left-0 h-[2px] bg-pink-500 transition-all duration-300 rounded-full ${currentPath === link.path || (currentPath.startsWith('/tin-tuc') && link.id === 'News') || (currentPath.startsWith('/hanh-huong') && link.id === 'Pilgrimage') ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
             </button>
           ))}
-          <button className={`p-1 transition-all hover:scale-110 ${isSolidHeader ? 'text-stone-400 hover:text-pink-600' : 'text-white/50 hover:text-white'}`}><Search size={22} /></button>
+          <div className="flex items-center space-x-2 pl-2">
+            <button onClick={() => window.location.reload()} className={`p-1.5 transition-all hover:scale-110 rounded-full ${isSolidHeader ? 'text-stone-500 hover:text-pink-600 hover:bg-pink-50' : 'text-white/80 hover:text-white hover:bg-white/10'}`} title="Tải lại trang"><RefreshCw size={20} /></button>
+            <button className={`p-1.5 transition-all hover:scale-110 rounded-full ${isSolidHeader ? 'text-stone-500 hover:text-pink-600 hover:bg-pink-50' : 'text-white/80 hover:text-white hover:bg-white/10'}`} title="Tìm kiếm"><Search size={20} /></button>
+          </div>
         </nav>
-        <button className={`lg:hidden p-1.5 transition-all active:scale-90 ${isSolidHeader ? 'text-pink-950' : 'text-white'}`} onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={32} /> : <Menu size={32} />}</button>
+        <div className="flex items-center space-x-1 lg:hidden">
+          <button onClick={() => window.location.reload()} className={`p-2 transition-all active:scale-90 rounded-full ${isSolidHeader ? 'text-stone-500 hover:bg-pink-50' : 'text-white/80 hover:bg-white/10'}`} title="Tải lại trang"><RefreshCw size={22} /></button>
+          <button className={`p-2 transition-all active:scale-90 rounded-full ${isSolidHeader ? 'text-pink-950 hover:bg-pink-50' : 'text-white hover:bg-white/10'}`} onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={28} /> : <Menu size={28} />}</button>
+        </div>
       </div>
       {/* Mobile Menu */}
       <div className={`fixed inset-0 top-0 left-0 w-full h-screen bg-pink-950/98 backdrop-blur-md z-[90] transition-all duration-500 lg:hidden flex flex-col items-center justify-center p-8 ${isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
