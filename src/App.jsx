@@ -17,7 +17,7 @@ const ADMIN_PASSWORD = (typeof import.meta !== 'undefined' && import.meta.env?.V
 
 import { auth, db, storage, appId } from './utils/firebase';
 import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, increment } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { getImgStyle, navLinks, litColors, formatDateString, getDaysArray, getStatusStyles } from './utils/helpers';
@@ -30,6 +30,7 @@ import Contact from './pages/Contact';
 import Liturgy from './pages/Liturgy';
 import { Pilgrimage, PilgrimageDetail } from './pages/Pilgrimage';
 import { News, NewsDetail } from './pages/News';
+import AdminDashboard from './pages/AdminDashboard';
 
 // ==========================================
 // BẢNG MÀU GIAO DIỆN THEO MÙA PHỤNG VỤ
@@ -156,6 +157,8 @@ export default function App() {
   // --- States Tab Tin Tức ---
   const [newsItems, setNewsItems] = useState([]);
   const [newsCategories, setNewsCategories] = useState(['Tin Tức', 'Sự kiện', 'Giáo lý', 'Thông báo']);
+  const [messages, setMessages] = useState([]);
+  const [dailyVisits, setDailyVisits] = useState({});
 
   // --- States View Detail & Pagination ---
   const [selectedNews, setSelectedNews] = useState(null);
@@ -231,7 +234,7 @@ export default function App() {
       return;
     }
 
-    let unsubNews, unsubPilgrimages, unsubLiturgy, unsubConfig;
+    let unsubNews, unsubPilgrimages, unsubLiturgy, unsubConfig, unsubMessages, unsubAnalytics;
 
     try {
       unsubNews = onSnapshot(
@@ -302,6 +305,25 @@ export default function App() {
         },
         (err) => console.error("Firebase lỗi lấy Config:", err)
       );
+
+      unsubMessages = onSnapshot(
+        collection(db, 'artifacts', appId, 'public', 'data', 'messages'),
+        (snapshot) => {
+          const items = [];
+          snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+          setMessages(items.sort((a,b) => b.createdAt - a.createdAt));
+        },
+        (err) => console.error("Firebase lỗi lấy Messages:", err)
+      );
+
+      unsubAnalytics = onSnapshot(
+        doc(db, 'artifacts', appId, 'public', 'data', 'analytics', 'visits'),
+        (docSnap) => {
+          if (docSnap.exists()) setDailyVisits(docSnap.data());
+        },
+        (err) => console.error("Firebase lỗi lấy Analytics:", err)
+      );
+
     } catch (err) {
       console.error("Lỗi khi thiết lập listeners Firebase:", err);
     }
@@ -311,9 +333,24 @@ export default function App() {
       if(unsubPilgrimages) unsubPilgrimages();
       if(unsubLiturgy) unsubLiturgy();
       if(unsubConfig) unsubConfig();
+      if(unsubMessages) unsubMessages();
+      if(unsubAnalytics) unsubAnalytics();
     };
   // TỐI ƯU 4: Xóa [firebaseUser] khỏi dependency array, tránh việc useEffect bị kích hoạt 2 lần gây lag
   }, []);
+
+  // --- THEO DÕI LƯỢT TRUY CẬP (VISITS TRACKING) ---
+  useEffect(() => {
+    if (db) {
+      const todayStr = formatDateString(new Date());
+      const lastVisited = localStorage.getItem('last_visit_date');
+      if (lastVisited !== todayStr) {
+        localStorage.setItem('last_visit_date', todayStr);
+        const visitsRef = doc(db, 'artifacts', appId, 'public', 'data', 'analytics', 'visits');
+        setDoc(visitsRef, { [todayStr]: increment(1) }, { merge: true }).catch(console.error);
+      }
+    }
+  }, [db]);
 
   // --- Lắng nghe sự kiện Phóng to ảnh (Lightbox) ---
   useEffect(() => {
@@ -498,11 +535,29 @@ export default function App() {
     else setLoginError('Mật khẩu không chính xác!');
   };
 
-  const handleContactSubmit = (e) => {
+  const handleContactSubmit = async (e) => {
     e.preventDefault();
-    setFormStatus('success');
-    setTimeout(() => setFormStatus(''), 4000);
-    e.target.reset();
+    if (!db) {
+      toast.error('Chưa kết nối CSDL, không thể gửi!');
+      return;
+    }
+    const toastId = toast.loading('Đang gửi thông tin...');
+    try {
+      const formData = new FormData(e.target);
+      const newMsg = {
+        sender: formData.get('sender'), phone: formData.get('phone'),
+        topic: formData.get('topic'), content: formData.get('content'),
+        status: 'new', createdAt: Date.now(), dateStr: getTodayFormattedStr()
+      };
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', newMsg.createdAt.toString()), newMsg);
+      toast.success('Gửi thông tin thành công!', { id: toastId });
+      setFormStatus('success');
+      setTimeout(() => setFormStatus(''), 4000);
+      e.target.reset();
+    } catch (error) {
+      console.error(error);
+      toast.error('Có lỗi xảy ra khi gửi. Vui lòng thử lại!', { id: toastId });
+    }
   };
 
   const getTodayFormattedStr = () => {
@@ -566,6 +621,7 @@ export default function App() {
   const nextMonth = () => { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1)); };
 
   const isSolidHeader = scrolled || location.pathname !== '/';
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   // Đọc Mùa Phụng Vụ đang được cấu hình
   const currentSeason = parishStats.seasonTheme || 'default';
@@ -599,7 +655,7 @@ export default function App() {
       {/* ========================================== */}
       {/* TRÌNH ĐIỀU HƯỚNG (HEADER) */}
       {/* ========================================== */}
-      <Header 
+      {!isAdminRoute && <Header 
         isAdmin={isAdmin}
         isSolidHeader={isSolidHeader}
         isMenuOpen={isMenuOpen}
@@ -607,10 +663,10 @@ export default function App() {
         logoConfig={logoConfig}
         setTempLogoConfig={setTempLogoConfig}
         setEditingLogo={setEditingLogo}
-      />
+      />}
 
       {/* NỘI DUNG CHÍNH */}
-      <main className="pt-0 min-h-[70vh] bg-white">
+      <main className={`pt-0 min-h-[70vh] ${isAdminRoute ? 'bg-stone-50' : 'bg-white'}`}>
         <Routes>
           <Route path="/" element={<Home isAdmin={isAdmin} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} quote={quote} setTempQuote={setTempQuote} setEditingQuote={setEditingQuote} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} contactInfo={contactInfo} setTempContact={setTempContact} setEditingQuickPhone={setEditingQuickPhone} newsItems={newsItems} setSelectedNews={setSelectedNews} liturgyEvents={liturgyEvents} />} />
           <Route path="/gioi-thieu" element={<About isAdmin={isAdmin} parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} historyData={historyData} setTempHistory={setTempHistory} setEditingHistory={setEditingHistory} heritageTitle={heritageTitle} setTempHeritageTitle={setTempHeritageTitle} setEditingHeritageTitle={setEditingHeritageTitle} heritageList={heritageList} setTempHeritageItem={setTempHeritageItem} setEditingHeritageItem={setEditingHeritageItem} pastoralData={pastoralData} setTempPastoral={setTempPastoral} setEditingPastoral={setEditingPastoral} />} />
@@ -620,12 +676,22 @@ export default function App() {
           <Route path="/tin-tuc" element={<News isAdmin={isAdmin} newsItems={newsItems} newsPage={newsPage} setNewsPage={setNewsPage} newsPerPage={newsPerPage} setSelectedNews={setSelectedNews} setTempNews={setTempNews} setEditingNews={setEditingNews} getTodayFormattedStr={getTodayFormattedStr} />} />
           <Route path="/tin-tuc/:id" element={<NewsDetail isAdmin={isAdmin} newsItems={newsItems} setTempNews={setTempNews} setEditingNews={setEditingNews} />} />
           <Route path="/lien-he" element={<Contact isAdmin={isAdmin} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} formStatus={formStatus} handleContactSubmit={handleContactSubmit} />} />
+          <Route path="/admin/*" element={<AdminDashboard 
+            isAdmin={isAdmin} setShowLoginModal={setShowLoginModal} setIsAdmin={setIsAdmin} parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} 
+            setTempNews={setTempNews} setEditingNews={setEditingNews} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} 
+            confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} 
+            setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} 
+            receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} 
+            logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero}
+            footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} setTempStats={setTempStats} setEditingStats={setEditingStats}
+            messages={messages} setAppConfirm={setAppConfirm} dailyVisits={dailyVisits}
+          />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
       {/* CHÂN TRANG (FOOTER) */}
-      <Footer 
+      {!isAdminRoute && <Footer 
         isAdmin={isAdmin}
         footerData={footerData}
         contactInfo={contactInfo}
@@ -635,11 +701,11 @@ export default function App() {
         setEditingFooter={setEditingFooter}
         setShowLoginModal={setShowLoginModal}
         setIsAdmin={setIsAdmin}
-      />
+      />}
 
-      {showTopBtn && <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-6 right-6 p-2.5 bg-pink-700 text-white rounded-full shadow-xl z-50 active:scale-90 transition-all hover:bg-pink-800"><ArrowUp size={20} /></button>}
+      {!isAdminRoute && showTopBtn && <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-6 right-6 p-2.5 bg-pink-700 text-white rounded-full shadow-xl z-50 active:scale-90 transition-all hover:bg-pink-800"><ArrowUp size={20} /></button>}
 
-      {isAdmin && (
+      {!isAdminRoute && isAdmin && (
         <button onClick={handleInitMockData} className="fixed bottom-6 left-6 px-4 py-2 bg-stone-800 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xl z-50 hover:bg-stone-900 transition-all">
           🚀 Khởi Tạo Dữ Liệu Mẫu
         </button>
