@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Quote, Clock, MapPin, Phone, Mail, Bell, ChevronRight, Calendar, Edit3, Star, Timer } from 'lucide-react';
+import { ChevronDown, Quote, Clock, MapPin, Phone, Mail, Bell, ChevronRight, Calendar, Edit3, Star, Timer, Eye } from 'lucide-react';
 import { getImgStyle, createSlug, formatDateString, getNextMass, normalizeMassSchedules, expandMassSchedules } from '../utils/helpers';
 
 export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, quote, setTempQuote, setEditingQuote, massSchedules, setTempMass, setEditingMass, contactInfo, setTempContact, setEditingQuickPhone, newsItems, setSelectedNews, liturgyEvents }) {
@@ -157,8 +157,9 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
                      {newsItems[0].title}
                    </h4>
                    <div className="text-stone-300 text-sm leading-relaxed line-clamp-2 font-serif mb-4 [&_p]:mb-0 drop-shadow" dangerouslySetInnerHTML={{ __html: newsItems[0].desc || '' }} />
-                   <div className="text-[11px] font-bold text-pink-300 uppercase tracking-widest flex items-center gap-2">
-                     <Calendar size={14} /> {newsItems[0].date}
+                         <div className="text-[11px] font-bold text-pink-300 uppercase tracking-widest flex flex-wrap items-center gap-3">
+                           <span className="flex items-center"><Calendar size={14} className="mr-1.5"/> {newsItems[0].date}</span>
+                           <span className="flex items-center bg-white/20 text-white px-2.5 py-0.5 rounded-full shadow-sm"><Eye size={14} className="mr-1.5" /> {newsItems[0].views || 0} lượt xem</span>
                    </div>
                  </div>
                </div>
@@ -181,8 +182,9 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
                      <h4 className="font-serif font-bold text-sm sm:text-base text-stone-900 group-hover:text-pink-700 transition-colors leading-snug line-clamp-2 mb-2">
                        {item.title}
                      </h4>
-                     <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1.5 mt-auto">
-                       <Calendar size={12} className="text-pink-400" /> {item.date}
+                           <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex flex-wrap items-center gap-3 mt-auto">
+                             <span className="flex items-center"><Calendar size={12} className="mr-1.5 text-pink-400" /> {item.date}</span>
+                             <span className="flex items-center bg-pink-50 text-pink-600 px-2 py-0.5 rounded-full border border-pink-100"><Eye size={12} className="mr-1.5" /> {item.views || 0} View</span>
                      </div>
                    </div>
                  </div>

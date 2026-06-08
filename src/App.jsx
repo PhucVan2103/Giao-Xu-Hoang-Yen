@@ -439,8 +439,8 @@ export default function App() {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'hero'), { heroData: mockHero }, { merge: true });
 
       const initialNewsData = [
-        { id: 1, title: 'Đại lễ Kính Các Thánh Tử Đạo Việt Nam', date: '14/11/2023', category: 'Sự kiện', isFeatured: true, desc: '<p>Chương trình hành hương và đại lễ mừng kính tại Giáo xứ Hoàng Yên diễn ra trọng thể...</p>', image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', content: '<p>Chương trình hành hương trang trọng diễn ra trong 3 ngày...</p>' },
-        { id: 2, title: 'Thông báo Giáo lý niên khóa mới', date: '10/11/2023', category: 'Giáo lý', isFeatured: true, desc: '<p>Giáo xứ bắt đầu nhận hồ sơ đăng ký cho các lớp Đồng cỏ non, Khai tâm...</p>', image: 'https://images.unsplash.com/photo-1437603562860-1950e3ca6eab?q=80&w=800&auto=format&fit=crop', content: '<p>Văn phòng Giáo lý xin thông báo chi tiết về thời gian đăng ký...</p>' }
+        { id: 1, title: 'Đại lễ Kính Các Thánh Tử Đạo Việt Nam', date: '14/11/2023', category: 'Sự kiện', isFeatured: true, views: 156, desc: '<p>Chương trình hành hương và đại lễ mừng kính tại Giáo xứ Hoàng Yên diễn ra trọng thể...</p>', image: 'https://images.unsplash.com/photo-1548625361-903df390453d?q=80&w=800&auto=format&fit=crop', content: '<p>Chương trình hành hương trang trọng diễn ra trong 3 ngày...</p>' },
+        { id: 2, title: 'Thông báo Giáo lý niên khóa mới', date: '10/11/2023', category: 'Giáo lý', isFeatured: true, views: 42, desc: '<p>Giáo xứ bắt đầu nhận hồ sơ đăng ký cho các lớp Đồng cỏ non, Khai tâm...</p>', image: 'https://images.unsplash.com/photo-1437603562860-1950e3ca6eab?q=80&w=800&auto=format&fit=crop', content: '<p>Văn phòng Giáo lý xin thông báo chi tiết về thời gian đăng ký...</p>' }
       ];
       for (const item of initialNewsData) {
         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', item.id.toString()), item);
@@ -697,8 +697,9 @@ export default function App() {
           <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
             <button onClick={() => setEditingNews(null)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">{editingNews === 'new' ? 'Tạo Bản Tin Mới' : 'Chỉnh Sửa Bản Tin'}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
               <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Ngày đăng</label><input className="w-full border border-pink-200 p-3 rounded text-sm bg-stone-50 outline-none focus:border-pink-500" value={tempNews.date || ''} onChange={(e) => setTempNews({...tempNews, date: e.target.value})} /></div>
+              <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Lượt Xem Hiện Tại</label><input type="number" className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none focus:border-pink-500" value={tempNews.views || 0} onChange={(e) => setTempNews({...tempNews, views: parseInt(e.target.value) || 0})} /></div>
               <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Chuyên mục</label><div className="flex gap-2"><select className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none cursor-pointer focus:border-pink-500 flex-1" value={tempNews.category || newsCategories[0]} onChange={(e) => setTempNews({...tempNews, category: e.target.value})}>{newsCategories?.map(c => <option key={c} value={c}>{c}</option>)}</select><button type="button" onClick={() => { 
                 setAppPrompt({
                   isOpen: true, title: 'Chỉnh sửa chuyên mục', desc: 'Nhập các chuyên mục mới, cách nhau bằng dấu phẩy (,):', defaultValue: newsCategories?.join(", ") || '',
@@ -749,7 +750,7 @@ export default function App() {
                 try {
                   const id = tempNews.id || Date.now();
           // Làm sạch dữ liệu trước khi lưu Firebase
-          const d = JSON.parse(JSON.stringify({ ...tempNews, id }));
+          const d = JSON.parse(JSON.stringify({ ...tempNews, id, views: tempNews.views || 0 }));
                   await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id.toString()), d);
                   if (selectedNews?.id === id) setSelectedNews(d); 
                   setEditingNews(null); 
