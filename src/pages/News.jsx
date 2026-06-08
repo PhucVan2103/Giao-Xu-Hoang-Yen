@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate, Navigate, useParams } from 'react-router-dom';
 import { Edit3, Star, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getImgStyle } from '../utils/helpers';
+import { getImgStyle, createSlug } from '../utils/helpers';
 import { editorContentClasses,FacebookShareButton } from '../components/Shared';
 import { db, appId } from '../utils/firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -31,7 +31,7 @@ export function News({ isAdmin, newsItems, newsPage, setNewsPage, newsPerPage, s
             <div className="flex items-center mb-6"><span className="bg-pink-100 text-pink-700 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-sm border border-pink-200 flex items-center"><Star size={12} className="mr-1.5" /> Tin Nổi Bật</span></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {featuredNews.map(item => (
-                <div key={item.id} onClick={() => navigate(`/tin-tuc/${item.id}`)} className="group cursor-pointer relative flex flex-col rounded-2xl overflow-hidden shadow-lg border border-pink-50 h-[380px] bg-white hover:shadow-xl hover:border-pink-200 transition-all duration-300">
+                <div key={item.id} onClick={() => navigate(`/tin-tuc/${createSlug(item.title)}-${item.id}`)} className="group cursor-pointer relative flex flex-col rounded-2xl overflow-hidden shadow-lg border border-pink-50 h-[380px] bg-white hover:shadow-xl hover:border-pink-200 transition-all duration-300">
                   {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempNews(item); setEditingNews(item.id); }} className="absolute top-4 right-4 z-20 p-2 bg-white/90 backdrop-blur-sm text-pink-700 rounded-full shadow-md transition hover:bg-pink-600 hover:text-white"><Edit3 size={14} /></button>}
                 <div className="h-[220px] w-full overflow-hidden relative bg-stone-100"><div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"><img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" loading="lazy" /></div><div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-80"></div><span className="absolute bottom-4 left-4 bg-pink-600 text-white text-[9px] font-bold px-2 py-1 rounded inline-block shadow-sm uppercase tracking-wider">{item.category}</span></div>
                   <div className="p-6 flex flex-col flex-1"><h4 className="font-serif font-bold text-xl text-pink-950 mb-3 group-hover:text-pink-700 transition leading-snug line-clamp-2">{item.title}</h4><div className="text-stone-500 text-sm line-clamp-2 leading-relaxed font-serif mb-4 flex-1" dangerouslySetInnerHTML={{ __html: item.desc || '' }} /><p className="text-[10px] font-bold text-stone-400 uppercase flex items-center tracking-widest mt-auto"><Calendar size={12} className="mr-1.5 text-pink-400" />{item.date}</p></div>
@@ -45,7 +45,7 @@ export function News({ isAdmin, newsItems, newsPage, setNewsPage, newsPerPage, s
           <h3 className="text-xl font-serif font-bold text-pink-950 uppercase tracking-widest mb-6 pb-4 border-b border-pink-100">Điểm Tin Giáo Xứ</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {currentRegularNews.map((item) => (
-              <div key={item.id} onClick={() => navigate(`/tin-tuc/${item.id}`)} className="group cursor-pointer relative bg-white p-4 rounded-xl border border-pink-50 shadow-sm hover:border-pink-300 hover:shadow-md transition-all flex flex-col">
+              <div key={item.id} onClick={() => navigate(`/tin-tuc/${createSlug(item.title)}-${item.id}`)} className="group cursor-pointer relative bg-white p-4 rounded-xl border border-pink-50 shadow-sm hover:border-pink-300 hover:shadow-md transition-all flex flex-col">
                 {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempNews(item); setEditingNews(item.id); }} className="absolute top-2 right-2 z-20 p-1.5 bg-pink-100 text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12} /></button>}
               <div className="w-full h-48 mb-4 relative overflow-hidden rounded-lg shadow-sm bg-stone-100"><div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"><img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt="" loading="lazy" /></div><span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-pink-700 text-[9px] font-bold px-2 py-1 rounded shadow-sm uppercase tracking-wider">{item.category}</span></div>
                 <div className="flex flex-col flex-1"><p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest flex items-center mb-2"><Calendar size={10} className="mr-1.5" />{item.date}</p><h4 className="font-serif font-bold text-lg text-pink-950 mb-2 group-hover:text-pink-700 transition leading-snug line-clamp-2">{item.title}</h4><div className="text-stone-500 text-sm line-clamp-3 leading-relaxed font-serif mt-auto" dangerouslySetInnerHTML={{ __html: item.desc || '' }} /></div>
@@ -62,7 +62,8 @@ export function News({ isAdmin, newsItems, newsPage, setNewsPage, newsPerPage, s
 export function NewsDetail({ isAdmin, newsItems, setTempNews, setEditingNews }) {
   const navigate = useNavigate();
   const { id } = useParams();
-  const selectedNews = newsItems.find(n => n.id.toString() === id);
+  const actualId = id ? id.split('-').pop() : '';
+  const selectedNews = newsItems.find(n => n.id.toString() === actualId);
 
   if (!selectedNews && newsItems.length > 0) return <Navigate to="/tin-tuc" replace />;
   if (!selectedNews) return <div className="pt-32 text-center text-pink-700 font-bold">Đang tải bản tin...</div>;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, Navigate, useParams } from 'react-router-dom';
 import { Edit3, Calendar, Clock, MapPin, Heart, Users, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getImgStyle, getStatusStyles } from '../utils/helpers';
+import { getImgStyle, getStatusStyles, createSlug } from '../utils/helpers';
 import { editorContentClasses } from '../components/Shared';
 import { db, appId } from '../utils/firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -29,7 +29,7 @@ export function Pilgrimage({ isAdmin, pilgrimagePlans, pilgrimagePage, setPilgri
 
           <div className="space-y-6">
             {currentPilgrimagePlans.map(plan => (
-              <div key={plan.id} onClick={() => navigate(`/hanh-huong/${plan.id}`)} className="group flex flex-col sm:flex-row bg-white rounded-xl shadow-md border border-pink-50 overflow-hidden cursor-pointer hover:shadow-lg hover:border-pink-300 transition-all relative">
+              <div key={plan.id} onClick={() => navigate(`/hanh-huong/${createSlug(plan.title)}-${plan.id}`)} className="group flex flex-col sm:flex-row bg-white rounded-xl shadow-md border border-pink-50 overflow-hidden cursor-pointer hover:shadow-lg hover:border-pink-300 transition-all relative">
                 {isAdmin && <button onClick={(e) => { e.stopPropagation(); setTempPilgrimage(plan); setEditingPilgrimage(plan.id); }} className="absolute top-3 right-3 z-20 p-1.5 bg-white/80 backdrop-blur-sm text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={14} /></button>}
                 <div className="sm:w-56 h-48 sm:h-auto flex-shrink-0 relative overflow-hidden bg-stone-100">
                 <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"><img src={plan.image} style={getImgStyle(plan)} className="w-full h-full block" alt={plan.title} loading="lazy" /></div>
@@ -71,7 +71,8 @@ export function Pilgrimage({ isAdmin, pilgrimagePlans, pilgrimagePage, setPilgri
 export function PilgrimageDetail({ isAdmin, pilgrimagePlans, setTempPilgrimage, setEditingPilgrimage }) {
   const navigate = useNavigate();
   const { id } = useParams();
-  const selectedPilgrimage = pilgrimagePlans.find(p => p.id.toString() === id);
+  const actualId = id ? id.split('-').pop() : '';
+  const selectedPilgrimage = pilgrimagePlans.find(p => p.id.toString() === actualId);
 
   if (!selectedPilgrimage && pilgrimagePlans.length > 0) return <Navigate to="/hanh-huong" replace />;
   if (!selectedPilgrimage) return <div className="pt-32 text-center text-pink-700 font-bold">Đang tải kế hoạch...</div>;

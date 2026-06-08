@@ -17,11 +17,11 @@ const ADMIN_PASSWORD = (typeof import.meta !== 'undefined' && import.meta.env?.V
 
 import { auth, db, storage, appId } from './utils/firebase';
 import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { getImgStyle, navLinks, litColors, formatDateString, getDaysArray, getStatusStyles } from './utils/helpers';
-import { FacebookIcon, Logo, editorContentClasses, RichTextEditor, ImageAdjuster } from './components/Shared';
+import { FacebookIcon, Logo, editorContentClasses, RichTextEditor, ImageAdjuster, ConfirmModal, PromptModal, Lightbox } from './components/Shared';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -30,6 +30,59 @@ import Contact from './pages/Contact';
 import Liturgy from './pages/Liturgy';
 import { Pilgrimage, PilgrimageDetail } from './pages/Pilgrimage';
 import { News, NewsDetail } from './pages/News';
+
+// ==========================================
+// BẢNG MÀU GIAO DIỆN THEO MÙA PHỤNG VỤ
+// ==========================================
+const THEME_COLORS = {
+  'thuong-nien': { 50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b', 950: '#022c22' }, // Xanh lá
+  'mua-chay': { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce', 800: '#6b21a8', 900: '#581c87', 950: '#3b0764' }, // Tím
+  'phuc-sinh': { 50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03' }, // Vàng (Gold)
+  'giang-sinh': { 50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03' }, // Vàng (Giáng sinh)
+  'le-do': { 50: '#fef2f2', 100: '#fee2e2', 200: '#fecaca', 300: '#fca5a5', 400: '#f87171', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', 800: '#991b1b', 900: '#7f1d1d', 950: '#450a0a' } // Đỏ
+};
+
+const getThemeCSS = (season) => {
+  if (!season || season === 'default' || !THEME_COLORS[season]) return '';
+  const c = THEME_COLORS[season];
+  return `
+    :root {
+      ${Object.keys(c).map(shade => `--color-pink-${shade}: ${c[shade]} !important;`).join('\n      ')}
+    }
+  `;
+};
+
+// ==========================================
+// COMPONENT TẠO HIỆU ỨNG THEO MÙA (TUYẾT, HÀO QUANG...)
+// ==========================================
+const SeasonalEffects = ({ season }) => {
+  const [elements, setElements] = useState([]);
+  useEffect(() => {
+    if (season === 'giang-sinh' || season === 'phuc-sinh') {
+      setElements([...Array(25)].map(() => ({
+        left: Math.random() * 100,
+        duration: Math.random() * 5 + 5,
+        delay: Math.random() * 5,
+        size: Math.random() * 10 + 10,
+        opacity: Math.random() * 0.5 + 0.3
+      })));
+    } else {
+      setElements([]);
+    }
+  }, [season]);
+
+  if (season === 'giang-sinh') return (
+    <div className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden" aria-hidden="true">
+      {elements.map((p, i) => <div key={i} className="absolute text-white drop-shadow-md animate-snowfall" style={{ left: `${p.left}vw`, top: '-5vh', animationDuration: `${p.duration}s`, animationDelay: `${p.delay}s`, opacity: p.opacity, fontSize: `${p.size}px` }}>❄</div>)}
+    </div>
+  );
+  if (season === 'phuc-sinh') return (
+    <div className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden" aria-hidden="true">
+      {elements.map((p, i) => <div key={i} className="absolute text-yellow-300 drop-shadow-lg animate-float-up" style={{ left: `${p.left}vw`, bottom: '-5vh', animationDuration: `${p.duration}s`, animationDelay: `${p.delay}s`, opacity: p.opacity, fontSize: `${p.size}px` }}>✨</div>)}
+    </div>
+  );
+  return null;
+};
 
 // ==========================================
 // 3. MAIN APP COMPONENT
@@ -140,6 +193,10 @@ export default function App() {
   const [editingAdoration, setEditingAdoration] = useState(false);
   const [tempAdoration, setTempAdoration] = useState({});
 
+  // --- States Modals Chuyên Nghiệp ---
+  const [appConfirm, setAppConfirm] = useState({ isOpen: false, title: '', message: '', isDanger: false, onConfirm: null });
+  const [appPrompt, setAppPrompt] = useState({ isOpen: false, title: '', desc: '', defaultValue: '', onConfirm: null });
+  const [lightboxImg, setLightboxImg] = useState(null);
 
   // ==========================================
   // FIREBASE INITIALIZATION & SYNC
@@ -258,6 +315,17 @@ export default function App() {
   // TỐI ƯU 4: Xóa [firebaseUser] khỏi dependency array, tránh việc useEffect bị kích hoạt 2 lần gây lag
   }, []);
 
+  // --- Lắng nghe sự kiện Phóng to ảnh (Lightbox) ---
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      if (e.target.tagName === 'IMG' && e.target.closest('.lightbox-container')) {
+        setLightboxImg(e.target.src);
+      }
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, []);
+
   // --- Hàm hỗ trợ ghi dữ liệu lên Firebase ---
   const saveConfigToDB = async (key, value) => {
     // Cập nhật state local ngay lập tức để giao diện không bị giật lag hoặc trong trường hợp tải ảnh lớn
@@ -311,17 +379,26 @@ export default function App() {
   // --- KHỞI TẠO DỮ LIỆU MẪU (MOCK DATA) ---
   const handleInitMockData = async () => {
     if (!db) return toast.error('Chưa kết nối CSDL');
-    if (!window.confirm('Hành động này sẽ khởi tạo dữ liệu mẫu lên CSDL. Bạn có chắc chắn không?')) return;
-
-    const toastId = toast.loading('Đang khởi tạo dữ liệu mẫu...');
-    try {
+    setAppConfirm({
+      isOpen: true,
+      title: 'Khởi tạo dữ liệu mẫu',
+      message: 'Hành động này sẽ ghi đè và khởi tạo các dữ liệu mẫu lên CSDL của bạn. Bạn có chắc chắn không?',
+      isDanger: true,
+      onConfirm: async () => {
+        setAppConfirm(prev => ({ ...prev, isOpen: false }));
+        const toastId = toast.loading('Đang khởi tạo dữ liệu mẫu...');
+        try {
       const mockConfig = {
-        parishStats: { population: '5,420', priest: 'Lm. Giuse Nguyễn Văn A', patron: 'Các Thánh Tử Đạo VN', address: '123 Các Thánh Tử Đạo, TP.HCM' },
+        parishStats: { population: '5,420', priest: 'Lm. Giuse Nguyễn Văn A', patron: 'Các Thánh Tử Đạo VN', address: '123 Các Thánh Tử Đạo, TP.HCM', seasonTheme: 'default' },
         quote: { text: "<p>Ta là bánh hằng sống từ trời xuống. Ai ăn bánh này, sẽ được sống muôn đời.</p>", ref: "Ga 6, 51" },
         massSchedules: [
-          { day: 'Ngày Thường', times: ['05:00', '17:30'] },
-          { day: 'Thứ Bảy', times: ['05:00', '17:30 (Lễ Chúa Nhật)'] },
-          { day: 'Chúa Nhật', times: ['05:30', '07:30 (Thiếu Nhi)', '16:30', '18:30'] },
+          { day: 'Thứ Hai', times: [{time: '05:00', location: 'Đền Thánh'}] },
+          { day: 'Thứ Ba', times: [{time: '05:00', location: 'Đền Thánh'}, {time: '17:30', location: 'Giáo họ Phaolô'}] },
+          { day: 'Thứ Tư', times: [{time: '05:00', location: 'Đền Thánh'}] },
+          { day: 'Thứ Năm', times: [{time: '05:00', location: 'Đền Thánh'}, {time: '17:30', location: 'Giáo họ Giuse'}] },
+          { day: 'Thứ Sáu', times: [{time: '05:00', location: 'Đền Thánh'}] },
+          { day: 'Thứ Bảy', times: [{time: '05:00', location: 'Đền Thánh'}, {time: '17:30', location: 'Đền Thánh (Lễ thay Chúa Nhật)'}] },
+          { day: 'Chúa Nhật', times: [{time: '05:30', location: 'Đền Thánh'}, {time: '07:30', location: 'Đền Thánh (Lễ Thiếu Nhi)'}, {time: '16:30', location: 'Giáo họ Mân Côi'}, {time: '18:30', location: 'Đền Thánh'}] },
         ],
         contactInfo: {
           title: "Liên Hệ Văn Phòng Giáo Xứ",
@@ -392,6 +469,8 @@ export default function App() {
       console.error(err);
       toast.error('Lỗi khi khởi tạo dữ liệu: ' + err.message, { id: toastId });
     }
+      }
+    });
   };
 
   // ==========================================
@@ -488,6 +567,9 @@ export default function App() {
 
   const isSolidHeader = scrolled || location.pathname !== '/';
 
+  // Đọc Mùa Phụng Vụ đang được cấu hình
+  const currentSeason = parishStats.seasonTheme || 'default';
+
   return (
     <div className="min-h-screen bg-white font-serif selection:bg-pink-100 antialiased relative overflow-x-hidden">
       <Toaster position="bottom-right" toastOptions={{ style: { fontSize: '12px', fontWeight: 'bold', fontFamily: 'sans-serif' } }} />
@@ -503,9 +585,16 @@ export default function App() {
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(236, 72, 153, 0.3); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(219, 39, 119, 0.6); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-pink-300, #f9a8d4); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: var(--color-pink-400, #f472b6); }
+        @keyframes snowfall { 0% { transform: translateY(0) translateX(0) rotate(0deg); } 100% { transform: translateY(105vh) translateX(20px) rotate(360deg); } }
+        .animate-snowfall { animation: snowfall linear infinite; }
+        @keyframes float-up { 0% { transform: translateY(0) scale(0.8); opacity: 0; } 20% { opacity: var(--tw-opacity, 1); } 80% { opacity: var(--tw-opacity, 1); } 100% { transform: translateY(-105vh) scale(1.2); opacity: 0; } }
+        .animate-float-up { animation: float-up ease-in-out infinite; }
+        ${getThemeCSS(currentSeason)}
       `}} />
+
+      <SeasonalEffects season={currentSeason} />
 
       {/* ========================================== */}
       {/* TRÌNH ĐIỀU HƯỚNG (HEADER) */}
@@ -523,7 +612,7 @@ export default function App() {
       {/* NỘI DUNG CHÍNH */}
       <main className="pt-0 min-h-[70vh] bg-white">
         <Routes>
-          <Route path="/" element={<Home isAdmin={isAdmin} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} quote={quote} setTempQuote={setTempQuote} setEditingQuote={setEditingQuote} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} contactInfo={contactInfo} setTempContact={setTempContact} setEditingQuickPhone={setEditingQuickPhone} newsItems={newsItems} setSelectedNews={setSelectedNews} />} />
+          <Route path="/" element={<Home isAdmin={isAdmin} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} quote={quote} setTempQuote={setTempQuote} setEditingQuote={setEditingQuote} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} contactInfo={contactInfo} setTempContact={setTempContact} setEditingQuickPhone={setEditingQuickPhone} newsItems={newsItems} setSelectedNews={setSelectedNews} liturgyEvents={liturgyEvents} />} />
           <Route path="/gioi-thieu" element={<About isAdmin={isAdmin} parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} historyData={historyData} setTempHistory={setTempHistory} setEditingHistory={setEditingHistory} heritageTitle={heritageTitle} setTempHeritageTitle={setTempHeritageTitle} setEditingHeritageTitle={setEditingHeritageTitle} heritageList={heritageList} setTempHeritageItem={setTempHeritageItem} setEditingHeritageItem={setEditingHeritageItem} pastoralData={pastoralData} setTempPastoral={setTempPastoral} setEditingPastoral={setEditingPastoral} />} />
           <Route path="/phung-vu" element={<Liturgy isAdmin={isAdmin} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calendarDate={calendarDate} prevMonth={prevMonth} nextMonth={nextMonth} liturgyEvents={liturgyEvents} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} />} />
           <Route path="/hanh-huong" element={<Pilgrimage isAdmin={isAdmin} pilgrimagePlans={pilgrimagePlans} pilgrimagePage={pilgrimagePage} setPilgrimagePage={setPilgrimagePage} itemsPerPage={itemsPerPage} setSelectedPilgrimage={setSelectedPilgrimage} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
@@ -610,7 +699,18 @@ export default function App() {
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">{editingNews === 'new' ? 'Tạo Bản Tin Mới' : 'Chỉnh Sửa Bản Tin'}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
               <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Ngày đăng</label><input className="w-full border border-pink-200 p-3 rounded text-sm bg-stone-50 outline-none focus:border-pink-500" value={tempNews.date || ''} onChange={(e) => setTempNews({...tempNews, date: e.target.value})} /></div>
-              <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Chuyên mục</label><div className="flex gap-2"><select className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none cursor-pointer focus:border-pink-500 flex-1" value={tempNews.category || newsCategories[0]} onChange={(e) => setTempNews({...tempNews, category: e.target.value})}>{newsCategories.map(c => <option key={c} value={c}>{c}</option>)}</select><button type="button" onClick={() => { const res = prompt("Nhập các chuyên mục mới, cách nhau bằng dấu phẩy (,)", newsCategories.join(", ")); if (res !== null) { const arr = res.split(",").map(s => s.trim()).filter(Boolean); if (arr.length) saveConfigToDB('newsCategories', arr); } }} className="px-3 bg-pink-50 text-pink-700 rounded border border-pink-200 hover:bg-pink-100 transition" title="Chỉnh sửa danh sách chuyên mục"><Edit3 size={16} /></button></div></div>
+              <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Chuyên mục</label><div className="flex gap-2"><select className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none cursor-pointer focus:border-pink-500 flex-1" value={tempNews.category || newsCategories[0]} onChange={(e) => setTempNews({...tempNews, category: e.target.value})}>{newsCategories?.map(c => <option key={c} value={c}>{c}</option>)}</select><button type="button" onClick={() => { 
+                setAppPrompt({
+                  isOpen: true, title: 'Chỉnh sửa chuyên mục', desc: 'Nhập các chuyên mục mới, cách nhau bằng dấu phẩy (,):', defaultValue: newsCategories?.join(", ") || '',
+                  onConfirm: (res) => {
+                    setAppPrompt({ ...appPrompt, isOpen: false });
+                    if (res && res.trim() !== '') {
+                      const arr = res.split(",").map(s => s.trim()).filter(Boolean);
+                      if (arr.length) saveConfigToDB('newsCategories', arr);
+                    }
+                  }
+                });
+              }} className="px-3 bg-pink-50 text-pink-700 rounded border border-pink-200 hover:bg-pink-100 transition" title="Chỉnh sửa danh sách chuyên mục"><Edit3 size={16} /></button></div></div>
             </div>
             <div className="mb-6 flex items-center">
               <label className="flex items-center gap-2 cursor-pointer group">
@@ -702,11 +802,19 @@ export default function App() {
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 mt-6 block">Tiểu sử sơ lược</label>
             <textarea className="w-full border border-pink-200 p-3 rounded h-28 text-sm font-serif leading-relaxed outline-none focus:border-pink-500 custom-scrollbar" value={tempHeritageItem.brief || ''} onChange={(e) => setTempHeritageItem({...tempHeritageItem, brief: e.target.value})} placeholder="Nhập sơ lược tiểu sử..." />
             <div className="flex gap-4 pt-6 border-t mt-6">
-              {editingHeritageItem !== 'new' && <button className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={() => { const nl = heritageList.filter(item => item.id !== tempHeritageItem.id); saveConfigToDB('heritageList', nl); setEditingHeritageItem(null); }}>Xóa Vị Thánh</button>}
+              {editingHeritageItem !== 'new' && <button className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={() => { 
+                setAppConfirm({
+                  isOpen: true, title: 'Xóa Vị Thánh', message: `Bạn có chắc chắn muốn xóa "${tempHeritageItem.name}" khỏi danh sách không?`, isDanger: true,
+                  onConfirm: () => {
+                    setAppConfirm({ ...appConfirm, isOpen: false });
+                    const nl = heritageList.filter(item => item.id !== tempHeritageItem.id); saveConfigToDB('heritageList', nl); setEditingHeritageItem(null);
+                  }
+                });
+              }}>Xóa Vị Thánh</button>}
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-6 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingHeritageItem(null)}>Hủy</button>
               <button className="bg-pink-700 text-white px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
-                if (!tempHeritageItem.name) return alert('Vui lòng nhập tên'); 
+                if (!tempHeritageItem.name) return toast.error('Vui lòng nhập tên Vị Thánh!'); 
                 let nl;
                 if (editingHeritageItem === 'new') nl = [tempHeritageItem, ...heritageList]; 
                 else nl = heritageList.map(item => item.id === tempHeritageItem.id ? tempHeritageItem : item); 
@@ -796,17 +904,35 @@ export default function App() {
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Sửa Phụng Vụ Ngày {tempLiturgyEvent.date.split('-').reverse().join('/')}</h3>
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Tên sự kiện / Tên Lễ</label>
             <input className="w-full border border-pink-200 p-3 rounded mb-4 text-base font-serif font-bold bg-white outline-none focus:border-pink-500" value={tempLiturgyEvent.title || ''} onChange={e => setTempLiturgyEvent({...tempLiturgyEvent, title: e.target.value})} placeholder="VD: Chúa Nhật X Thường Niên" />
-            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Màu Áo Lễ</label>
-            <select className="w-full border border-pink-200 p-3 rounded mb-4 text-sm font-bold bg-white outline-none cursor-pointer focus:border-pink-500" value={tempLiturgyEvent.colorType || 'white'} onChange={e => setTempLiturgyEvent({...tempLiturgyEvent, colorType: e.target.value})}>{Object.keys(litColors).map(k => <option key={k} value={k}>{litColors[k].name}</option>)}</select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+               <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Màu Áo Lễ</label>
+                  <select className="w-full border border-pink-200 p-3 rounded text-sm font-bold bg-white outline-none cursor-pointer focus:border-pink-500" value={tempLiturgyEvent.colorType || 'white'} onChange={e => setTempLiturgyEvent({...tempLiturgyEvent, colorType: e.target.value})}>{Object.keys(litColors).map(k => <option key={k} value={k}>{litColors[k].name}</option>)}</select>
+               </div>
+               <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Nguồn Lời Chúa (Tùy chọn)</label>
+                  <input className="w-full border border-pink-200 p-3 rounded text-sm font-bold bg-white outline-none focus:border-pink-500" value={tempLiturgyEvent.quoteRef || ''} onChange={e => setTempLiturgyEvent({...tempLiturgyEvent, quoteRef: e.target.value})} placeholder="VD: Ga 6, 51" />
+               </div>
+            </div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Nội dung Lời Chúa (Sẽ tự động chiếu lên Trang Chủ)</label>
+            <textarea className="w-full border border-pink-200 p-3 rounded h-20 text-sm font-serif leading-relaxed outline-none focus:border-pink-500 custom-scrollbar mb-4" value={tempLiturgyEvent.quoteText || ''} onChange={e => setTempLiturgyEvent({...tempLiturgyEvent, quoteText: e.target.value})} placeholder="Nhập câu Lời Chúa của ngày lễ này..." />
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Chi tiết sự kiện (Giờ rước kiệu, lưu ý...)</label>
             <textarea className="w-full border border-pink-200 p-3 rounded h-24 text-sm font-serif leading-relaxed outline-none focus:border-pink-500 custom-scrollbar" value={tempLiturgyEvent.desc || ''} onChange={e => setTempLiturgyEvent({...tempLiturgyEvent, desc: e.target.value})} placeholder="Thêm mô tả chi tiết nếu có..." />
             <div className="flex gap-3 pt-6 border-t mt-4">
-              <button className="text-red-600 px-4 py-3 font-bold text-[10px] uppercase border border-red-100 hover:bg-red-50 transition-all rounded tracking-widest" onClick={async () => { 
-                if(!db) return;
-                try {
-                  await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'liturgy', tempLiturgyEvent.date)); 
-                  setEditingLiturgyEvent(false); 
-                } catch(e) { alert("Lỗi xóa: Không có quyền truy cập.") }
+              <button type="button" className="text-red-600 px-4 py-3 font-bold text-[10px] uppercase border border-red-100 hover:bg-red-50 transition-all rounded tracking-widest" onClick={() => { 
+                setAppConfirm({
+                  isOpen: true, title: 'Xóa Lịch Phụng Vụ', message: 'Bạn có chắc chắn muốn xóa lịch phụng vụ của ngày này không?', isDanger: true,
+                  onConfirm: async () => {
+                    setAppConfirm(prev => ({ ...prev, isOpen: false }));
+                    if(!db) return;
+                    const toastId = toast.loading('Đang xóa lịch phụng vụ...');
+                    try {
+                      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'liturgy', tempLiturgyEvent.date)); 
+                      setEditingLiturgyEvent(false); 
+                      toast.success('Xóa thành công!', { id: toastId });
+                    } catch(e) { toast.error("Lỗi xóa: Không có quyền truy cập.", { id: toastId }) }
+                  }
+                });
               }}>Xóa</button>
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-6 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingLiturgyEvent(false)}>Hủy</button>
@@ -882,21 +1008,45 @@ export default function App() {
 
       {editingMass && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
-          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
+          <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
              <button onClick={() => setEditingMass(false)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
-            <h3 className="text-xl font-bold text-pink-950 mb-8 uppercase text-center tracking-tight">Sửa Giờ Lễ</h3>
-            <div className="space-y-6">{tempMass.map((item, idx) => (<div key={idx} className="p-4 border border-pink-100 bg-pink-50/30 rounded-lg"><label className="block text-[10px] font-bold text-pink-800 uppercase mb-2 tracking-widest">{item.day}</label><input className="w-full border border-pink-200 p-2.5 rounded text-sm font-bold focus:border-pink-500 outline-none" value={item.times.join(', ')} onChange={(e) => { const n = [...tempMass]; n[idx].times = e.target.value.split(',').map(t => t.trim()); setTempMass(n); }}/></div>))}</div>
-            <div className="flex gap-4 pt-8 border-t mt-8"><button className="flex-1 bg-stone-100 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingMass(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('massSchedules', tempMass); setEditingMass(false); }}>Lưu Giờ Lễ</button></div>
+            <h3 className="text-xl font-bold text-pink-950 mb-2 uppercase text-center tracking-tight">Sửa Giờ Lễ Từng Ngày</h3>
+            <p className="text-center text-sm font-serif text-stone-500 mb-6">Thiết lập giờ lễ và giáo họ riêng biệt cho 7 ngày trong tuần.</p>
+            <div className="space-y-4">
+              {tempMass.map((item, dayIdx) => (
+                <div key={dayIdx} className="p-4 border border-pink-100 bg-pink-50/30 rounded-xl relative">
+                  <div className="flex justify-between items-center mb-3 pb-3 border-b border-pink-200/50">
+                    <h4 className="font-bold text-pink-800 uppercase tracking-widest text-[13px]">{item.day}</h4>
+                  </div>
+                  <div className="space-y-2 mb-3">
+                    {item.times.map((t, timeIdx) => {
+                      const timeVal = typeof t === 'object' ? t.time : t;
+                      const locVal = typeof t === 'object' ? (t.location || '') : '';
+                      return (
+                        <div key={timeIdx} className="flex gap-2 items-center bg-white p-2 rounded-lg shadow-sm border border-pink-100">
+                          <input type="time" className="border border-pink-100 p-1.5 rounded text-sm font-bold outline-none focus:border-pink-500" value={timeVal} onChange={(e) => { const n = [...tempMass]; n[dayIdx].times[timeIdx] = { time: e.target.value, location: locVal }; setTempMass(n); }} />
+                          <input type="text" placeholder="Địa điểm / Giáo họ..." className="flex-1 border border-pink-100 p-1.5 rounded text-sm outline-none focus:border-pink-500 font-serif" value={locVal} onChange={(e) => { const n = [...tempMass]; n[dayIdx].times[timeIdx] = { time: timeVal, location: e.target.value }; setTempMass(n); }} />
+                          <button onClick={() => { const n = [...tempMass]; n[dayIdx].times.splice(timeIdx, 1); setTempMass(n); }} className="text-stone-400 hover:text-red-500 p-1.5 bg-stone-50 rounded hover:bg-red-50 transition-colors"><X size={16}/></button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button onClick={() => { const n = [...tempMass]; n[dayIdx].times.push({time: '05:00', location: ''}); setTempMass(n); }} className="text-[10px] font-bold uppercase text-pink-600 bg-pink-100 px-3 py-1.5 rounded-lg hover:bg-pink-200 transition-colors">+ Thêm giờ lễ</button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-4 pt-6 border-t mt-6"><button className="flex-1 bg-stone-100 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingMass(false)}>Hủy Bỏ</button><button className="flex-[2] bg-pink-700 text-white py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('massSchedules', tempMass); setEditingMass(false); }}>Lưu Giờ Lễ</button></div>
           </div>
         </div>
       )}
 
       {editingStats && (
-        <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full border-t-4 border-pink-600 relative">
+        <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
+          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar border-t-4 border-pink-600 relative">
              <button onClick={() => setEditingStats(false)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Sửa Thông Tin Chung</h3>
             <div className="space-y-4 mb-8">
+              <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Màu Giao Diện (Mùa Phụng Vụ)</label><select className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-sm bg-white cursor-pointer" value={tempStats.seasonTheme || 'default'} onChange={(e) => setTempStats({...tempStats, seasonTheme: e.target.value})}><option value="default">Mùa Lễ Hội (Hồng - Mặc định)</option><option value="thuong-nien">Mùa Thường Niên (Xanh Lá)</option><option value="mua-chay">Mùa Chay / Mùa Vọng (Tím)</option><option value="phuc-sinh">Mùa Phục Sinh (Vàng + Hào quang)</option><option value="giang-sinh">Mùa Giáng Sinh (Vàng + Tuyết rơi)</option><option value="le-do">Lễ Tử Đạo / Thánh Thần (Đỏ)</option></select></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Số lượng giáo dân</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-sm" value={tempStats.population || ''} onChange={(e) => setTempStats({...tempStats, population: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Linh mục Chánh xứ</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-sm" value={tempStats.priest || ''} onChange={(e) => setTempStats({...tempStats, priest: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Bổn mạng</label><input className="w-full border border-pink-200 p-3 rounded outline-none focus:border-pink-600 font-bold text-sm" value={tempStats.patron || ''} onChange={(e) => setTempStats({...tempStats, patron: e.target.value})} /></div>

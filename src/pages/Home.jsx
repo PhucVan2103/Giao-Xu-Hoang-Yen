@@ -1,10 +1,42 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Quote, Clock, MapPin, Phone, Mail, Bell, ChevronRight, Calendar, Edit3, Star } from 'lucide-react';
-import { getImgStyle } from '../utils/helpers';
+import { ChevronDown, Quote, Clock, MapPin, Phone, Mail, Bell, ChevronRight, Calendar, Edit3, Star, Timer } from 'lucide-react';
+import { getImgStyle, createSlug, formatDateString, getNextMass, normalizeMassSchedules, expandMassSchedules } from '../utils/helpers';
 
-export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, quote, setTempQuote, setEditingQuote, massSchedules, setTempMass, setEditingMass, contactInfo, setTempContact, setEditingQuickPhone, newsItems, setSelectedNews }) {
+export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, quote, setTempQuote, setEditingQuote, massSchedules, setTempMass, setEditingMass, contactInfo, setTempContact, setEditingQuickPhone, newsItems, setSelectedNews, liturgyEvents }) {
   const navigate = useNavigate();
+  const [nextMassInfo, setNextMassInfo] = useState(null);
+  const [countdown, setCountdown] = useState('');
+
+  // Lấy Lời Chúa theo Lịch Phụng Vụ hôm nay (Nếu có)
+  const todayStr = formatDateString(new Date());
+  const todayLiturgy = liturgyEvents?.find(e => e.date === todayStr);
+  
+  const hasLiturgyQuote = todayLiturgy && todayLiturgy.quoteText;
+  const displayQuoteText = hasLiturgyQuote ? `<p>${todayLiturgy.quoteText.replace(/\n/g, '<br/>')}</p>` : (quote.text || '');
+  const displayQuoteRef = hasLiturgyQuote ? todayLiturgy.quoteRef : (quote.ref || '');
+  const displayQuoteTitle = todayLiturgy ? `Lời Chúa - ${todayLiturgy.title}` : 'Lời Chúa Hôm Nay';
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const nextMass = getNextMass(massSchedules);
+      if (!nextMass) { setNextMassInfo(null); return; }
+      setNextMassInfo(nextMass);
+
+      const now = new Date().getTime();
+      const distance = nextMass.date.getTime() - now;
+      if (distance < 0) return; // Wait for next tick to update
+
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+      setCountdown(`${hours > 0 ? hours + 'h ' : ''}${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [massSchedules]);
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -29,24 +61,41 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
        </section>
 
        <section className="py-16 bg-[#fffcfd] relative z-20 border-b border-pink-50">
-          <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-10">
+          <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
              <div className="bg-white p-8 rounded-2xl shadow-md border border-pink-100 flex flex-col items-center text-center relative group">
                 <Quote size={40} className="text-pink-100 mb-4"/>
-                <h3 className="text-lg font-bold text-pink-900 uppercase border-b border-pink-50 pb-2 mb-6 tracking-tighter">Lời Chúa Hôm Nay</h3>
-                <div className="text-stone-700 font-serif italic text-base leading-relaxed mb-6" dangerouslySetInnerHTML={{ __html: quote.text || '' }} />
-                <p className="text-pink-800 font-bold text-[11px] uppercase tracking-widest mt-auto">{quote.ref || ''}</p>
-                {isAdmin && <button onClick={() => { setTempQuote({ text: quote.text, ref: quote.ref }); setEditingQuote(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-600 text-white rounded-full shadow"><Edit3 size={12}/></button>}
+                <h3 className="text-lg font-bold text-pink-900 uppercase border-b border-pink-50 pb-2 mb-6 tracking-tighter">{displayQuoteTitle}</h3>
+                <div className="text-stone-700 font-serif italic text-base leading-relaxed mb-6" dangerouslySetInnerHTML={{ __html: displayQuoteText }} />
+                <p className="text-pink-800 font-bold text-[11px] uppercase tracking-widest mt-auto mb-2">{displayQuoteRef}</p>
+                {hasLiturgyQuote && <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded border border-emerald-100 shadow-sm mt-2">Cập nhật theo Phụng Vụ</span>}
+                {!hasLiturgyQuote && isAdmin && <button onClick={() => { setTempQuote({ text: quote.text, ref: quote.ref }); setEditingQuote(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-600 text-white rounded-full shadow transition hover:bg-pink-700" title="Sửa Lời Chúa mặc định"><Edit3 size={12}/></button>}
+                {hasLiturgyQuote && isAdmin && <button onClick={() => navigate('/phung-vu')} className="absolute top-4 right-4 p-1.5 bg-emerald-600 text-white rounded-full shadow transition hover:bg-emerald-700" title="Đến trang Phụng Vụ để sửa Lời Chúa này"><Edit3 size={12}/></button>}
              </div>
+             
              <div className="bg-pink-950 p-8 rounded-2xl shadow-xl text-white flex flex-col items-center text-center border-t-4 border-pink-400 relative group">
                 <Clock size={32} className="text-pink-300 mb-4"/>
                 <h3 className="text-xl font-bold uppercase text-pink-100 tracking-tight mb-8">Giờ Thánh Lễ</h3>
-                <div className="w-full space-y-4">
-                  {massSchedules.map((item, idx) => (
-                    <div key={idx} className="border-b border-pink-900/50 pb-2 last:border-0 flex justify-between items-center"><p className="font-bold text-pink-300 uppercase text-[9px] tracking-wider">{item.day}</p><div className="flex gap-2">{item.times.slice(0,2).map((t, i) => <span key={i} className="text-[9px] bg-pink-900/50 px-1.5 py-0.5 rounded border border-pink-800">{t}</span>)}</div></div>
-                  ))}
-                </div>
-                {isAdmin && <button onClick={() => { setTempMass([...massSchedules]); setEditingMass(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-600 text-white rounded-full shadow"><Edit3 size={12}/></button>}
+                
+                {nextMassInfo ? (
+                  <div className="w-full flex flex-col items-center animate-in zoom-in mt-auto mb-auto">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-pink-400 mb-3 flex items-center gap-1.5"><Timer size={14}/> Thánh lễ tiếp theo</span>
+                    <span className="text-4xl font-bold text-white mb-2 leading-snug">{nextMassInfo.timeOnly}</span>
+                    {nextMassInfo.locationOnly && <span className="text-sm font-serif text-pink-200 mb-8 flex items-center gap-1.5"><MapPin size={14}/> {nextMassInfo.locationOnly}</span>}
+                    <div className="font-serif text-sm font-bold text-pink-200 bg-pink-900/80 px-4 py-3 rounded-xl border border-pink-800 shadow-inner tracking-wide flex flex-col items-center gap-2 w-full">
+                      Bắt đầu sau: <span className="text-white font-mono text-2xl bg-pink-950 px-3 py-1.5 rounded-lg shadow-md">{countdown}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-pink-300/50 font-serif italic flex-1 flex items-center justify-center">Chưa có lịch Thánh lễ</div>
+                )}
+                
+                {isAdmin && <button onClick={() => { 
+                  const expanded = expandMassSchedules(normalizeMassSchedules(massSchedules));
+                  setTempMass(expanded.map(d => ({ day: d.label, times: d.times })));
+                  setEditingMass(true); 
+                }} className="absolute top-4 right-4 p-1.5 bg-pink-600 text-white rounded-full shadow hover:bg-pink-700 transition"><Edit3 size={12}/></button>}
              </div>
+
              <div className="bg-white p-8 rounded-2xl shadow-md border border-pink-100 flex flex-col relative group">
                 {isAdmin && <button onClick={() => { setTempContact(contactInfo); setEditingQuickPhone(true); }} className="absolute top-4 right-4 p-1.5 bg-pink-100 text-pink-600 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12}/></button>}
                 <h3 className="text-lg font-bold text-pink-900 uppercase border-b border-pink-50 pb-2 mb-6 tracking-tighter text-center">Liên Hệ & Văn Phòng</h3>
@@ -91,7 +140,7 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
              {newsItems.length > 0 && (
                <div 
                  className="lg:col-span-7 group cursor-pointer relative rounded-2xl overflow-hidden shadow-md border border-stone-200 hover:border-pink-300 transition-all duration-300 h-[350px] lg:h-full bg-white flex flex-col"
-                   onClick={() => navigate(`/tin-tuc/${newsItems[0].id}`)}
+                   onClick={() => navigate(`/tin-tuc/${createSlug(newsItems[0].title)}-${newsItems[0].id}`)}
                >
                  <div className="absolute inset-0 bg-stone-100 overflow-hidden">
                  <img src={newsItems[0].image} style={getImgStyle(newsItems[0])} className="w-full h-full block transition-transform duration-700 group-hover:scale-105" alt={newsItems[0].title} loading="lazy" />
@@ -120,7 +169,7 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
                  <div 
                    key={item.id} 
                    className="group cursor-pointer flex gap-4 items-center bg-white p-3 rounded-xl border border-stone-200 hover:border-pink-300 hover:shadow-md transition-all duration-300"
-                       onClick={() => navigate(`/tin-tuc/${item.id}`)}
+                       onClick={() => navigate(`/tin-tuc/${createSlug(item.title)}-${item.id}`)}
                  >
                    <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative overflow-hidden rounded-lg bg-stone-100">
                      <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110">

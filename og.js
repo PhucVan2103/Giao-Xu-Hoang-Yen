@@ -1,12 +1,13 @@
 export default async function handler(req, res) {
   const { id } = req.query;
+  const actualId = id ? id.split('-').pop() : '';
   const url = `https://${req.headers.host}/tin-tuc/${id}`;
   
   try {
     // Gọi trực tiếp API công khai của Firebase Firestore để lấy bài viết
     const projectId = 'giao-xu-hoang-yen';
     const appId = 'giao-xu-hoang-yen-app'; // App ID của bạn thiết lập ở firebase.js
-    const fireapiUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/artifacts/${appId}/public/data/news/${id}`;
+    const fireapiUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/artifacts/${appId}/public/data/news/${actualId}`;
     
     const response = await fetch(fireapiUrl);
     const data = await response.json();

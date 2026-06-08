@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Church, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Video, Link as LinkIcon, Paperclip } from 'lucide-react';
+import { Church, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Video, Link as LinkIcon, Paperclip, X } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../utils/firebase';
 import toast from 'react-hot-toast';
@@ -50,12 +50,59 @@ export const Logo = ({ sizeClass = "w-12 h-12", isSolid, config = {} }) => {
   );
 };
 
-export const editorContentClasses = "font-serif text-stone-700 text-sm md:text-base leading-relaxed text-justify flow-root [&_img]:max-w-[90%] md:[&_img]:max-w-[45%] [&_img]:h-auto [&_img]:rounded-md [&_img]:shadow-sm [&_p]:mb-4 [&_h3]:text-xl md:[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-pink-900 [&_h3]:mt-6 [&_h3]:mb-3 [&_h4]:text-lg md:[&_h4]:text-xl [&_h4]:font-bold [&_h4]:text-pink-700 [&_h4]:mt-5 [&_h4]:mb-2 [&_blockquote]:border-l-3 [&_blockquote]:border-pink-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-stone-500 [&_blockquote]:my-4 [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-lg [&_iframe]:my-4 [&_iframe]:shadow-sm [&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800";
+export const PromptModal = ({ isOpen, title, desc, placeholder, defaultValue, onConfirm, onCancel }) => {
+  const [val, setVal] = useState('');
+  useEffect(() => { if(isOpen) setVal(defaultValue || ''); }, [defaultValue, isOpen]);
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200 backdrop-blur-sm">
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-2xl max-w-md w-full border-t-4 border-pink-600 relative">
+        <h3 className="text-lg md:text-xl font-bold text-pink-950 mb-2 uppercase tracking-tight">{title}</h3>
+        {desc && <p className="text-sm font-serif text-stone-600 mb-5 whitespace-pre-wrap leading-relaxed">{desc}</p>}
+        <input autoFocus type="text" className="w-full border border-pink-200 p-3 md:p-4 rounded-xl text-sm focus:border-pink-500 outline-none mb-6 font-serif shadow-inner transition-colors" placeholder={placeholder} value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => e.key === 'Enter' && onConfirm(val)} />
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 bg-stone-100 py-3 rounded-xl font-bold uppercase text-[10px] md:text-xs tracking-widest hover:bg-stone-200 transition text-stone-600">Hủy Bỏ</button>
+          <button onClick={() => onConfirm(val)} className="flex-1 bg-pink-600 text-white py-3 rounded-xl font-bold uppercase text-[10px] md:text-xs tracking-widest shadow-md hover:bg-pink-700 transition active:scale-95">Xác Nhận</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Xác Nhận", cancelText = "Hủy Bỏ", isDanger = false }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200 backdrop-blur-sm">
+      <div className={`bg-white p-6 md:p-8 rounded-2xl shadow-2xl max-w-sm w-full border-t-4 relative ${isDanger ? 'border-red-500' : 'border-pink-600'}`}>
+        <h3 className={`text-xl font-bold uppercase tracking-tight mb-3 ${isDanger ? 'text-red-700' : 'text-pink-950'}`}>{title}</h3>
+        <p className="text-sm font-serif text-stone-600 mb-8 leading-relaxed">{message}</p>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 bg-stone-100 py-3 rounded-xl font-bold uppercase text-[10px] md:text-xs tracking-widest hover:bg-stone-200 transition text-stone-600">{cancelText}</button>
+          <button onClick={onConfirm} className={`flex-1 text-white py-3 rounded-xl font-bold uppercase text-[10px] md:text-xs tracking-widest shadow-md transition active:scale-95 ${isDanger ? 'bg-red-600 hover:bg-red-700' : 'bg-pink-600 hover:bg-pink-700'}`}>{confirmText}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const Lightbox = ({ src, onClose }) => {
+  if (!src) return null;
+  return (
+    <div className="fixed inset-0 z-[99999] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+      <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors z-50 p-2"><X size={32} /></button>
+      <img src={src} className="max-w-full max-h-full object-contain rounded shadow-2xl animate-in zoom-in-90 duration-300" alt="Phóng to" onClick={e => e.stopPropagation()} />
+    </div>
+  );
+};
+
+export const editorContentClasses = "lightbox-container font-serif text-stone-700 text-sm md:text-base leading-relaxed text-justify flow-root [&_img]:max-w-[90%] md:[&_img]:max-w-[45%] [&_img]:h-auto [&_img]:rounded-md [&_img]:shadow-sm [&_img]:cursor-zoom-in [&_img]:hover:opacity-90 [&_img]:transition-opacity [&_p]:mb-4 [&_h3]:text-xl md:[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-pink-900 [&_h3]:mt-6 [&_h3]:mb-3 [&_h4]:text-lg md:[&_h4]:text-xl [&_h4]:font-bold [&_h4]:text-pink-700 [&_h4]:mt-5 [&_h4]:mb-2 [&_blockquote]:border-l-3 [&_blockquote]:border-pink-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-stone-500 [&_blockquote]:my-4 [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-lg [&_iframe]:my-4 [&_iframe]:shadow-sm [&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800";
 
 export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
   const editorRef = useRef(null);
   const [selectedImg, setSelectedImg] = useState(null);
   const fileInputRef = useRef(null);
+  const [promptConfig, setPromptConfig] = useState({ isOpen: false, type: '', title: '', desc: '', defaultValue: '' });
+  const [savedRange, setSavedRange] = useState(null);
 
   useEffect(() => {
     if (editorRef.current && !editorRef.current.contains(document.activeElement) && editorRef.current.innerHTML !== value) {
@@ -78,16 +125,45 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
     }
   };
 
+  const saveSelection = () => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) setSavedRange(selection.getRangeAt(0));
+  };
+
+  const restoreSelection = () => {
+    if (savedRange) {
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(savedRange);
+    }
+  };
+
   const handleInsertImage = (e) => {
     e.preventDefault();
-    const url = prompt('Nhập đường dẫn (URL) của hình ảnh:');
-    if (url) execCmd('insertHTML', `<img src="${url}" style="display: inline-block; float: left; margin: 0.5rem 1.5rem 1rem 0;" />&nbsp;`);
+    saveSelection();
+    setPromptConfig({ isOpen: true, type: 'image', title: 'Chèn Hình Ảnh', desc: 'Nhập đường dẫn (URL) của hình ảnh:', defaultValue: '' });
   };
 
   const handleInsertLink = (e) => {
     e.preventDefault();
-    const url = prompt('Nhập đường dẫn liên kết (URL):', 'https://');
-    if (url) {
+    saveSelection();
+    setPromptConfig({ isOpen: true, type: 'link', title: 'Chèn Liên Kết', desc: 'Nhập đường dẫn liên kết (URL):', defaultValue: 'https://' });
+  };
+
+  const handleInsertVideo = (e) => {
+    e.preventDefault();
+    saveSelection();
+    setPromptConfig({ isOpen: true, type: 'video', title: 'Chèn Video', desc: 'Nhập đường dẫn (URL) video Youtube hoặc Facebook:\n(Ví dụ: https://www.youtube.com/... hoặc https://www.facebook.com/...)', defaultValue: '' });
+  };
+
+  const onPromptConfirm = (url) => {
+    restoreSelection();
+    setPromptConfig({ isOpen: false });
+    if (!url) return;
+
+    if (promptConfig.type === 'image') {
+      execCmd('insertHTML', `<img src="${url}" style="display: inline-block; float: left; margin: 0.5rem 1.5rem 1rem 0;" />&nbsp;`);
+    } else if (promptConfig.type === 'link') {
       const selection = window.getSelection();
       const selectedText = selection.toString();
       if (selectedText) {
@@ -95,34 +171,14 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
       } else {
         execCmd('insertHTML', `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
       }
-    }
-  };
-
-  const handleInsertVideo = (e) => {
-    e.preventDefault();
-    const url = prompt('Nhập đường dẫn (URL) video Youtube hoặc Facebook:\n(Ví dụ: https://www.youtube.com/... hoặc https://www.facebook.com/...)');
-    if (!url) return;
-
-    let embedUrl = '';
-
-    // Xử lý link YouTube
-    if (url.includes('youtube.com/watch?v=')) {
-      const videoId = url.split('v=')[1].split('&')[0];
-      embedUrl = `https://www.youtube.com/embed/${videoId}`;
-    } else if (url.includes('youtu.be/')) {
-      const videoId = url.split('youtu.be/')[1].split('?')[0];
-      embedUrl = `https://www.youtube.com/embed/${videoId}`;
-    } 
-    // Xử lý link Facebook
-    else if (url.includes('facebook.com') || url.includes('fb.watch')) {
-      embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0`;
-    }
-
-    if (embedUrl) {
-      const iframeHtml = `<iframe src="${embedUrl}" style="width: 100%; aspect-ratio: 16/9; border: none; border-radius: 0.5rem; margin: 1rem 0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen="true"></iframe><p><br></p>`;
-      execCmd('insertHTML', iframeHtml);
-    } else {
-      alert("Đường dẫn video không hợp lệ. Vui lòng sử dụng link từ Youtube hoặc Facebook!");
+    } else if (promptConfig.type === 'video') {
+      let embedUrl = '';
+      if (url.includes('youtube.com/watch?v=')) embedUrl = `https://www.youtube.com/embed/${url.split('v=')[1].split('&')[0]}`;
+      else if (url.includes('youtu.be/')) embedUrl = `https://www.youtube.com/embed/${url.split('youtu.be/')[1].split('?')[0]}`;
+      else if (url.includes('facebook.com') || url.includes('fb.watch')) embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0`;
+      
+      if (embedUrl) execCmd('insertHTML', `<iframe src="${embedUrl}" style="width: 100%; aspect-ratio: 16/9; border: none; border-radius: 0.5rem; margin: 1rem 0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen="true"></iframe><p><br></p>`);
+      else toast.error("Đường dẫn video không hợp lệ. Vui lòng sử dụng link từ Youtube hoặc Facebook!");
     }
   };
 
@@ -190,6 +246,7 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
       </div>
       <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" ref={fileInputRef} onChange={handleAttachmentUpload} className="hidden" />
       <div ref={editorRef} contentEditable onInput={handleInput} onPaste={handlePaste} onClick={(e) => { if (e.target.tagName === 'IMG') { e.target.style.outline = '3px solid #ec4899'; setSelectedImg(e.target); } else { if (selectedImg) selectedImg.style.outline='none'; setSelectedImg(null); } }} className={`p-4 focus:outline-none overflow-y-auto ${editorContentClasses}`} style={{ minHeight }} />
+      <PromptModal isOpen={promptConfig.isOpen} title={promptConfig.title} desc={promptConfig.desc} defaultValue={promptConfig.defaultValue} onCancel={() => { restoreSelection(); setPromptConfig({ ...promptConfig, isOpen: false }); }} onConfirm={onPromptConfirm} />
     </div>
   );
 };
