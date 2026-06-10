@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import {
   Menu, X, Clock, Calendar, MapPin, Phone, 
   ChevronRight, BookOpen, Users, Image as ImageIcon, 
   Bell, Heart, Search, Mail, ExternalLink, Quote,
@@ -24,13 +24,15 @@ import { getImgStyle, navLinks, litColors, formatDateString, getDaysArray, getSt
 import { FacebookIcon, Logo, editorContentClasses, RichTextEditor, ImageAdjuster, ConfirmModal, PromptModal, Lightbox } from './components/Shared';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Home from './pages/Home';
-import About from './pages/About';
-import Contact from './pages/Contact';
-import Liturgy from './pages/Liturgy';
-import { Pilgrimage, PilgrimageDetail } from './pages/Pilgrimage';
-import { News, NewsDetail } from './pages/News';
-import AdminDashboard from './pages/AdminDashboard';
+const Home = lazy(() => import('./pages/Home'));
+const About = lazy(() => import('./pages/About'));
+const Contact = lazy(() => import('./pages/Contact'));
+const Liturgy = lazy(() => import('./pages/Liturgy'));
+const Pilgrimage = lazy(() => import('./pages/Pilgrimage').then(module => ({ default: module.Pilgrimage })));
+const PilgrimageDetail = lazy(() => import('./pages/Pilgrimage').then(module => ({ default: module.PilgrimageDetail })));
+const News = lazy(() => import('./pages/News').then(module => ({ default: module.News })));
+const NewsDetail = lazy(() => import('./pages/News').then(module => ({ default: module.NewsDetail })));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
 // ==========================================
 // BẢNG MÀU GIAO DIỆN THEO MÙA PHỤNG VỤ
@@ -729,27 +731,29 @@ export default function App() {
 
       {/* NỘI DUNG CHÍNH */}
       <main className={`pt-0 min-h-[70vh] ${isAdminRoute ? 'bg-stone-50' : 'bg-white'}`}>
-        <Routes>
-          <Route path="/" element={<Home isAdmin={isAdmin} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} quote={quote} setTempQuote={setTempQuote} setEditingQuote={setEditingQuote} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} contactInfo={contactInfo} setTempContact={setTempContact} setEditingQuickPhone={setEditingQuickPhone} newsItems={newsItems} setSelectedNews={setSelectedNews} liturgyEvents={liturgyEvents} />} />
-          <Route path="/gioi-thieu" element={<About isAdmin={isAdmin} parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} historyData={historyData} setTempHistory={setTempHistory} setEditingHistory={setEditingHistory} heritageTitle={heritageTitle} setTempHeritageTitle={setTempHeritageTitle} setEditingHeritageTitle={setEditingHeritageTitle} heritageList={heritageList} setTempHeritageItem={setTempHeritageItem} setEditingHeritageItem={setEditingHeritageItem} pastoralData={pastoralData} setTempPastoral={setTempPastoral} setEditingPastoral={setEditingPastoral} handleReorderHeritage={handleReorderHeritage} />} />
-          <Route path="/phung-vu" element={<Liturgy isAdmin={isAdmin} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calendarDate={calendarDate} prevMonth={prevMonth} nextMonth={nextMonth} liturgyEvents={liturgyEvents} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} />} />
-          <Route path="/hanh-huong" element={<Pilgrimage isAdmin={isAdmin} pilgrimagePlans={pilgrimagePlans} pilgrimagePage={pilgrimagePage} setPilgrimagePage={setPilgrimagePage} itemsPerPage={itemsPerPage} setSelectedPilgrimage={setSelectedPilgrimage} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
-          <Route path="/hanh-huong/:id" element={<PilgrimageDetail isAdmin={isAdmin} pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} />} />
-          <Route path="/tin-tuc" element={<News isAdmin={isAdmin} newsItems={newsItems} newsPage={newsPage} setNewsPage={setNewsPage} newsPerPage={newsPerPage} setSelectedNews={setSelectedNews} setTempNews={setTempNews} setEditingNews={setEditingNews} getTodayFormattedStr={getTodayFormattedStr} />} />
-          <Route path="/tin-tuc/:id" element={<NewsDetail isAdmin={isAdmin} newsItems={newsItems} setTempNews={setTempNews} setEditingNews={setEditingNews} />} />
-          <Route path="/lien-he" element={<Contact isAdmin={isAdmin} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} formStatus={formStatus} handleContactSubmit={handleContactSubmit} />} />
-          <Route path="/admin/*" element={<AdminDashboard 
-            isAdmin={isAdmin} setShowLoginModal={setShowLoginModal} setIsAdmin={setIsAdmin} parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} 
-            setTempNews={setTempNews} setEditingNews={setEditingNews} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} 
-            confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} 
-            setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} 
-            receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} 
-            logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero}
-            footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} setTempStats={setTempStats} setEditingStats={setEditingStats}
-            messages={messages} setAppConfirm={setAppConfirm} dailyVisits={dailyVisits}
-          />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<div className="pt-32 text-center text-pink-700 font-bold">Đang tải trang...</div>}>
+          <Routes>
+            <Route path="/" element={<Home isAdmin={isAdmin} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} quote={quote} setTempQuote={setTempQuote} setEditingQuote={setEditingQuote} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} contactInfo={contactInfo} setTempContact={setTempContact} setEditingQuickPhone={setEditingQuickPhone} newsItems={newsItems} setSelectedNews={setSelectedNews} liturgyEvents={liturgyEvents} />} />
+            <Route path="/gioi-thieu" element={<About isAdmin={isAdmin} parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} historyData={historyData} setTempHistory={setTempHistory} setEditingHistory={setEditingHistory} heritageTitle={heritageTitle} setTempHeritageTitle={setTempHeritageTitle} setEditingHeritageTitle={setEditingHeritageTitle} heritageList={heritageList} setTempHeritageItem={setTempHeritageItem} setEditingHeritageItem={setEditingHeritageItem} pastoralData={pastoralData} setTempPastoral={setTempPastoral} setEditingPastoral={setEditingPastoral} handleReorderHeritage={handleReorderHeritage} />} />
+            <Route path="/phung-vu" element={<Liturgy isAdmin={isAdmin} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calendarDate={calendarDate} prevMonth={prevMonth} nextMonth={nextMonth} liturgyEvents={liturgyEvents} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} />} />
+            <Route path="/hanh-huong" element={<Pilgrimage isAdmin={isAdmin} pilgrimagePlans={pilgrimagePlans} pilgrimagePage={pilgrimagePage} setPilgrimagePage={setPilgrimagePage} itemsPerPage={itemsPerPage} setSelectedPilgrimage={setSelectedPilgrimage} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
+            <Route path="/hanh-huong/:id" element={<PilgrimageDetail isAdmin={isAdmin} pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} />} />
+            <Route path="/tin-tuc" element={<News isAdmin={isAdmin} newsItems={newsItems} newsPage={newsPage} setNewsPage={setNewsPage} newsPerPage={newsPerPage} setSelectedNews={setSelectedNews} setTempNews={setTempNews} setEditingNews={setEditingNews} getTodayFormattedStr={getTodayFormattedStr} />} />
+            <Route path="/tin-tuc/:id" element={<NewsDetail isAdmin={isAdmin} newsItems={newsItems} setTempNews={setTempNews} setEditingNews={setEditingNews} />} />
+            <Route path="/lien-he" element={<Contact isAdmin={isAdmin} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} formStatus={formStatus} handleContactSubmit={handleContactSubmit} />} />
+            <Route path="/admin/*" element={<AdminDashboard 
+              isAdmin={isAdmin} setShowLoginModal={setShowLoginModal} setIsAdmin={setIsAdmin} parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} 
+              setTempNews={setTempNews} setEditingNews={setEditingNews} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} 
+              confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} 
+              setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} 
+              receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} 
+              logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero}
+              footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} setTempStats={setTempStats} setEditingStats={setEditingStats}
+              messages={messages} setAppConfirm={setAppConfirm} dailyVisits={dailyVisits}
+            />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
 
       {/* CHÂN TRANG (FOOTER) */}
