@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, FileText, CalendarDays, Map, Settings, LogOut, Menu, X, Users, Eye, Star, Globe, Plus, Search, Edit3, ChevronLeft, ChevronRight, Clock, Heart, BookOpen, MapPin, Phone, Image, AlignLeft, Inbox, Mail, MailOpen, Trash2, CheckCircle2, TrendingUp, FolderOpen, Copy, RefreshCw, HardDrive } from 'lucide-react';
 import { formatDateString, getDaysArray, litColors, expandMassSchedules, normalizeMassSchedules, getStatusStyles } from '../utils/helpers';
-import { db, storage, appId } from '../utils/firebase';
+import { db, storage, appId, R2_BUCKET_NAME, R2_PUBLIC_URL } from '../utils/firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { ref, listAll, deleteObject, getDownloadURL, getMetadata } from 'firebase/storage';
+import { ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import toast from 'react-hot-toast';
 
 export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits }) {
@@ -109,21 +109,27 @@ function MediaManager({ setAppConfirm }) {
   const [activeFolder, setActiveFolder] = useState('images');
 
   const fetchFiles = async () => {
-    if (!storage) return toast.error('Chưa kết nối Firebase Storage!');
+    if (!storage) return toast.error('Chưa kết nối Cloudflare R2!');
     setLoading(true);
     try {
-      const folderRef = ref(storage, activeFolder);
-      const res = await listAll(folderRef);
-      const filePromises = res.items.map(async (itemRef) => {
-        const url = await getDownloadURL(itemRef);
-        const meta = await getMetadata(itemRef);
-        return { name: itemRef.name, fullPath: itemRef.fullPath, url, size: meta.size, timeCreated: meta.timeCreated };
+      const command = new ListObjectsV2Command({
+        Bucket: R2_BUCKET_NAME,
+        Prefix: activeFolder === 'images' ? 'images/' : 'documents/'
       });
-      const fileData = await Promise.all(filePromises);
+      const res = await storage.send(command);
+      const fileData = (res.Contents || []).map(item => {
+        return { 
+          name: item.Key.split('/').pop(), 
+          fullPath: item.Key, 
+          url: `${R2_PUBLIC_URL}/${item.Key}`, 
+          size: item.Size, 
+          timeCreated: item.LastModified 
+        };
+      }).filter(item => item.name !== ''); // Bỏ qua folder ẩn
       setFiles(fileData.sort((a, b) => new Date(b.timeCreated) - new Date(a.timeCreated)));
     } catch (error) {
       console.error("Lỗi lấy danh sách file:", error);
-      toast.error('Không tìm thấy thư mục lưu trữ!');
+      toast.error('Không lấy được dữ liệu. Hãy kiểm tra lại CORS!');
       setFiles([]);
     } finally {
       setLoading(false);
@@ -134,12 +140,13 @@ function MediaManager({ setAppConfirm }) {
 
   const handleDelete = (file) => {
     setAppConfirm({
-      isOpen: true, title: 'Xóa File vĩnh viễn', message: `Bạn có chắc chắn muốn xóa file "${file.name}" không? Hành động này sẽ làm các bài viết đang sử dụng file này bị mất ảnh.`, isDanger: true,
+      isOpen: true, title: 'Xóa File vĩnh viễn', message: `Bạn có chắc muốn xóa file "${file.name}" không?`, isDanger: true,
       onConfirm: async () => {
         setAppConfirm(prev => ({ ...prev, isOpen: false }));
         const toastId = toast.loading('Đang xóa file...');
         try {
-          await deleteObject(ref(storage, file.fullPath));
+          const command = new DeleteObjectCommand({ Bucket: R2_BUCKET_NAME, Key: file.fullPath });
+          await storage.send(command);
           setFiles(prev => prev.filter(f => f.fullPath !== file.fullPath));
           toast.success('Đã xóa thành công!', { id: toastId });
         } catch (error) { toast.error('Lỗi khi xóa file: ' + error.message, { id: toastId }); }

@@ -10,7 +10,7 @@ const ADMIN_PASSWORD = (typeof import.meta !== 'undefined' && import.meta.env?.V
   || (typeof process !== 'undefined' && process.env?.REACT_APP_ADMIN_PASSWORD) 
   || "admin";
 
-import { auth, db, storage, appId } from './utils/firebase';
+import { auth, db, storage, appId, R2_BUCKET_NAME, R2_PUBLIC_URL } from './utils/firebase';
 import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, increment } from 'firebase/firestore';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
@@ -625,23 +625,24 @@ export default function App() {
       const item = items[index];
       if (item.kind === 'file' && item.type.startsWith('image/')) {
         const file = item.getAsFile();
-        const reader = new FileReader();
-        reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result }));
-        reader.readAsDataURL(file);
+        const localUrl = URL.createObjectURL(file);
+        setterFunction(prev => ({ ...prev, image: localUrl }));
         e.preventDefault();
         
         if (storage) {
           const toastId = toast.loading('Đang tải ảnh lên Storage...');
           setIsUploading(true);
           try {
-            const fileRef = ref(storage, `images/paste_${Date.now()}.png`);
-            await uploadBytes(fileRef, file);
-            const url = await getDownloadURL(fileRef);
+            const fileName = `images/paste_${Date.now()}.png`;
+            const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: file, ContentType: file.type });
+            await storage.send(command);
+            const url = `${R2_PUBLIC_URL}/${fileName}`;
             setterFunction(prev => ({ ...prev, image: url }));
             toast.success('Tải ảnh thành công!', { id: toastId });
           } catch (error) {
             console.error("Lỗi upload ảnh:", error);
-            toast.error('Lỗi 403: Không có quyền ghi vào Storage!', { id: toastId });
+            toast.error('Lỗi upload: Vui lòng kiểm tra cấu hình CORS của R2!', { id: toastId });
+            setterFunction(prev => ({ ...prev, image: prev.image === localUrl ? '' : prev.image }));
           } finally {
             setIsUploading(false);
           }
@@ -670,24 +671,18 @@ export default function App() {
           }
           
           const compressedFile = await imageCompression(file, options);
-          toast.loading('Đang tải ảnh lên...', { id: toastId });
 
           const fileName = `images/upload_${Date.now()}_${compressedFile.name}`;
-          const command = new PutObjectCommand({
-            Bucket: 'giaoxuhoangyen-media', // Tên bucket của bạn
-            Key: fileName,
-            Body: compressedFile,
-            ContentType: compressedFile.type,
-          });
-
+          const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: compressedFile, ContentType: compressedFile.type });
           await storage.send(command);
-          const url = `https://media.giaoxuhoangyen.com/${fileName}`;
-          // Cập nhật state với URL cuối cùng từ Firebase
+          
+          const url = `${R2_PUBLIC_URL}/${fileName}`;
           setterFunction(prev => ({ ...prev, image: url }));
           toast.success('Tải ảnh thành công!', { id: toastId });
         } catch (error) {
           console.error("Lỗi upload ảnh:", error);
-          toast.error('Lỗi khi tải ảnh lên!', { id: toastId });
+          toast.error('Lỗi upload: Vui lòng kiểm tra cấu hình CORS của R2!', { id: toastId });
+          setterFunction(prev => ({ ...prev, image: prev.image === localUrl ? '' : prev.image }));
         } finally {
           setIsUploading(false);
         }

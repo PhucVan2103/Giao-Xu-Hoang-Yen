@@ -5,6 +5,9 @@ import { S3Client } from '@aws-sdk/client-s3';
 
 let app, auth, db, storage;
 
+const R2_BUCKET_NAME = 'giaoxuhoangyen-media'; // Thay bằng Tên bucket R2 của bạn
+const R2_PUBLIC_URL = 'https://media.giaoxuhoangyen.com'; // Thay bằng link Public R2.dev hoặc Domain của bạn (Lưu ý: Không có dấu gạch chéo / ở cuối)
+
 try {
   let firebaseConfig = null;
   if (typeof __firebase_config !== 'undefined') {
@@ -48,4 +51,4 @@ try {
 const rawAppId = typeof __app_id !== 'undefined' ? String(__app_id) : 'giao-xu-hoang-yen-app';
 const appId = rawAppId.replace(/[\/\.]/g, '-');
 
-export { auth, db, storage, appId };
+export { auth, db, storage, appId, R2_BUCKET_NAME, R2_PUBLIC_URL };
