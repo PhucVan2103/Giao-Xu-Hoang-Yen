@@ -13,7 +13,8 @@ const ADMIN_PASSWORD = (typeof import.meta !== 'undefined' && import.meta.env?.V
 import { auth, db, storage, appId } from './utils/firebase';
 import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, increment } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import imageCompression from 'browser-image-compression';
 
 import { litColors, formatDateString } from './utils/helpers';
 import { RichTextEditor, ImageAdjuster, ConfirmModal, PromptModal, Lightbox } from './components/Shared';
@@ -653,22 +654,40 @@ export default function App() {
   const handleImageUpload = async (e, setterFunction) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => setterFunction(prev => ({ ...prev, image: event.target.result }));
-      reader.readAsDataURL(file);
+      // Hiển thị ảnh preview ngay lập tức
+      setterFunction(prev => ({ ...prev, image: URL.createObjectURL(file) }));
 
       if (storage) {
-        const toastId = toast.loading('Đang tải ảnh lên Storage...');
+        const toastId = toast.loading('Đang nén và tối ưu ảnh...');
         setIsUploading(true);
         try {
-          const fileRef = ref(storage, `images/upload_${Date.now()}_${file.name}`);
-          await uploadBytes(fileRef, file);
-          const url = await getDownloadURL(fileRef);
+          // Tùy chọn nén ảnh
+          const options = {
+            maxSizeMB: 1,          // Kích thước file tối đa là 1MB
+            maxWidthOrHeight: 1920, // Chiều rộng hoặc cao tối đa là 1920px
+            useWebWorker: true,    // Sử dụng Web Worker để nén mượt hơn
+            initialQuality: 0.8    // Chất lượng ban đầu
+          }
+          
+          const compressedFile = await imageCompression(file, options);
+          toast.loading('Đang tải ảnh lên...', { id: toastId });
+
+          const fileName = `images/upload_${Date.now()}_${compressedFile.name}`;
+          const command = new PutObjectCommand({
+            Bucket: 'giaoxuhoangyen-media', // Tên bucket của bạn
+            Key: fileName,
+            Body: compressedFile,
+            ContentType: compressedFile.type,
+          });
+
+          await storage.send(command);
+          const url = `https://media.giaoxuhoangyen.com/${fileName}`;
+          // Cập nhật state với URL cuối cùng từ Firebase
           setterFunction(prev => ({ ...prev, image: url }));
           toast.success('Tải ảnh thành công!', { id: toastId });
         } catch (error) {
           console.error("Lỗi upload ảnh:", error);
-          toast.error('Lỗi 403: Không có quyền ghi vào Storage!', { id: toastId });
+          toast.error('Lỗi khi tải ảnh lên!', { id: toastId });
         } finally {
           setIsUploading(false);
         }

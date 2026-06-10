@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { S3Client } from '@aws-sdk/client-s3';
 
 let app, auth, db, storage;
 
@@ -29,7 +29,20 @@ try {
     localCache: persistentLocalCache()
   });
 
-  storage = getStorage(app);
+  // Cấu hình Cloudflare R2
+  const R2_ACCOUNT_ID = 'eef3fc90fcbf9d39a64a021475959f36'; // Dán Account ID của bạn vào đây
+  const R2_ACCESS_KEY_ID = 'e982775321db13376285c3092126f7cf'; // Dán Access Key ID vào đây
+  const R2_SECRET_ACCESS_KEY = '6c4ade49e50951764cf1642d45b6b1b4bd97bff9e1473c2c15483592ac9ebbac'; // Dán Secret Access Key vào đây
+
+  storage = new S3Client({
+    region: 'auto',
+    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY_ID,
+      secretAccessKey: R2_SECRET_ACCESS_KEY,
+    },
+  });
+
 } catch (error) { console.error("Lỗi khởi tạo Firebase:", error); }
 
 const rawAppId = typeof __app_id !== 'undefined' ? String(__app_id) : 'giao-xu-hoang-yen-app';
