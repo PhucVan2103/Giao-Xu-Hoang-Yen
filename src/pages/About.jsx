@@ -1,9 +1,12 @@
-import React from 'react';
-import { Edit3, Users, User, Star, MapPin } from 'lucide-react';
+import React, { useState } from 'react';
+import { Edit3, Users, User, Star, MapPin, GripVertical } from 'lucide-react';
 import { getImgStyle } from '../utils/helpers';
 import { editorContentClasses } from '../components/Shared';
 
-export default function About({ isAdmin, parishStats, setTempStats, setEditingStats, historyData, setTempHistory, setEditingHistory, heritageTitle, setTempHeritageTitle, setEditingHeritageTitle, heritageList, setTempHeritageItem, setEditingHeritageItem, pastoralData, setTempPastoral, setEditingPastoral }) {
+export default function About({ isAdmin, parishStats, setTempStats, setEditingStats, historyData, setTempHistory, setEditingHistory, heritageTitle, setTempHeritageTitle, setEditingHeritageTitle, heritageList, setTempHeritageItem, setEditingHeritageItem, pastoralData, setTempPastoral, setEditingPastoral, handleReorderHeritage }) {
+  const [draggedIdx, setDraggedIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
+
   return (
     <div className="pt-28 pb-20 md:pt-32 md:pb-24 bg-[#fffcfd] min-h-screen text-stone-900 animate-in fade-in duration-500">
       <div className="max-w-6xl mx-auto px-4 lg:px-6">
@@ -43,13 +46,60 @@ export default function About({ isAdmin, parishStats, setTempStats, setEditingSt
             {isAdmin && (<button onClick={() => { setTempHeritageItem({ id: Date.now(), name: '', brief: '', image: '', imgFit: 'cover' }); setEditingHeritageItem('new'); }} className="absolute top-0 right-0 p-2 bg-pink-600 text-white rounded-full shadow-sm hover:bg-pink-500 transition"><span className="font-bold px-1">+</span></button>)}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {heritageList.map(saint => (
-              <div key={saint.id} className="relative group/card flex flex-col sm:flex-row gap-4 bg-pink-50/40 p-5 rounded-xl border border-pink-100 hover:border-pink-300 hover:shadow-md transition-all duration-300 items-center sm:items-start">
-                {isAdmin && (<button onClick={(e) => { e.stopPropagation(); setTempHeritageItem(saint); setEditingHeritageItem(saint.id); }} className="absolute top-3 right-3 z-20 p-1.5 bg-pink-100 text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12} /></button>)}
-              <div className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0 relative overflow-hidden rounded-full border-[3px] border-white shadow-sm bg-stone-100"><div className="absolute inset-0 transition-transform duration-300 group-hover/card:scale-110"><img src={saint.image} style={getImgStyle(saint)} className="w-full h-full block" alt={saint.name} loading="lazy" /></div></div>
-                <div className="flex flex-col justify-center text-center sm:text-left flex-1"><h4 className="text-base md:text-lg font-bold text-pink-950 mb-2 font-serif tracking-wide">{saint.name || ''}</h4><p className="text-xs md:text-sm font-serif text-stone-600 leading-relaxed">{saint.brief || ''}</p></div>
+            {heritageList.filter((saint, index, self) => {
+              const getCleanName = (name) => name ? name.replace(/^\d+[\.\-\s]+/, '').trim() : '';
+              return index === self.findIndex((t) => String(t.id) === String(saint.id) || getCleanName(t.name) === getCleanName(saint.name));
+            }).map((saint, idx) => {
+              const cleanName = saint.name ? saint.name.replace(/^\d+[\.\-\s]+/, '').trim() : '';
+              return (
+              <div 
+                key={saint.id} 
+                draggable={isAdmin}
+                onDragStart={(e) => { 
+                  if (isAdmin) { 
+                    setDraggedIdx(saint.id); 
+                    e.dataTransfer.effectAllowed = 'move'; 
+                    e.dataTransfer.setData('text/plain', saint.id.toString()); 
+                  } 
+                }}
+                onDragEnter={(e) => { if (isAdmin) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
+                onDragOver={(e) => { if (!isAdmin) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOverIdx !== saint.id) setDragOverIdx(saint.id); }}
+                onDragLeave={(e) => { if (!isAdmin) return; if (!e.currentTarget.contains(e.relatedTarget)) setDragOverIdx(null); }}
+                onDrop={(e) => {
+                  if (!isAdmin) return;
+                  e.preventDefault();
+                  
+                  let sourceId = draggedIdx;
+                  if (sourceId === null) {
+                    const data = e.dataTransfer.getData('text/plain');
+                    if (data) sourceId = data;
+                  }
+                  
+                  if (sourceId !== null && String(sourceId) !== String(saint.id)) handleReorderHeritage(String(sourceId), String(saint.id));
+                  setDraggedIdx(null);
+                  setDragOverIdx(null);
+                }}
+                onDragEnd={() => { setDraggedIdx(null); setDragOverIdx(null); }}
+                className={`relative group/card flex flex-col sm:flex-row gap-4 p-5 rounded-xl border transition-all duration-300 items-center sm:items-start ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedIdx === saint.id ? 'opacity-40 scale-95 bg-pink-100/50 z-10' : 'bg-pink-50/40 opacity-100 z-0'} ${dragOverIdx === saint.id && draggedIdx !== saint.id ? 'border-pink-500 border-dashed bg-pink-200/50 shadow-lg scale-[1.02] z-20' : 'border-pink-100 hover:border-pink-300 hover:shadow-md'} ${draggedIdx !== null ? '[&_*]:pointer-events-none' : ''}`}
+              >
+                {isAdmin && (
+                  <div className="absolute top-2 left-2 z-20 text-pink-300/50 group-hover/card:text-pink-500 transition-colors" title="Kéo thả để sắp xếp">
+                    <GripVertical size={16} />
+                  </div>
+                )}
+                {isAdmin && (<button onClick={(e) => { e.stopPropagation(); setTempHeritageItem({...saint, name: cleanName}); setEditingHeritageItem(saint.id); }} className="absolute top-3 right-3 z-20 p-1.5 bg-pink-100 text-pink-700 rounded-full shadow-sm transition hover:bg-pink-600 hover:text-white"><Edit3 size={12} /></button>)}
+              <div className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0 relative overflow-hidden rounded-full border-[3px] border-white shadow-sm bg-pink-50 text-pink-300">
+                <div className="absolute inset-0 transition-transform duration-300 group-hover/card:scale-110 flex items-center justify-center">
+                  <User size={36} className="absolute z-0" />
+                  {saint.image && saint.image.trim() !== '' && (
+                    <img src={saint.image} onError={(e) => { e.target.style.opacity = 0; }} style={getImgStyle(saint)} className="w-full h-full block object-cover relative z-10 bg-white transition-opacity duration-300" alt={saint.name} loading="lazy" draggable={false} />
+                  )}
+                </div>
               </div>
-            ))}
+                <div className="flex flex-col justify-center text-center sm:text-left flex-1"><h4 className="text-base md:text-lg font-bold text-pink-950 mb-2 font-serif tracking-wide">{idx + 1}. {cleanName || ''}</h4><p className="text-xs md:text-sm font-serif text-stone-600 leading-relaxed">{saint.brief || ''}</p></div>
+              </div>
+              );
+            })}
           </div>
         </div>
 

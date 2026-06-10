@@ -171,7 +171,9 @@ export const expandMassSchedules = (schedules) => {
       if (lowerDay.includes('năm') || lowerDay.includes('5')) targetIndices.push(3);
       if (lowerDay.includes('sáu') || lowerDay.includes('6')) targetIndices.push(4);
     }
-    targetIndices.forEach(idx => { week[idx].times = schedule.times || []; });
+    targetIndices.forEach(idx => { 
+      week[idx].times = (schedule.times || []).map(t => typeof t === 'object' ? { ...t } : t); 
+    });
   });
   return week;
 };

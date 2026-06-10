@@ -200,6 +200,7 @@ export default function App() {
   const [appConfirm, setAppConfirm] = useState({ isOpen: false, title: '', message: '', isDanger: false, onConfirm: null });
   const [appPrompt, setAppPrompt] = useState({ isOpen: false, title: '', desc: '', defaultValue: '', onConfirm: null });
   const [lightboxImg, setLightboxImg] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // ==========================================
   // FIREBASE INITIALIZATION & SYNC
@@ -363,6 +364,30 @@ export default function App() {
     return () => document.removeEventListener('click', handleGlobalClick);
   }, []);
 
+  // --- Kéo thả sắp xếp Vị Thánh ---
+  const handleReorderHeritage = (dragId, dropId) => {
+    if (String(dragId) === String(dropId)) return;
+    setHeritageList(prevList => {
+      const dragIndex = prevList.findIndex(item => String(item.id) === String(dragId));
+      const dropIndex = prevList.findIndex(item => String(item.id) === String(dropId));
+      if (dragIndex === -1 || dropIndex === -1) return prevList;
+
+      const newList = [...prevList];
+      const [draggedItem] = newList.splice(dragIndex, 1);
+      newList.splice(dropIndex, 0, draggedItem);
+      
+      // Lọc bỏ các bản ghi bị trùng ID hoặc trùng Tên
+      const getCleanName = (name) => name ? name.replace(/^\d+[\.\-\s]+/, '').trim() : '';
+      const uniqueList = newList.filter((saint, index, self) => index === self.findIndex((t) => String(t.id) === String(saint.id) || getCleanName(t.name) === getCleanName(saint.name)));
+
+      saveConfigToDB('heritageList', uniqueList).then(() => {
+        toast.success('Đã cập nhật thứ tự Vị Thánh!');
+      }).catch(() => toast.error('Lỗi khi lưu thứ tự'));
+      
+      return uniqueList;
+    });
+  };
+
   // --- Hàm hỗ trợ ghi dữ liệu lên Firebase ---
   const saveConfigToDB = async (key, value) => {
     // Cập nhật state local ngay lập tức để giao diện không bị giật lag hoặc trong trường hợp tải ảnh lớn
@@ -453,7 +478,32 @@ export default function App() {
         heritageTitle: "Gia Sản Thiêng Liêng",
         heritageList: [
           { id: 1, name: 'Thánh Anrê Trần An Dũng Lạc', brief: 'Linh mục, tử đạo năm 1839. Mẫu gương sáng ngời về lòng trung kiên.', image: 'https://images.unsplash.com/photo-1550404618-c2b61f879685?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
-          { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì che giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 }
+          { id: 2, name: 'Thánh nữ Anê Lê Thị Thành', brief: 'Giáo dân, mẹ của 6 người con. Tử đạo năm 1841 vì che giấu các linh mục.', image: 'https://images.unsplash.com/photo-1544627056-a4c330f3050c?q=80&w=800&auto=format&fit=crop', imgFit: 'cover', imgScale: 1 },
+          { id: 17, name: 'Thánh Vincentê Nguyễn Thế Điểm', brief: 'Linh mục, sinh năm 1761 tại Quảng Trị, bị xử giảo ngày 24/11/1838 tại Đồng Hới dưới đời vua Minh Mạng. Ngài được phong Chân Phước ngày 27/05/1900 bởi Đức Lêô XIII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 24/11.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 18, name: 'Thánh Stêphanô Nguyễn Văn Vinh', brief: 'Linh mục dòng Đa Minh, sinh năm 1814 tại Nam Định, bị xử giảo ngày 19/12/1839 tại Cổ Mê dưới đời vua Minh Mạng. Ngài được phong Chân Phước ngày 27/05/1900 bởi Đức Lêô XIII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 19/12.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 19, name: 'Thánh Giuse Vũ Duy Hiển', brief: 'Linh mục dòng Đa Minh, sinh năm 1769 tại Nam Định, bị xử trảm ngày 09/05/1840 tại Nam Định dưới thời vua Minh Mạng. Ngài được phong Chân Phước ngày 27/05/1900 bởi Đức Lêô XIII, lễ kính ngày 09/05.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 20, name: 'Thánh Bênađô Vũ Văn Duệ', brief: 'Linh mục triều, sinh năm 1755 tại Nam Định, bị xử trảm ngày 01/08/1838 tại Ba Tòa dưới đời vua Minh Mạng. Ngài được phong Chân Phước ngày 27/05/1900 bởi Đức Lêô XIII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 01/08.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 21, name: 'Thánh Anrê Nguyễn Kim Thông (Năm Thuông)', brief: 'Thầy giảng, sinh năm 1790 tại Bình Định, chết rũ tù ngày 15/07/1855 tại Mỹ Tho dưới thời vua Tự Đức. Ngài được phong Chân Phước ngày 02/05/1909 bởi Đức Piô X và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 15/07.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 22, name: 'Thánh Phêrô Nguyễn Khắc Tự', brief: 'Thầy giảng, sinh năm 1808 tại Ninh Bình, bị xử trảm ngày 10/07/1840 tại Đồng Hới dưới thời vua Minh Mạng. Ngài được phong Chân Phước ngày 27/05/1900 bởi Đức Lêô XIII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 10/07.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 23, name: 'Thánh Giuse Nguyễn Duy Khang', brief: 'Thầy giảng dòng ba Đa Minh, sinh năm 1832 tại Nam Định, bị xử trảm ngày 06/12/1861 tại Hải Dương dưới đời vua Thiệu Trị. Ngài được phong Chân Phước ngày 02/05/1909 bởi Đức Piô X và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 06/12.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 24, name: 'Thánh Phanxicô Đỗ Văn Chiểu', brief: 'Thầy giảng, sinh năm 1797 tại Nam Định, bị xử trảm ngày 25/06/1838 tại Nam Định dưới đời vua Minh Mạng. Ngài được phong Chân Phước ngày 27/05/1900 bởi Đức Lêô XIII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 25/06.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 25, name: 'Thánh Tôma Trần Văn Thiện', brief: 'Chủng sinh, sinh năm 1820 tại Quảng Bình, bị xử giảo ngày 21/09/1838 tại Nhan Biều dưới đời vua Minh Mạng. Ngài được phong Chân Phước ngày 27/05/1900 bởi Đức Lêô XIII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 21/09.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 26, name: 'Thánh Anê Lê Thị Thành', brief: 'Giáo dân, sinh năm 1781 tại Thanh Hóa, chết trong tù ngày 12/07/1841 tại Nam Định dưới đời vua Thiệu Trị. Ngài được phong Chân Phước ngày 11/04/1909 bởi Đức Piô X và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 12/07.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 27, name: 'Thánh Phêrô Thuần', brief: 'Giáo dân, sinh năm 1802 tại Thái Bình, bị thiêu sống ngày 06/06/1862 tại Nam Định dưới đời vua Tự Đức. Ngài được phong Chân Phước ngày 29/04/1951 bởi Đức Piô XII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 06/06.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 28, name: 'Thánh Giuse Trần Văn Tuấn', brief: 'Giáo dân, sinh năm 1842 tại Nam Định, bị xử trảm ngày 07/01/1862 tại Nam Định dưới thời vua Tự Đức. Ngài được phong Chân Phước ngày 29/04/1951 bởi Đức Piô XII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 07/01.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 29, name: 'Thánh Matthêô Lê Văn Gẫm', brief: 'Giáo dân (thương gia), sinh năm 1813 tại Biên Hòa, bị xử trảm ngày 11/05/1847 tại Chợ Đũi dưới đời vua Thiệu Trị. Ngài được phong Chân Phước ngày 27/05/1900 bởi Đức Lêô XIII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 11/05.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 30, name: 'Thánh Giuse Nguyễn Văn Lựu', brief: 'Trùm họ, sinh năm 1790 tại Vĩnh Long, chết rũ tù ngày 02/05/1854 tại Vĩnh Long dưới đời vua Tự Đức. Ngài được phong Chân Phước ngày 02/05/1909 bởi Đức Piô X và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 02/05.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 31, name: 'Thánh Đaminh Nguyễn Đức Mạo', brief: 'Giáo dân, sinh năm 1818 tại Phú Yên, bị xử trảm ngày 16/06/1862 tại Làng Cốc dưới đời vua Tự Đức. Ngài được phong Chân Phước ngày 29/04/1951 bởi Đức Piô XII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 16/06.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 32, name: 'Thánh Phêrô Dũng', brief: 'Giáo dân, sinh năm 1800 tại Thái Bình, bị thiêu sống ngày 06/06/1862 tại Nam Định dưới đời vua Tự Đức. Ngài được phong Chân Phước ngày 29/04/1951 bởi Đức Piô XII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 06/06.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 33, name: 'Thánh Emmanuel Lê Văn Phụng', brief: 'Giáo dân (trùm họ), sinh năm 1796 tại Cù Lao Giêng, bị xử trảm ngày 31/07/1859 tại Châu Đốc dưới đời vua Tự Đức. Ngài được phong Chân Phước ngày 11/04/1909 bởi Đức Piô X và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 31/07.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 34, name: 'Thánh Luca Phạm Viết Thìn', brief: 'Giáo dân (cai tổng), sinh năm 1820 tại Nam Định, bị xử giảo ngày 13/01/1859 tại Nam Định dưới đời vua Tự Đức. Ngài được phong Chân Phước ngày 29/04/1951 bởi Đức Piô XII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 13/01.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 35, name: 'Thánh Lôrensô Ngôn', brief: 'Giáo dân, sinh năm 1840 tại Nam Định, bị xử trảm ngày 22/05/1862 tại Nam Định dưới đời vua Tự Đức. Ngài được phong Chân Phước ngày 29/04/1951 bởi Đức Piô XII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 22/05.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 36, name: 'Thánh Đaminh Nhi', brief: 'Giáo dân, sinh năm 1822 tại Nam Định, bị xử trảm ngày 15/06/1862 tại Làng Cốc dưới thời vua Tự Đức. Ngài được phong Chân Phước ngày 29/04/1951 bởi Đức Piô XII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 16/06.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 37, name: 'Thánh Đaminh Phạm Viết Khảm', brief: 'Quan án, giáo dân dòng Ba Đa Minh, sinh năm 1780 tại Nam Định, bị xử giảo ngày 13/01/1859 tại Nam Định dưới đời vua Tự Đức. Ngài được phong Chân Phước ngày 29/04/1951 bởi Đức Piô XII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 13/01.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 38, name: 'Thánh Đaminh Ninh', brief: 'Giáo dân, sinh năm 1841 tại Nam Định, bị xử trảm ngày 02/06/1862 tại An Triêm dưới đời vua Tự Đức. Ngài được phong Chân Phước ngày 29/04/1951 bởi Đức Piô XII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 02/06.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 39, name: 'Thánh Simon Phan Đắc Hòa', brief: 'Giáo dân (y sĩ), sinh năm 1774 tại Thừa Thiên, bị xử trảm ngày 12/12/1840 tại An Hòa dưới đời vua Minh Mạng. Ngài được phong Chân Phước ngày 27/05/1900 bởi Đức Lêô XIII và được Đức Giáo Hoàng Gioan Phaolô II suy tôn Hiển Thánh ngày 19/06/1988, lễ kính ngày 12/12.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 40, name: 'Thánh Phaolô Phạm Khắc Khoan', brief: 'Linh mục, sinh năm 1771 tại Ninh Bình, bị xử trảm ngày 28/04/1840 tại Ninh Bình dưới thời vua Minh Mạng. Ngài được phong chân phước ngày 27/05/1900 bởi Đức Lêô XIII, lễ kính ngày 28/04.', image: '', imgFit: 'cover', imgScale: 1 },
+          { id: 41, name: 'Thánh Phanxicô Xaviê Cần', brief: 'Thầy giảng, sinh năm 1803 tại Hà Đông, bị xử giảo ngày 20/11/1837 tại Ô Cầu Giấy dưới thời vua Minh Mạng. Ngài được phong chân phước ngày 27/05/1900 bởi Đức Lêô XIII, lễ kính ngày 20/11.', image: '', imgFit: 'cover', imgScale: 1 }
         ],
         pastoralData: {
           title: "Định Hướng Mục Vụ",
@@ -530,8 +580,14 @@ export default function App() {
     return () => { clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3); };
   }, [location.pathname]);
 
-  const handleLoginSubmit = () => {
-    if (password === ADMIN_PASSWORD) { setIsAdmin(true); setShowLoginModal(false); setPassword(''); setLoginError(''); }
+  const handleLoginSubmit = (redirectToAdmin = false) => {
+    if (password === ADMIN_PASSWORD) { 
+      setIsAdmin(true); 
+      setShowLoginModal(false); 
+      setPassword(''); 
+      setLoginError(''); 
+      if (redirectToAdmin === true) navigate('/admin');
+    }
     else setLoginError('Mật khẩu không chính xác!');
   };
 
@@ -578,6 +634,7 @@ export default function App() {
         
         if (storage) {
           const toastId = toast.loading('Đang tải ảnh lên Storage...');
+          setIsUploading(true);
           try {
             const fileRef = ref(storage, `images/paste_${Date.now()}.png`);
             await uploadBytes(fileRef, file);
@@ -587,6 +644,8 @@ export default function App() {
           } catch (error) {
             console.error("Lỗi upload ảnh:", error);
             toast.error('Lỗi 403: Không có quyền ghi vào Storage!', { id: toastId });
+          } finally {
+            setIsUploading(false);
           }
         }
         break;
@@ -603,6 +662,7 @@ export default function App() {
 
       if (storage) {
         const toastId = toast.loading('Đang tải ảnh lên Storage...');
+        setIsUploading(true);
         try {
           const fileRef = ref(storage, `images/upload_${Date.now()}_${file.name}`);
           await uploadBytes(fileRef, file);
@@ -612,6 +672,8 @@ export default function App() {
         } catch (error) {
           console.error("Lỗi upload ảnh:", error);
           toast.error('Lỗi 403: Không có quyền ghi vào Storage!', { id: toastId });
+        } finally {
+          setIsUploading(false);
         }
       }
     }
@@ -669,7 +731,7 @@ export default function App() {
       <main className={`pt-0 min-h-[70vh] ${isAdminRoute ? 'bg-stone-50' : 'bg-white'}`}>
         <Routes>
           <Route path="/" element={<Home isAdmin={isAdmin} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} quote={quote} setTempQuote={setTempQuote} setEditingQuote={setEditingQuote} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} contactInfo={contactInfo} setTempContact={setTempContact} setEditingQuickPhone={setEditingQuickPhone} newsItems={newsItems} setSelectedNews={setSelectedNews} liturgyEvents={liturgyEvents} />} />
-          <Route path="/gioi-thieu" element={<About isAdmin={isAdmin} parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} historyData={historyData} setTempHistory={setTempHistory} setEditingHistory={setEditingHistory} heritageTitle={heritageTitle} setTempHeritageTitle={setTempHeritageTitle} setEditingHeritageTitle={setEditingHeritageTitle} heritageList={heritageList} setTempHeritageItem={setTempHeritageItem} setEditingHeritageItem={setEditingHeritageItem} pastoralData={pastoralData} setTempPastoral={setTempPastoral} setEditingPastoral={setEditingPastoral} />} />
+          <Route path="/gioi-thieu" element={<About isAdmin={isAdmin} parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} historyData={historyData} setTempHistory={setTempHistory} setEditingHistory={setEditingHistory} heritageTitle={heritageTitle} setTempHeritageTitle={setTempHeritageTitle} setEditingHeritageTitle={setEditingHeritageTitle} heritageList={heritageList} setTempHeritageItem={setTempHeritageItem} setEditingHeritageItem={setEditingHeritageItem} pastoralData={pastoralData} setTempPastoral={setTempPastoral} setEditingPastoral={setEditingPastoral} handleReorderHeritage={handleReorderHeritage} />} />
           <Route path="/phung-vu" element={<Liturgy isAdmin={isAdmin} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calendarDate={calendarDate} prevMonth={prevMonth} nextMonth={nextMonth} liturgyEvents={liturgyEvents} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} />} />
           <Route path="/hanh-huong" element={<Pilgrimage isAdmin={isAdmin} pilgrimagePlans={pilgrimagePlans} pilgrimagePage={pilgrimagePage} setPilgrimagePage={setPilgrimagePage} itemsPerPage={itemsPerPage} setSelectedPilgrimage={setSelectedPilgrimage} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
           <Route path="/hanh-huong/:id" element={<PilgrimageDetail isAdmin={isAdmin} pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} />} />
@@ -705,12 +767,6 @@ export default function App() {
 
       {!isAdminRoute && showTopBtn && <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-6 right-6 p-2.5 bg-pink-700 text-white rounded-full shadow-xl z-50 active:scale-90 transition-all hover:bg-pink-800"><ArrowUp size={20} /></button>}
 
-      {!isAdminRoute && isAdmin && (
-        <button onClick={handleInitMockData} className="fixed bottom-6 left-6 px-4 py-2 bg-stone-800 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xl z-50 hover:bg-stone-900 transition-all">
-          🚀 Khởi Tạo Dữ Liệu Mẫu
-        </button>
-      )}
-
       {/* ========================================== */}
       {/* MODALS QUẢN TRỊ (ADMIN) */}
       {/* ========================================== */}
@@ -720,9 +776,15 @@ export default function App() {
           <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center border-t-4 border-pink-600 relative">
              <button onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}} className="absolute top-3 right-3 text-stone-400 hover:text-stone-600"><X size={18}/></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">Đăng Nhập Admin</h3>
-            <input type="password" placeholder="Nhập mật khẩu" className={`w-full border p-3 mb-2 text-center text-sm outline-none focus:border-pink-500 font-serif rounded ${loginError ? 'border-red-400' : 'border-pink-200'}`} value={password} onChange={(e) => {setPassword(e.target.value); setLoginError('');}} onKeyDown={(e) => e.key === 'Enter' && handleLoginSubmit()} />
-            <div className="h-6 mb-2">{loginError && <p className="text-red-500 text-xs font-bold animate-in slide-in-from-top-1">{loginError}</p>}</div>
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={handleLoginSubmit}>Xác Nhận</button></div>
+            <input type="password" placeholder="Nhập mật khẩu" className={`w-full border p-3 mb-2 text-center text-sm outline-none focus:border-pink-500 font-serif rounded ${loginError ? 'border-red-400' : 'border-pink-200'}`} value={password} onChange={(e) => {setPassword(e.target.value); setLoginError('');}} onKeyDown={(e) => e.key === 'Enter' && handleLoginSubmit(false)} />
+            <div className="h-6 mb-4">{loginError && <p className="text-red-500 text-xs font-bold animate-in slide-in-from-top-1">{loginError}</p>}</div>
+            <div className="flex flex-col gap-3">
+              <button className="w-full bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => handleLoginSubmit(true)}>Đăng Nhập & Vào Dashboard</button>
+              <div className="flex gap-3">
+                <button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}}>Hủy</button>
+                <button className="flex-1 bg-pink-100 text-pink-700 py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-sm active:scale-95 transition-all hover:bg-pink-200" onClick={() => handleLoginSubmit(false)}>Sửa Trực Tiếp</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -763,7 +825,7 @@ export default function App() {
           <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
             <button onClick={() => setEditingNews(null)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">{editingNews === 'new' ? 'Tạo Bản Tin Mới' : 'Chỉnh Sửa Bản Tin'}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-5">
               <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Ngày đăng</label><input className="w-full border border-pink-200 p-3 rounded text-sm bg-stone-50 outline-none focus:border-pink-500" value={tempNews.date || ''} onChange={(e) => setTempNews({...tempNews, date: e.target.value})} /></div>
               <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Lượt Xem Hiện Tại</label><input type="number" className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none focus:border-pink-500" value={tempNews.views || 0} onChange={(e) => setTempNews({...tempNews, views: parseInt(e.target.value) || 0})} /></div>
               <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Chuyên mục</label><div className="flex gap-2"><select className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none cursor-pointer focus:border-pink-500 flex-1" value={tempNews.category || newsCategories[0]} onChange={(e) => setTempNews({...tempNews, category: e.target.value})}>{newsCategories?.map(c => <option key={c} value={c}>{c}</option>)}</select><button type="button" onClick={() => { 
@@ -778,6 +840,7 @@ export default function App() {
                   }
                 });
               }} className="px-3 bg-pink-50 text-pink-700 rounded border border-pink-200 hover:bg-pink-100 transition" title="Chỉnh sửa danh sách chuyên mục"><Edit3 size={16} /></button></div></div>
+              <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Trạng thái</label><select className="w-full border border-pink-200 p-3 rounded text-sm bg-white outline-none cursor-pointer focus:border-pink-500 font-bold" value={tempNews.status || 'published'} onChange={(e) => setTempNews({...tempNews, status: e.target.value})}><option value="published" className="text-emerald-600">Đã xuất bản</option><option value="draft" className="text-stone-500">Lưu nháp (Ẩn)</option></select></div>
             </div>
             <div className="mb-6 flex items-center">
               <label className="flex items-center gap-2 cursor-pointer group">
@@ -811,12 +874,13 @@ export default function App() {
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingNews(null)}>Hủy Bỏ</button>
               <button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={async () => { 
+                if (isUploading) return toast.error('Vui lòng chờ ảnh tải lên hoàn tất!');
                 if (!tempNews.title) return alert('Vui lòng nhập tiêu đề'); 
                 if (!db) return alert('Chưa kết nối CSDL');
                 try {
                   const id = tempNews.id || Date.now();
           // Làm sạch dữ liệu trước khi lưu Firebase
-          const d = JSON.parse(JSON.stringify({ ...tempNews, id, views: tempNews.views || 0 }));
+          const d = JSON.parse(JSON.stringify({ ...tempNews, id, views: tempNews.views || 0, status: tempNews.status || 'published' }));
                   await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id.toString()), d);
                   if (selectedNews?.id === id) setSelectedNews(d); 
                   setEditingNews(null); 
@@ -870,23 +934,39 @@ export default function App() {
             <textarea className="w-full border border-pink-200 p-3 rounded h-28 text-sm font-serif leading-relaxed outline-none focus:border-pink-500 custom-scrollbar" value={tempHeritageItem.brief || ''} onChange={(e) => setTempHeritageItem({...tempHeritageItem, brief: e.target.value})} placeholder="Nhập sơ lược tiểu sử..." />
             <div className="flex gap-4 pt-6 border-t mt-6">
               {editingHeritageItem !== 'new' && <button className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={() => { 
+                const targetId = tempHeritageItem.id;
+                const targetName = tempHeritageItem.name;
                 setAppConfirm({
-                  isOpen: true, title: 'Xóa Vị Thánh', message: `Bạn có chắc chắn muốn xóa "${tempHeritageItem.name}" khỏi danh sách không?`, isDanger: true,
+                  isOpen: true, title: 'Xóa Vị Thánh', message: `Bạn có chắc chắn muốn xóa "${targetName}" khỏi danh sách không?`, isDanger: true,
                   onConfirm: () => {
-                    setAppConfirm({ ...appConfirm, isOpen: false });
-                    const nl = heritageList.filter(item => item.id !== tempHeritageItem.id); saveConfigToDB('heritageList', nl); setEditingHeritageItem(null);
+                    setAppConfirm(prev => ({ ...prev, isOpen: false }));
+                    setHeritageList(prevList => {
+                      const nl = prevList.filter(item => String(item.id) !== String(targetId)); 
+                      saveConfigToDB('heritageList', nl).then(() => {
+                        setEditingHeritageItem(null); 
+                        toast.success('Đã xóa Vị Thánh!');
+                      });
+                      return nl;
+                    });
                   }
                 });
               }}>Xóa Vị Thánh</button>}
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-6 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingHeritageItem(null)}>Hủy</button>
               <button className="bg-pink-700 text-white px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { 
+                if (isUploading) return toast.error('Vui lòng chờ ảnh tải lên hoàn tất!');
+                if (tempHeritageItem.image && tempHeritageItem.image.startsWith('data:image')) return toast.error('Lỗi: Ảnh quá nặng. Vui lòng chọn ảnh khác!');
                 if (!tempHeritageItem.name) return toast.error('Vui lòng nhập tên Vị Thánh!'); 
-                let nl;
-                if (editingHeritageItem === 'new') nl = [tempHeritageItem, ...heritageList]; 
-                else nl = heritageList.map(item => item.id === tempHeritageItem.id ? tempHeritageItem : item); 
-                saveConfigToDB('heritageList', nl); 
-                setEditingHeritageItem(null); 
+                setHeritageList(prevList => {
+                  let nl;
+                  if (editingHeritageItem === 'new') nl = [...prevList, tempHeritageItem]; 
+                  else nl = prevList.map(item => String(item.id) === String(tempHeritageItem.id) ? tempHeritageItem : item); 
+                  saveConfigToDB('heritageList', nl).then(() => {
+                    setEditingHeritageItem(null); 
+                    toast.success('Đã lưu Vị Thánh!');
+                  });
+                  return nl;
+                });
               }}>Lưu Lại</button>
             </div>
           </div>
@@ -948,6 +1028,7 @@ export default function App() {
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingPilgrimage(null)}>Hủy Bỏ</button>
               <button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={async () => { 
+                if (isUploading) return toast.error('Vui lòng chờ ảnh tải lên hoàn tất!');
                 if (!tempPilgrimage.title || tempPilgrimage.title.trim() === '') return alert('Vui lòng nhập tên chương trình');
                 if(!db) return alert("Chưa kết nối CSDL");
                 try {
@@ -977,7 +1058,7 @@ export default function App() {
                   <select className="w-full border border-pink-200 p-3 rounded text-sm font-bold bg-white outline-none cursor-pointer focus:border-pink-500" value={tempLiturgyEvent.colorType || 'white'} onChange={e => setTempLiturgyEvent({...tempLiturgyEvent, colorType: e.target.value})}>{Object.keys(litColors).map(k => <option key={k} value={k}>{litColors[k].name}</option>)}</select>
                </div>
                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Nguồn Lời Chúa (Tùy chọn)</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Nguồn Lời Chúa</label>
                   <input className="w-full border border-pink-200 p-3 rounded text-sm font-bold bg-white outline-none focus:border-pink-500" value={tempLiturgyEvent.quoteRef || ''} onChange={e => setTempLiturgyEvent({...tempLiturgyEvent, quoteRef: e.target.value})} placeholder="VD: Ga 6, 51" />
                </div>
             </div>

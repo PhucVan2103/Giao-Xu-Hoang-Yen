@@ -8,6 +8,8 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
   const [nextMassInfo, setNextMassInfo] = useState(null);
   const [countdown, setCountdown] = useState('');
 
+  const displayNews = newsItems.filter(n => n.status !== 'draft');
+
   // Lấy Lời Chúa theo Lịch Phụng Vụ hôm nay (Nếu có)
   const todayStr = formatDateString(new Date());
   const todayLiturgy = liturgyEvents?.find(e => e.date === todayStr);
@@ -45,7 +47,7 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
           <div className="absolute inset-0 bg-black/40 z-20"></div>
           <div className="absolute inset-0 overflow-hidden z-10">
              <div className="w-full h-full transition-transform duration-[30000ms] scale-105">
-               {heroData.image && <img src={heroData.image} style={getImgStyle({...heroData, imgFit: heroData.imgFit || 'cover'})} className="w-full h-full block" alt="" />}
+                    {heroData.image && <img src={heroData.image || '/logo.svg'} onError={(e) => { e.target.src = '/logo.svg'; e.target.onerror = null; }} style={getImgStyle({...heroData, imgFit: heroData.imgFit || 'cover'})} className="w-full h-full block object-cover bg-white" alt="" />}
              </div>
           </div>
             <div className="relative z-30 max-w-5xl px-4 text-center">
@@ -174,7 +176,7 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
                  >
                    <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative overflow-hidden rounded-lg bg-stone-100">
                      <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110">
-                    <img src={item.image} style={getImgStyle(item)} className="w-full h-full block" alt={item.title} loading="lazy" />
+                              <img src={item.image || '/logo.svg'} onError={(e) => { e.target.src = '/logo.svg'; e.target.onerror = null; }} style={getImgStyle(item)} className="w-full h-full block object-cover bg-white" alt="" />
                      </div>
                    </div>
                    <div className="flex flex-col flex-1 py-1">
@@ -189,7 +191,7 @@ export default function Home({ isAdmin, heroData, setTempHero, setEditingHero, q
                    </div>
                  </div>
                ))}
-               {newsItems.length === 0 && <div className="p-8 text-center text-stone-400 border border-dashed rounded-xl"><p>Chưa có bản tin nào.</p></div>}
+                   {displayNews.length === 0 && <div className="p-8 text-center text-stone-400 border border-dashed rounded-xl"><p>Chưa có bản tin nào.</p></div>}
              </div>
            </div>
 

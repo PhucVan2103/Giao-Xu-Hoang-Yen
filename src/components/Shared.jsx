@@ -95,7 +95,7 @@ export const Lightbox = ({ src, onClose }) => {
   );
 };
 
-export const editorContentClasses = "lightbox-container font-serif text-stone-700 text-sm md:text-base leading-relaxed text-justify flow-root [&_img]:max-w-[90%] md:[&_img]:max-w-[45%] [&_img]:h-auto [&_img]:rounded-md [&_img]:shadow-sm [&_img]:cursor-zoom-in [&_img]:hover:opacity-90 [&_img]:transition-opacity [&_p]:mb-4 [&_h3]:text-xl md:[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-pink-900 [&_h3]:mt-6 [&_h3]:mb-3 [&_h4]:text-lg md:[&_h4]:text-xl [&_h4]:font-bold [&_h4]:text-pink-700 [&_h4]:mt-5 [&_h4]:mb-2 [&_blockquote]:border-l-3 [&_blockquote]:border-pink-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-stone-500 [&_blockquote]:my-4 [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-lg [&_iframe]:my-4 [&_iframe]:shadow-sm [&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800";
+export const editorContentClasses = "lightbox-container font-serif text-stone-700 text-sm md:text-base leading-relaxed text-justify flow-root [&_img]:max-w-[90%] md:[&_img]:max-w-[45%] [&_img]:h-auto [&_img]:rounded-md [&_img]:shadow-sm [&_img]:cursor-zoom-in [&_img]:hover:opacity-90 [&_img]:transition-opacity [&>div]:mb-4 [&>p]:mb-4 [&_h3]:text-xl md:[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-pink-900 [&_h3]:mt-6 [&_h3]:mb-3 [&_h4]:text-lg md:[&_h4]:text-xl [&_h4]:font-bold [&_h4]:text-pink-700 [&_h4]:mt-5 [&_h4]:mb-2 [&_blockquote]:border-l-3 [&_blockquote]:border-pink-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-stone-500 [&_blockquote]:my-4 [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-lg [&_iframe]:my-4 [&_iframe]:shadow-sm [&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800";
 
 export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
   const editorRef = useRef(null);
@@ -162,7 +162,7 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
     if (!url) return;
 
     if (promptConfig.type === 'image') {
-      execCmd('insertHTML', `<img src="${url}" style="display: inline-block; float: left; margin: 0.5rem 1.5rem 1rem 0;" />&nbsp;`);
+      execCmd('insertHTML', `<img src="${url}" style="display: block; float: none; margin: 1.5rem auto;" /><p><br></p>`);
     } else if (promptConfig.type === 'link') {
       const selection = window.getSelection();
       const selectedText = selection.toString();
@@ -216,7 +216,7 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
       if (item.kind === 'file' && item.type.startsWith('image/')) {
         e.preventDefault();
         const reader = new FileReader();
-        reader.onload = (event) => execCmd('insertHTML', `<img src="${event.target.result}" style="display: inline-block; float: left; margin: 0.5rem 1.5rem 1rem 0;" />&nbsp;`);
+        reader.onload = (event) => execCmd('insertHTML', `<img src="${event.target.result}" style="display: block; float: none; margin: 1.5rem auto;" /><p><br></p>`);
         reader.readAsDataURL(item.getAsFile());
         return;
       }
@@ -264,7 +264,8 @@ export const ImageAdjuster = ({ data, setData, aspectClass = "aspect-[21/9] w-fu
         <div className="w-full md:w-1/2 flex justify-center items-center">
           <div className={`overflow-hidden border-2 border-pink-300 shadow-sm bg-stone-200 relative flex-shrink-0 ${aspectClass}`}>
              <img
-               src={data.image}
+               src={data.image || '/logo.svg'}
+               onError={(e) => { e.target.src = '/logo.svg'; e.target.onerror = null; }}
                style={getImgStyle(data)}
                className="w-full h-full block max-w-none"
                alt="Preview"

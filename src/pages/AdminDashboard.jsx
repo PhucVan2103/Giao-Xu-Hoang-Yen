@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, CalendarDays, Map, Settings, LogOut, Menu, X, Users, Eye, Star, Globe, Plus, Search, Edit3, ChevronLeft, ChevronRight, Clock, Heart, BookOpen, MapPin, Phone, Image, AlignLeft, Inbox, Mail, MailOpen, Trash2, CheckCircle2, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, FileText, CalendarDays, Map, Settings, LogOut, Menu, X, Users, Eye, Star, Globe, Plus, Search, Edit3, ChevronLeft, ChevronRight, Clock, Heart, BookOpen, MapPin, Phone, Image, AlignLeft, Inbox, Mail, MailOpen, Trash2, CheckCircle2, TrendingUp, FolderOpen, Copy, RefreshCw, HardDrive } from 'lucide-react';
 import { formatDateString, getDaysArray, litColors, expandMassSchedules, normalizeMassSchedules, getStatusStyles } from '../utils/helpers';
-import { db, appId } from '../utils/firebase';
+import { db, storage, appId } from '../utils/firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { ref, listAll, deleteObject, getDownloadURL, getMetadata } from 'firebase/storage';
 import toast from 'react-hot-toast';
 
 export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits }) {
@@ -31,6 +32,7 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
     { name: 'Phụng Vụ', path: '/admin/phung-vu', icon: CalendarDays },
     { name: 'Hành Hương', path: '/admin/hanh-huong', icon: Map },
     { name: 'Hộp Thư', path: '/admin/hop-thu', icon: Inbox, badge: unreadCount },
+    { name: 'Thư Viện', path: '/admin/thu-vien', icon: FolderOpen },
     { name: 'Cài Đặt', path: '/admin/cai-dat', icon: Settings },
   ];
 
@@ -92,10 +94,114 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
                <Route path="/phung-vu" element={<LiturgyManager liturgyEvents={liturgyEvents} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} />} />
                <Route path="/hanh-huong" element={<PilgrimageManager pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
                <Route path="/hop-thu" element={<InboxManager messages={messages} setAppConfirm={setAppConfirm} />} />
+               <Route path="/thu-vien" element={<MediaManager setAppConfirm={setAppConfirm} />} />
                <Route path="/cai-dat" element={<SettingsManager parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} />} />
             </Routes>
          </div>
       </main>
+    </div>
+  );
+}
+
+function MediaManager({ setAppConfirm }) {
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeFolder, setActiveFolder] = useState('images');
+
+  const fetchFiles = async () => {
+    if (!storage) return toast.error('Chưa kết nối Firebase Storage!');
+    setLoading(true);
+    try {
+      const folderRef = ref(storage, activeFolder);
+      const res = await listAll(folderRef);
+      const filePromises = res.items.map(async (itemRef) => {
+        const url = await getDownloadURL(itemRef);
+        const meta = await getMetadata(itemRef);
+        return { name: itemRef.name, fullPath: itemRef.fullPath, url, size: meta.size, timeCreated: meta.timeCreated };
+      });
+      const fileData = await Promise.all(filePromises);
+      setFiles(fileData.sort((a, b) => new Date(b.timeCreated) - new Date(a.timeCreated)));
+    } catch (error) {
+      console.error("Lỗi lấy danh sách file:", error);
+      toast.error('Không tìm thấy thư mục lưu trữ!');
+      setFiles([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchFiles(); }, [activeFolder]);
+
+  const handleDelete = (file) => {
+    setAppConfirm({
+      isOpen: true, title: 'Xóa File vĩnh viễn', message: `Bạn có chắc chắn muốn xóa file "${file.name}" không? Hành động này sẽ làm các bài viết đang sử dụng file này bị mất ảnh.`, isDanger: true,
+      onConfirm: async () => {
+        setAppConfirm(prev => ({ ...prev, isOpen: false }));
+        const toastId = toast.loading('Đang xóa file...');
+        try {
+          await deleteObject(ref(storage, file.fullPath));
+          setFiles(prev => prev.filter(f => f.fullPath !== file.fullPath));
+          toast.success('Đã xóa thành công!', { id: toastId });
+        } catch (error) { toast.error('Lỗi khi xóa file: ' + error.message, { id: toastId }); }
+      }
+    });
+  };
+
+  const copyToClipboard = (url) => { navigator.clipboard.writeText(url); toast.success('Đã copy đường dẫn!'); };
+
+  const formatBytes = (bytes) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const totalSize = files.reduce((acc, f) => acc + f.size, 0);
+
+  return (
+    <div className="animate-in fade-in zoom-in-95 duration-300 max-w-6xl mx-auto">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-pink-950 mb-2 uppercase tracking-tight">Thư Viện Media</h1>
+          <p className="text-stone-500 font-serif text-sm md:text-base">Quản lý và dọn dẹp các hình ảnh, tài liệu đính kèm trên hệ thống.</p>
+        </div>
+        <div className="flex items-center gap-3">
+           <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-stone-200 text-sm font-bold text-stone-600 flex items-center gap-2"><HardDrive size={16} className="text-pink-500" /> Tổng: {formatBytes(totalSize)}</div>
+           <button onClick={fetchFiles} className="bg-white p-2 text-stone-500 hover:text-pink-600 rounded-xl shadow-sm border border-stone-200 hover:border-pink-200 transition-colors" title="Tải lại"><RefreshCw size={18} className={loading ? "animate-spin" : ""} /></button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 md:p-8">
+        <div className="flex gap-4 border-b border-stone-100 mb-6 pb-2 overflow-x-auto custom-scrollbar">
+          <button onClick={() => setActiveFolder('images')} className={`flex items-center gap-2 px-4 py-2 font-bold text-sm uppercase tracking-widest transition-colors whitespace-nowrap border-b-2 ${activeFolder === 'images' ? 'border-pink-500 text-pink-600' : 'border-transparent text-stone-400 hover:text-stone-600'}`}><Image size={18} /> Hình Ảnh</button>
+          <button onClick={() => setActiveFolder('documents')} className={`flex items-center gap-2 px-4 py-2 font-bold text-sm uppercase tracking-widest transition-colors whitespace-nowrap border-b-2 ${activeFolder === 'documents' ? 'border-pink-500 text-pink-600' : 'border-transparent text-stone-400 hover:text-stone-600'}`}><FileText size={18} /> Tài Liệu Đính Kèm</button>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">{[...Array(10)].map((_, i) => <div key={i} className="aspect-square bg-stone-100 rounded-xl animate-pulse"></div>)}</div>
+        ) : files.length === 0 ? (
+          <div className="text-center py-20 bg-stone-50 rounded-xl border border-stone-100 border-dashed"><FolderOpen className="mx-auto text-stone-300 mb-4" size={48} /><p className="text-stone-500 font-serif">Thư mục trống. Chưa có tệp nào được tải lên.</p></div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+            {files.map(file => (
+              <div key={file.fullPath} className="group flex flex-col bg-stone-50 rounded-xl border border-stone-200 overflow-hidden hover:border-pink-300 hover:shadow-md transition-all relative">
+                <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <button onClick={() => copyToClipboard(file.url)} className="p-1.5 bg-white/90 backdrop-blur text-stone-600 hover:text-pink-600 rounded-lg shadow-sm border border-stone-200" title="Copy Link"><Copy size={14} /></button>
+                  <button onClick={() => handleDelete(file)} className="p-1.5 bg-white/90 backdrop-blur text-stone-600 hover:text-red-600 hover:bg-red-50 rounded-lg shadow-sm border border-stone-200" title="Xóa file"><Trash2 size={14} /></button>
+                </div>
+                <div className="aspect-square relative flex items-center justify-center bg-stone-100 border-b border-stone-200 overflow-hidden">
+                  {activeFolder === 'images' ? <img src={file.url} className="w-full h-full object-cover" alt={file.name} loading="lazy" /> : <FileText size={40} className="text-stone-300" />}
+                </div>
+                <div className="p-3">
+                  <p className="text-xs font-bold text-stone-700 truncate mb-1" title={file.name}>{file.name}</p>
+                  <div className="flex justify-between items-center text-[10px] text-stone-400 font-mono"><span>{formatBytes(file.size)}</span><span>{new Date(file.timeCreated).toLocaleDateString('vi-VN')}</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -142,7 +248,7 @@ function SettingsManager({ parishStats, setTempStats, setEditingStats, logoConfi
             <h3 className="font-bold text-stone-800 uppercase tracking-widest text-sm">Ảnh Nền Trang Chủ</h3>
           </div>
           <div className="flex-1 mb-8 bg-stone-50 rounded-xl overflow-hidden border border-stone-100 relative">
-            <img src={heroData.image} className="w-full h-24 object-cover opacity-90" alt="Hero" />
+            <img src={heroData.image || '/logo.svg'} onError={(e) => { e.target.src = '/logo.svg'; e.target.onerror = null; }} className="w-full h-24 object-cover opacity-90 bg-white" alt="Hero" />
           </div>
           <button onClick={() => { setTempHero(heroData); setEditingHero(true); }} className="w-full py-3 bg-stone-50 hover:bg-pink-600 text-stone-600 hover:text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-colors shadow-sm">Đổi Ảnh Nền</button>
         </div>
@@ -223,7 +329,7 @@ function PilgrimageManager({ pilgrimagePlans, setTempPilgrimage, setEditingPilgr
                   <tbody className="text-sm">
                     {filteredPlans.map(item => (
                       <tr key={item.id} className="border-b border-stone-100 hover:bg-pink-50/30 transition-colors group">
-                        <td className="p-4 text-center"><div className="w-12 h-12 rounded-lg overflow-hidden bg-stone-100 mx-auto shadow-sm border border-stone-200"><img src={item.image || '/logo.svg'} className="w-full h-full object-cover" alt="" /></div></td>
+                        <td className="p-4 text-center"><div className="w-12 h-12 rounded-lg overflow-hidden bg-stone-100 mx-auto shadow-sm border border-stone-200"><img src={item.image || '/logo.svg'} onError={(e) => { e.target.src = '/logo.svg'; e.target.onerror = null; }} className="w-full h-full object-cover bg-white" alt="" /></div></td>
                         <td className="p-4"><p className="font-bold text-stone-800 font-serif leading-snug line-clamp-2 max-w-sm mb-1">{item.title}</p></td>
                         <td className="p-4"><p className="text-[11px] text-stone-500 font-bold mb-1 flex items-center gap-1.5"><Calendar size={12}/>{item.date}</p><p className="text-[11px] text-stone-500 font-bold flex items-center gap-1.5"><Clock size={12}/>{item.duration}</p></td>
                         <td className="p-4 text-center"><span className={`text-[9px] font-bold px-2.5 py-1 rounded-full shadow-sm border uppercase tracking-wider whitespace-nowrap ${getStatusStyles(item.status)}`}>{item.status}</span></td>
@@ -356,7 +462,7 @@ function NewsManager({ newsItems, setTempNews, setEditingNews }) {
          <button onClick={() => {
            const today = new Date();
            const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-           setTempNews({ id: Date.now(), title: '', date: dateStr, category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false, imgFit: 'cover', views: 0 });
+           setTempNews({ id: Date.now(), title: '', date: dateStr, category: 'Tin Tức', desc: '', image: '', content: '', isFeatured: false, imgFit: 'cover', views: 0, status: 'published' });
            setEditingNews('new');
          }} className="bg-pink-600 hover:bg-pink-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md transition-all active:scale-95 flex items-center gap-2">
            <Plus size={16} /> Thêm Bản Tin
@@ -389,8 +495,8 @@ function NewsManager({ newsItems, setTempNews, setEditingNews }) {
              <tbody className="text-sm">
                {filteredNews.map(item => (
                  <tr key={item.id} className="border-b border-stone-100 hover:bg-pink-50/30 transition-colors group">
-                   <td className="p-4 text-center"><div className="w-12 h-12 rounded-lg overflow-hidden bg-stone-100 mx-auto shadow-sm border border-stone-200"><img src={item.image || '/logo.svg'} className="w-full h-full object-cover" alt="" /></div></td>
-                   <td className="p-4"><p className="font-bold text-stone-800 font-serif leading-snug line-clamp-2 max-w-sm mb-1">{item.title}</p><p className="text-[10px] text-stone-400 font-bold tracking-widest uppercase">{item.date}</p></td>
+                   <td className="p-4 text-center"><div className="w-12 h-12 rounded-lg overflow-hidden bg-stone-100 mx-auto shadow-sm border border-stone-200"><img src={item.image || '/logo.svg'} onError={(e) => { e.target.src = '/logo.svg'; e.target.onerror = null; }} className="w-full h-full object-cover bg-white" alt="" /></div></td>
+                   <td className="p-4"><p className="font-bold text-stone-800 font-serif leading-snug line-clamp-2 max-w-sm mb-1">{item.status === 'draft' && <span className="bg-stone-500 text-white text-[9px] px-2 py-0.5 rounded shadow-sm mr-2 uppercase tracking-widest">Nháp</span>}{item.title}</p><p className="text-[10px] text-stone-400 font-bold tracking-widest uppercase">{item.date}</p></td>
                    <td className="p-4"><span className="bg-stone-100 border border-stone-200 text-stone-600 text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest shadow-sm">{item.category}</span></td>
                    <td className="p-4 text-center text-stone-600 font-bold"><div className="flex justify-center items-center gap-1.5 bg-pink-50 text-pink-600 px-3 py-1 rounded-full w-fit mx-auto border border-pink-100"><Eye size={14}/> {item.views || 0}</div></td>
                    <td className="p-4 text-center">{item.isFeatured ? <Star size={18} className="text-amber-500 fill-amber-500 mx-auto drop-shadow-sm" /> : <Star size={18} className="text-stone-300 mx-auto" />}</td>
@@ -407,7 +513,8 @@ function NewsManager({ newsItems, setTempNews, setEditingNews }) {
 }
 
 function Overview({ parishStats, newsItems, pilgrimagePlans, liturgyEvents, messages, dailyVisits }) {
-  const totalViews = newsItems.reduce((acc, curr) => acc + (curr.views || 0), 0);
+  const publishedNews = newsItems.filter(n => n.status !== 'draft');
+  const totalViews = publishedNews.reduce((acc, curr) => acc + (curr.views || 0), 0);
   const upcomingPilgrimages = pilgrimagePlans.filter(p => p.status === 'Sắp diễn ra' || p.status === 'Đang mở đăng ký');
   
   // Tính toán biểu đồ dữ liệu thực tế
@@ -430,7 +537,7 @@ function Overview({ parishStats, newsItems, pilgrimagePlans, liturgyEvents, mess
        
        {/* Thẻ Thống Kê (Stat Cards) */}
        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8 md:mb-12">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col justify-center relative overflow-hidden group"><div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 group-hover:opacity-10 transition-all"><FileText size={100}/></div><div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm"><FileText size={20}/></div><p className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Tin Tức</p></div><p className="text-3xl font-bold text-stone-800">{newsItems.length}</p><p className="text-xs text-stone-400 font-serif mt-2">Tổng số bản tin đã đăng</p></div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col justify-center relative overflow-hidden group"><div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 group-hover:opacity-10 transition-all"><FileText size={100}/></div><div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm"><FileText size={20}/></div><p className="text-[11px] font-bold text-stone-400 uppercase tracking-widest hidden sm:block">Tin Tức</p></div><p className="text-3xl font-bold text-stone-800">{publishedNews.length}</p><p className="text-xs text-stone-400 font-serif mt-2">Bản tin đã đăng</p></div>
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col justify-center relative overflow-hidden group"><div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 group-hover:opacity-10 transition-all"><Eye size={100}/></div><div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 bg-pink-50 text-pink-600 rounded-full flex items-center justify-center shadow-sm"><Eye size={20}/></div><p className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Lượt Xem</p></div><p className="text-3xl font-bold text-stone-800">{totalViews}</p><p className="text-xs text-stone-400 font-serif mt-2">Tổng lượt đọc bài viết</p></div>
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col justify-center relative overflow-hidden group"><div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 group-hover:opacity-10 transition-all"><Map size={100}/></div><div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center shadow-sm"><Map size={20}/></div><p className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Hành Hương</p></div><p className="text-3xl font-bold text-stone-800">{upcomingPilgrimages.length}</p><p className="text-xs text-stone-400 font-serif mt-2">Kế hoạch đang mở/sắp tới</p></div>
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col justify-center relative overflow-hidden group"><div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 group-hover:opacity-10 transition-all"><Inbox size={100}/></div><div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center shadow-sm"><Inbox size={20}/></div><p className="text-[11px] font-bold text-stone-400 uppercase tracking-widest hidden sm:block">Hộp Thư</p></div><p className="text-3xl font-bold text-stone-800">{messages?.filter(m => m.status === 'new').length || 0}</p><p className="text-xs text-stone-400 font-serif mt-2">Ý nguyện mới</p></div>
@@ -460,7 +567,7 @@ function Overview({ parishStats, newsItems, pilgrimagePlans, liturgyEvents, mess
          <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 md:p-8 flex flex-col h-[400px]">
             <h3 className="text-sm font-bold text-stone-800 mb-6 flex items-center gap-2 uppercase tracking-widest"><Star className="text-amber-500" size={18} /> Top Bài Viết</h3>
             <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2">
-               {newsItems.slice().sort((a,b) => (b.views || 0) - (a.views || 0)).slice(0, 5).map((item, idx) => (<div key={item.id} className="flex items-center gap-4 p-3 hover:bg-stone-50 rounded-xl transition border border-transparent hover:border-stone-200"><div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${idx === 0 ? 'bg-amber-100 text-amber-700' : idx === 1 ? 'bg-stone-200 text-stone-600' : idx === 2 ? 'bg-orange-100 text-orange-700' : 'text-stone-400'}`}>{idx + 1}</div><div className="w-14 h-14 rounded-lg overflow-hidden bg-stone-100 flex-shrink-0 shadow-sm"><img src={item.image} className="w-full h-full object-cover" alt=""/></div><div className="flex-1"><p className="font-bold text-sm text-stone-800 line-clamp-2 leading-snug mb-1">{item.title}</p><p className="text-[10px] text-stone-400 uppercase tracking-widest">{item.category}</p></div><div className="flex items-center gap-1.5 text-xs font-bold text-pink-600 bg-pink-50 px-3 py-1.5 rounded-full border border-pink-100"><Eye size={12}/> {item.views || 0}</div></div>))}
+               {publishedNews.slice().sort((a,b) => (b.views || 0) - (a.views || 0)).slice(0, 5).map((item, idx) => (<div key={item.id} className="flex items-center gap-4 p-3 hover:bg-stone-50 rounded-xl transition border border-transparent hover:border-stone-200"><div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${idx === 0 ? 'bg-amber-100 text-amber-700' : idx === 1 ? 'bg-stone-200 text-stone-600' : idx === 2 ? 'bg-orange-100 text-orange-700' : 'text-stone-400'}`}>{idx + 1}</div><div className="w-14 h-14 rounded-lg overflow-hidden bg-stone-100 flex-shrink-0 shadow-sm"><img src={item.image || '/logo.svg'} onError={(e) => { e.target.src = '/logo.svg'; e.target.onerror = null; }} className="w-full h-full object-cover bg-white" alt=""/></div><div className="flex-1"><p className="font-bold text-sm text-stone-800 line-clamp-2 leading-snug mb-1">{item.title}</p><p className="text-[10px] text-stone-400 uppercase tracking-widest">{item.category}</p></div><div className="flex items-center gap-1.5 text-xs font-bold text-pink-600 bg-pink-50 px-3 py-1.5 rounded-full border border-pink-100"><Eye size={12}/> {item.views || 0}</div></div>))}
                {newsItems.length === 0 && <div className="h-full flex items-center justify-center text-sm text-stone-400 font-serif italic">Chưa có dữ liệu bài viết.</div>}
             </div>
          </div>
