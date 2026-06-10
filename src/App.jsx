@@ -1,11 +1,6 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import {
-  Menu, X, Clock, Calendar, MapPin, Phone, 
-  ChevronRight, BookOpen, Users, Image as ImageIcon, 
-  Bell, Heart, Search, Mail, ExternalLink, Quote,
-  ChevronDown, Church, ArrowUp, Edit3, ChevronLeft,
-  User, Star, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Send,
-  MessageSquare, CheckCircle2
+  X, ArrowUp, Edit3
 } from 'lucide-react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -20,8 +15,8 @@ import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'fi
 import { collection, doc, setDoc, deleteDoc, onSnapshot, increment } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-import { getImgStyle, navLinks, litColors, formatDateString, getDaysArray, getStatusStyles } from './utils/helpers';
-import { FacebookIcon, Logo, editorContentClasses, RichTextEditor, ImageAdjuster, ConfirmModal, PromptModal, Lightbox } from './components/Shared';
+import { litColors, formatDateString } from './utils/helpers';
+import { RichTextEditor, ImageAdjuster, ConfirmModal, PromptModal, Lightbox } from './components/Shared';
 import Header from './components/Header';
 import Footer from './components/Footer';
 const Home = lazy(() => import('./pages/Home'));
