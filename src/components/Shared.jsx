@@ -194,7 +194,8 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
         let mimeType = file.type || 'application/octet-stream';
         if (file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
         
-        const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: file, ContentType: mimeType });
+        const fileData = new Uint8Array(await file.arrayBuffer());
+        const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: fileData, ContentType: mimeType });
         await storage.send(command);
         const url = `${R2_PUBLIC_URL}/${fileName}`;
         execCmd('insertHTML', `<a href="${url}" target="_blank" rel="noopener noreferrer">📎 ${file.name}</a>&nbsp;`);

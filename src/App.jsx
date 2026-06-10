@@ -634,7 +634,8 @@ export default function App() {
           setIsUploading(true);
           try {
             const fileName = `images/paste_${Date.now()}.png`;
-            const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: file, ContentType: file.type });
+            const fileData = new Uint8Array(await file.arrayBuffer());
+            const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: fileData, ContentType: file.type });
             await storage.send(command);
             const url = `${R2_PUBLIC_URL}/${fileName}`;
             setterFunction(prev => ({ ...prev, image: url }));
@@ -642,7 +643,7 @@ export default function App() {
           } catch (error) {
             console.error("Lỗi upload ảnh:", error);
             toast.error('Lỗi upload: Vui lòng kiểm tra cấu hình CORS của R2!', { id: toastId });
-            setterFunction(prev => ({ ...prev, image: prev.image === localUrl ? '' : prev.image }));
+            setterFunction(prev => ({ ...prev, image: prev?.image === localUrl ? '' : prev?.image }));
           } finally {
             setIsUploading(false);
           }
@@ -671,9 +672,10 @@ export default function App() {
           }
           
           const compressedFile = await imageCompression(file, options);
+          const fileData = new Uint8Array(await compressedFile.arrayBuffer());
 
           const fileName = `images/upload_${Date.now()}_${compressedFile.name}`;
-          const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: compressedFile, ContentType: compressedFile.type });
+          const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: fileData, ContentType: compressedFile.type });
           await storage.send(command);
           
           const url = `${R2_PUBLIC_URL}/${fileName}`;
@@ -682,7 +684,7 @@ export default function App() {
         } catch (error) {
           console.error("Lỗi upload ảnh:", error);
           toast.error('Lỗi upload: Vui lòng kiểm tra cấu hình CORS của R2!', { id: toastId });
-          setterFunction(prev => ({ ...prev, image: prev.image === localUrl ? '' : prev.image }));
+          setterFunction(prev => ({ ...prev, image: prev?.image === localUrl ? '' : prev?.image }));
         } finally {
           setIsUploading(false);
         }
