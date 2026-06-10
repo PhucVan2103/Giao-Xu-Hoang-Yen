@@ -887,7 +887,11 @@ export default function App() {
                   await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', tempNews.id.toString())); 
                   if (selectedNews?.id === tempNews.id) { setSelectedNews(null); navigate('/tin-tuc'); } 
                   setEditingNews(null); 
-                } catch(e) { alert("Lỗi khi xóa bài: Không có quyền truy cập.") }
+                  toast.success('Đã xóa bản tin!');
+                } catch(e) { 
+                  console.error("Lỗi xóa tin tức:", e);
+                  toast.error("Lỗi khi xóa bài: " + e.message); 
+                }
               }}>Xóa Bản Tin</button>}
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingNews(null)}>Hủy Bỏ</button>
@@ -902,7 +906,11 @@ export default function App() {
                   await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id.toString()), d);
                   if (selectedNews?.id === id) setSelectedNews(d); 
                   setEditingNews(null); 
-                } catch(e) { alert("Lỗi khi lưu bài: Không có quyền truy cập.") }
+                  toast.success('Đã lưu bài viết thành công!');
+                } catch(e) { 
+                  console.error("Lỗi lưu tin tức:", e);
+                  toast.error("Lỗi khi lưu bài: " + e.message); 
+                }
               }}>Lưu Bài Viết</button>
             </div>
           </div>
@@ -1041,7 +1049,11 @@ export default function App() {
                   await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pilgrimages', tempPilgrimage.id.toString())); 
                   if (selectedPilgrimage?.id === tempPilgrimage.id) { setSelectedPilgrimage(null); navigate('/hanh-huong'); } 
                   setEditingPilgrimage(null); 
-                } catch(e) { alert("Lỗi xóa: Không có quyền truy cập.") }
+                  toast.success('Đã xóa kế hoạch!');
+                } catch(e) { 
+                  console.error("Lỗi xóa hành hương:", e);
+                  toast.error("Lỗi xóa kế hoạch: " + e.message); 
+                }
               }}>Xóa Kế Hoạch</button>}
               <div className="flex-1"></div>
               <button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingPilgrimage(null)}>Hủy Bỏ</button>
@@ -1056,7 +1068,11 @@ export default function App() {
                   await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pilgrimages', id.toString()), d);
                   if (selectedPilgrimage?.id === id) setSelectedPilgrimage(d); 
                   setEditingPilgrimage(null); 
-                } catch(e) { alert("Lỗi lưu: Không có quyền truy cập.") }
+                  toast.success('Đã lưu kế hoạch thành công!');
+                } catch(e) { 
+                  console.error("Lỗi lưu hành hương:", e);
+                  toast.error("Lỗi lưu kế hoạch: " + e.message); 
+                }
               }}>Lưu Kế Hoạch</button>
             </div>
           </div>
@@ -1096,7 +1112,10 @@ export default function App() {
                       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'liturgy', tempLiturgyEvent.date)); 
                       setEditingLiturgyEvent(false); 
                       toast.success('Xóa thành công!', { id: toastId });
-                    } catch(e) { toast.error("Lỗi xóa: Không có quyền truy cập.", { id: toastId }) }
+                    } catch(e) { 
+                      console.error("Lỗi xóa phụng vụ:", e);
+                      toast.error("Lỗi xóa: " + e.message, { id: toastId }); 
+                    }
                   }
                 });
               }}>Xóa</button>
@@ -1106,10 +1125,14 @@ export default function App() {
                 if (!tempLiturgyEvent.title || tempLiturgyEvent.title.trim() === '') return alert('Vui lòng nhập tên sự kiện');
                 if(!db) return alert("Chưa kết nối CSDL");
                 try {
-          const cleanEvent = JSON.parse(JSON.stringify(tempLiturgyEvent));
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'liturgy', tempLiturgyEvent.date), cleanEvent);
+                  const cleanEvent = JSON.parse(JSON.stringify(tempLiturgyEvent));
+                  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'liturgy', tempLiturgyEvent.date), cleanEvent);
                   setEditingLiturgyEvent(false);
-                } catch(e) { alert("Lỗi lưu: Không có quyền truy cập.") }
+                  toast.success('Đã lưu lịch phụng vụ!');
+                } catch(e) { 
+                  console.error("Lỗi lưu phụng vụ:", e);
+                  toast.error("Lỗi lưu: " + e.message); 
+                }
               }}>Lưu Lại</button>
             </div>
           </div>
