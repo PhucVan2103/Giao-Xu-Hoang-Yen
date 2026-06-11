@@ -10,10 +10,9 @@ const ADMIN_PASSWORD = (typeof import.meta !== 'undefined' && import.meta.env?.V
   || (typeof process !== 'undefined' && process.env?.REACT_APP_ADMIN_PASSWORD) 
   || "admin";
 
-import { auth, db, storage, appId, R2_BUCKET_NAME, R2_PUBLIC_URL } from './utils/firebase';
+import { auth, db, appId } from './utils/firebase';
 import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, increment } from 'firebase/firestore';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
 import imageCompression from 'browser-image-compression';
 
 import { litColors, formatDateString } from './utils/helpers';
@@ -629,25 +628,27 @@ export default function App() {
         setterFunction(prev => ({ ...prev, image: localUrl }));
         e.preventDefault();
         
-        if (storage) {
-          const toastId = toast.loading('Đang tải ảnh lên Storage...');
-          setIsUploading(true);
-          try {
-            const fileName = `images/paste_${Date.now()}.png`;
-            const fileData = new Uint8Array(await file.arrayBuffer());
-            const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: fileData, ContentType: file.type });
-            await storage.send(command);
-            const url = `${R2_PUBLIC_URL}/${fileName}`;
-            setterFunction(prev => ({ ...prev, image: url }));
-            toast.success('Tải ảnh thành công!', { id: toastId });
-          } catch (error) {
+        const toastId = toast.loading('Đang tải ảnh lên Storage...');
+        setIsUploading(true);
+        try {
+          const fileName = `images/paste_${Date.now()}.png`;
+          const fileData = new Uint8Array(await file.arrayBuffer());
+          
+          const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(file.type)}`);
+          const { uploadUrl, publicUrl } = await res.json();
+          
+          const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': file.type } });
+          if (!uploadRes.ok) throw new Error('Upload không thành công');
+          
+          setterFunction(prev => ({ ...prev, image: publicUrl }));
+          toast.success('Tải ảnh thành công!', { id: toastId });
+        } catch (error) {
             console.error("Lỗi upload ảnh:", error);
             toast.error('Lỗi upload: Vui lòng kiểm tra cấu hình CORS của R2!', { id: toastId });
             setterFunction(prev => ({ ...prev, image: prev?.image === localUrl ? '' : prev?.image }));
           } finally {
             setIsUploading(false);
           }
-        }
         break;
       }
     }
@@ -659,36 +660,35 @@ export default function App() {
       // Hiển thị ảnh preview ngay lập tức
       setterFunction(prev => ({ ...prev, image: URL.createObjectURL(file) }));
 
-      if (storage) {
-        const toastId = toast.loading('Đang nén và tối ưu ảnh...');
-        setIsUploading(true);
-        try {
-          // Tùy chọn nén ảnh
-          const options = {
-            maxSizeMB: 1,          // Kích thước file tối đa là 1MB
-            maxWidthOrHeight: 1920, // Chiều rộng hoặc cao tối đa là 1920px
-            useWebWorker: true,    // Sử dụng Web Worker để nén mượt hơn
-            initialQuality: 0.8    // Chất lượng ban đầu
-          }
-          
-          const compressedFile = await imageCompression(file, options);
-          const fileData = new Uint8Array(await compressedFile.arrayBuffer());
-
-          const fileName = `images/upload_${Date.now()}_${compressedFile.name}`;
-          const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: fileData, ContentType: compressedFile.type });
-          await storage.send(command);
-          
-          const url = `${R2_PUBLIC_URL}/${fileName}`;
-          setterFunction(prev => ({ ...prev, image: url }));
-          toast.success('Tải ảnh thành công!', { id: toastId });
-        } catch (error) {
+      const toastId = toast.loading('Đang nén và tối ưu ảnh...');
+      setIsUploading(true);
+      try {
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          initialQuality: 0.8
+        }
+        
+        const compressedFile = await imageCompression(file, options);
+        const fileData = new Uint8Array(await compressedFile.arrayBuffer());
+        const fileName = `images/upload_${Date.now()}_${compressedFile.name}`;
+        
+        const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(compressedFile.type)}`);
+        const { uploadUrl, publicUrl } = await res.json();
+        
+        const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': compressedFile.type } });
+        if (!uploadRes.ok) throw new Error('Upload không thành công');
+        
+        setterFunction(prev => ({ ...prev, image: publicUrl }));
+        toast.success('Tải ảnh thành công!', { id: toastId });
+      } catch (error) {
           console.error("Lỗi upload ảnh:", error);
           toast.error('Lỗi upload: Vui lòng kiểm tra cấu hình CORS của R2!', { id: toastId });
           setterFunction(prev => ({ ...prev, image: prev?.image === localUrl ? '' : prev?.image }));
         } finally {
           setIsUploading(false);
         }
-      }
     }
   };
 

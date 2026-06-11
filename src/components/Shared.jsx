@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Church, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Video, Link as LinkIcon, Paperclip, X } from 'lucide-react';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { storage, R2_BUCKET_NAME, R2_PUBLIC_URL } from '../utils/firebase';
 import toast from 'react-hot-toast';
 import { getImgStyle } from '../utils/helpers';
 
@@ -186,27 +184,25 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    if (storage) {
-      const toastId = toast.loading('Đang tải tài liệu lên...');
-      try {
-        const fileName = `documents/${Date.now()}_${file.name}`;
-        
-        let mimeType = file.type || 'application/octet-stream';
-        if (file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
-        
-        const fileData = new Uint8Array(await file.arrayBuffer());
-        const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: fileName, Body: fileData, ContentType: mimeType });
-        await storage.send(command);
-        const url = `${R2_PUBLIC_URL}/${fileName}`;
-        execCmd('insertHTML', `<a href="${url}" target="_blank" rel="noopener noreferrer">📎 ${file.name}</a>&nbsp;`);
-        toast.success('Tải tài liệu thành công!', { id: toastId });
-      } catch (error) {
+    const toastId = toast.loading('Đang tải tài liệu lên...');
+    try {
+      const fileName = `documents/${Date.now()}_${file.name}`;
+      let mimeType = file.type || 'application/octet-stream';
+      if (file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+      const fileData = new Uint8Array(await file.arrayBuffer());
+      
+      const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(mimeType)}`);
+      const { uploadUrl, publicUrl } = await res.json();
+      
+      const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': mimeType } });
+      if (!uploadRes.ok) throw new Error('Upload Failed');
+      
+      execCmd('insertHTML', `<a href="${publicUrl}" target="_blank" rel="noopener noreferrer">📎 ${file.name}</a>&nbsp;`);
+      toast.success('Tải tài liệu thành công!', { id: toastId });
+    } catch (error) {
         console.error("Lỗi upload tài liệu:", error);
         toast.error('Lỗi tải tài liệu: Kiểm tra CORS R2!', { id: toastId });
       }
-    } else {
-      toast.error('Chưa kết nối CSDL!');
-    }
     e.target.value = null; // Reset input sau khi upload
   };
 
