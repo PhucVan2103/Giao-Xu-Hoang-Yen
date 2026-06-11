@@ -8,10 +8,6 @@
     },
     {
       "source": "/assets/(.*)",
-      "destination": "/assets/$1"
-    },
-    {
-      "source": "/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
@@ -34,6 +30,10 @@
         }
       ],
       "destination": "/api/og?id=:id"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
     },
     {
       "source": "/(.*)",
