@@ -10,10 +10,19 @@
     <meta name="description" content="Trang thông tin chính thức của Giáo Xứ Hoàng Yên." />
     <!-- Cấu hình hiển thị dạng App cho iPhone/iPad (iOS) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Giáo Xứ Hoàng Yên</title>
   </head>
   <body>
+    <script>
+      // Xóa bỏ Service Worker/Cache rác cũ nếu có (Tránh lỗi cache trang trắng cho người dùng)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) { registration.unregister(); }
+        });
+      }
+    </script>
     <div id="root">
       <!-- Màn hình chào (Splash Screen) sẽ hiển thị trong lúc chờ tải React -->
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #831843; color: white; font-family: serif;">

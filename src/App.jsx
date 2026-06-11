@@ -765,7 +765,6 @@ export default function App() {
 
       {/* NỘI DUNG CHÍNH */}
       <main className={`pt-0 min-h-[70vh] ${isAdminRoute ? 'bg-stone-50' : 'bg-white'}`}>
-        <Suspense fallback={<div className="pt-32 text-center text-pink-700 font-bold">Đang tải trang...</div>}>
           <Routes>
             <Route path="/" element={<Home isAdmin={isAdmin} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} quote={quote} setTempQuote={setTempQuote} setEditingQuote={setEditingQuote} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} contactInfo={contactInfo} setTempContact={setTempContact} setEditingQuickPhone={setEditingQuickPhone} newsItems={newsItems} setSelectedNews={setSelectedNews} liturgyEvents={liturgyEvents} />} />
             <Route path="/gioi-thieu" element={<About isAdmin={isAdmin} parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} historyData={historyData} setTempHistory={setTempHistory} setEditingHistory={setEditingHistory} heritageTitle={heritageTitle} setTempHeritageTitle={setTempHeritageTitle} setEditingHeritageTitle={setEditingHeritageTitle} heritageList={heritageList} setTempHeritageItem={setTempHeritageItem} setEditingHeritageItem={setEditingHeritageItem} pastoralData={pastoralData} setTempPastoral={setTempPastoral} setEditingPastoral={setEditingPastoral} handleReorderHeritage={handleReorderHeritage} />} />
@@ -787,7 +786,6 @@ export default function App() {
             />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </Suspense>
       </main>
 
       {/* CHÂN TRANG (FOOTER) */}
