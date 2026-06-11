@@ -33,7 +33,10 @@ const lazyWithRetry = (componentImport) =>
     } catch (error) {
       if (!pageHasAlreadyBeenForceRefreshed) {
         window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
-        return window.location.reload();
+        // Ép trình duyệt tải bản mới nhất bằng cách gắn thêm query parameters thời gian thực
+        const url = new URL(window.location.href);
+        url.searchParams.set('v', Date.now().toString());
+        return window.location.href = url.href;
       }
       throw error;
     }
