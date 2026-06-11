@@ -33,7 +33,7 @@
     },
     {
       "source": "/assets/(.*)",
-      "destination": "/assets/$1"
+      "destination": "/api/missing-asset"
     },
     {
       "source": "/(.*)",

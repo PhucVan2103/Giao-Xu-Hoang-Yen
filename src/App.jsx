@@ -228,6 +228,15 @@ export default function App() {
   
   // 1. Authenticate FIRST
   useEffect(() => {
+    // Xoá cờ reload nếu tải trang thành công
+    sessionStorage.removeItem('vite-chunk-reloaded');
+    // Xoá param ?v= khỏi URL để thanh địa chỉ sạch sẽ
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('v')) {
+      url.searchParams.delete('v');
+      window.history.replaceState({}, '', url.toString());
+    }
+
     if (!auth) return;
     const initAuth = async () => {
       try {
