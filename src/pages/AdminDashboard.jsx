@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, FileText, CalendarDays, Map, Settings, LogOut, Menu, X, Users, Eye, Star, Globe, Plus, Search, Edit3, ChevronLeft, ChevronRight, Clock, Heart, BookOpen, MapPin, Phone, Image, AlignLeft, Inbox, Mail, MailOpen, Trash2, CheckCircle2, TrendingUp, FolderOpen, Copy, RefreshCw, HardDrive } from 'lucide-react';
 import { formatDateString, getDaysArray, litColors, expandMassSchedules, normalizeMassSchedules, getStatusStyles } from '../utils/helpers';
-import { db, appId } from '../utils/firebase';
+import { auth, db, appId } from '../utils/firebase';
+import { signOut } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
@@ -60,7 +61,7 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
                <Globe size={18} />
                <span className="font-bold text-xs uppercase tracking-widest">Xem Trang Web</span>
             </button>
-            <button onClick={() => { setIsAdmin(false); navigate('/'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-pink-300 bg-pink-900/40 hover:bg-pink-900 hover:text-white transition-colors border border-pink-800/50">
+            <button onClick={async () => { await signOut(auth); setIsAdmin(false); navigate('/'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-pink-300 bg-pink-900/40 hover:bg-pink-900 hover:text-white transition-colors border border-pink-800/50">
                <LogOut size={18} />
                <span className="font-bold text-xs uppercase tracking-widest">Đăng Xuất</span>
             </button>

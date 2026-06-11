@@ -5,13 +5,8 @@ import {
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 
-// Thiết lập mật khẩu quản trị viên từ biến môi trường (hỗ trợ cả Vite và Create React App).
-const ADMIN_PASSWORD = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ADMIN_PASSWORD) 
-  || (typeof process !== 'undefined' && process.env?.REACT_APP_ADMIN_PASSWORD) 
-  || "admin";
-
 import { auth, db, appId } from './utils/firebase';
-import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { signInAnonymously, signInWithCustomToken, signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, increment } from 'firebase/firestore';
 import imageCompression from 'browser-image-compression';
 
@@ -121,18 +116,14 @@ export default function App() {
   const [loadingProgress, setLoadingProgress] = useState(0);
 
   // --- States Admin & Auth ---
-  const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
   // --- States Firebase User ---
   const [firebaseUser, setFirebaseUser] = useState(null);
-
-  // Đồng bộ trạng thái Admin vào Session Storage để không bị mất khi F5
-  useEffect(() => {
-    sessionStorage.setItem('isAdmin', isAdmin);
-  }, [isAdmin]);
 
   // --- States Tùy chỉnh Giao diện ---
   const [logoConfig, setLogoConfig] = useState({ image: './logo.svg', imgFit: 'contain', imgScale: 1, imgPosX: 50, imgPosY: 50 });
@@ -251,8 +242,16 @@ export default function App() {
     };
     initAuth();
     
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setFirebaseUser(u);
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        setFirebaseUser(u);
+        setIsAdmin(!u.isAnonymous);
+      } else {
+        setFirebaseUser(null);
+        setIsAdmin(false);
+        // Tự động đăng nhập ẩn danh lại nếu bị đăng xuất
+        await signInAnonymously(auth).catch(console.error);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -609,15 +608,25 @@ export default function App() {
     return () => { clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3); };
   }, [location.pathname]);
 
-  const handleLoginSubmit = (redirectToAdmin = false) => {
-    if (password === ADMIN_PASSWORD) { 
-      setIsAdmin(true); 
+  const handleLoginSubmit = async (redirectToAdmin = false) => {
+    if (!email || !password) {
+      setLoginError('Vui lòng nhập email và mật khẩu!');
+      return;
+    }
+    const toastId = toast.loading('Đang đăng nhập...');
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       setShowLoginModal(false); 
+      setEmail('');
       setPassword(''); 
       setLoginError(''); 
+      toast.success('Đăng nhập thành công!', { id: toastId });
       if (redirectToAdmin === true) navigate('/admin');
+    } catch (error) {
+      console.error("Lỗi đăng nhập:", error);
+      setLoginError('Email hoặc mật khẩu không chính xác!');
+      toast.error('Đăng nhập thất bại', { id: toastId });
     }
-    else setLoginError('Mật khẩu không chính xác!');
   };
 
   const handleContactSubmit = async (e) => {
@@ -819,14 +828,15 @@ export default function App() {
       {showLoginModal && (
         <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center border-t-4 border-pink-600 relative">
-             <button onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}} className="absolute top-3 right-3 text-stone-400 hover:text-stone-600"><X size={18}/></button>
+             <button onClick={() => {setShowLoginModal(false); setLoginError(''); setEmail(''); setPassword('');}} className="absolute top-3 right-3 text-stone-400 hover:text-stone-600"><X size={18}/></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">Đăng Nhập Admin</h3>
+            <input type="email" placeholder="Email Admin" className={`w-full border p-3 mb-2 text-center text-sm outline-none focus:border-pink-500 font-serif rounded ${loginError ? 'border-red-400' : 'border-pink-200'}`} value={email} onChange={(e) => {setEmail(e.target.value); setLoginError('');}} onKeyDown={(e) => e.key === 'Enter' && handleLoginSubmit(false)} />
             <input type="password" placeholder="Nhập mật khẩu" className={`w-full border p-3 mb-2 text-center text-sm outline-none focus:border-pink-500 font-serif rounded ${loginError ? 'border-red-400' : 'border-pink-200'}`} value={password} onChange={(e) => {setPassword(e.target.value); setLoginError('');}} onKeyDown={(e) => e.key === 'Enter' && handleLoginSubmit(false)} />
             <div className="h-6 mb-4">{loginError && <p className="text-red-500 text-xs font-bold animate-in slide-in-from-top-1">{loginError}</p>}</div>
             <div className="flex flex-col gap-3">
               <button className="w-full bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => handleLoginSubmit(true)}>Đăng Nhập & Vào Dashboard</button>
               <div className="flex gap-3">
-                <button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => {setShowLoginModal(false); setLoginError(''); setPassword('');}}>Hủy</button>
+                <button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => {setShowLoginModal(false); setLoginError(''); setEmail(''); setPassword('');}}>Hủy</button>
                 <button className="flex-1 bg-pink-100 text-pink-700 py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-sm active:scale-95 transition-all hover:bg-pink-200" onClick={() => handleLoginSubmit(false)}>Sửa Trực Tiếp</button>
               </div>
             </div>
