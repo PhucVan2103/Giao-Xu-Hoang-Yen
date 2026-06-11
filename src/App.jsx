@@ -19,15 +19,35 @@ import { litColors, formatDateString } from './utils/helpers';
 import { RichTextEditor, ImageAdjuster, ConfirmModal, PromptModal, Lightbox } from './components/Shared';
 import Header from './components/Header';
 import Footer from './components/Footer';
-const Home = lazy(() => import('./pages/Home'));
-const About = lazy(() => import('./pages/About'));
-const Contact = lazy(() => import('./pages/Contact'));
-const Liturgy = lazy(() => import('./pages/Liturgy'));
-const Pilgrimage = lazy(() => import('./pages/Pilgrimage').then(module => ({ default: module.Pilgrimage })));
-const PilgrimageDetail = lazy(() => import('./pages/Pilgrimage').then(module => ({ default: module.PilgrimageDetail })));
-const News = lazy(() => import('./pages/News').then(module => ({ default: module.News })));
-const NewsDetail = lazy(() => import('./pages/News').then(module => ({ default: module.NewsDetail })));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+
+// Khắc phục lỗi "Failed to fetch dynamically imported module" khi deploy bản mới
+const lazyWithRetry = (componentImport) =>
+  lazy(async () => {
+    const pageHasAlreadyBeenForceRefreshed = JSON.parse(
+      window.sessionStorage.getItem('page-has-been-force-refreshed') || 'false'
+    );
+    try {
+      const component = await componentImport();
+      window.sessionStorage.setItem('page-has-been-force-refreshed', 'false');
+      return component;
+    } catch (error) {
+      if (!pageHasAlreadyBeenForceRefreshed) {
+        window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
+        return window.location.reload();
+      }
+      throw error;
+    }
+  });
+
+const Home = lazyWithRetry(() => import('./pages/Home'));
+const About = lazyWithRetry(() => import('./pages/About'));
+const Contact = lazyWithRetry(() => import('./pages/Contact'));
+const Liturgy = lazyWithRetry(() => import('./pages/Liturgy'));
+const Pilgrimage = lazyWithRetry(() => import('./pages/Pilgrimage').then(module => ({ default: module.Pilgrimage })));
+const PilgrimageDetail = lazyWithRetry(() => import('./pages/Pilgrimage').then(module => ({ default: module.PilgrimageDetail })));
+const News = lazyWithRetry(() => import('./pages/News').then(module => ({ default: module.News })));
+const NewsDetail = lazyWithRetry(() => import('./pages/News').then(module => ({ default: module.NewsDetail })));
+const AdminDashboard = lazyWithRetry(() => import('./pages/AdminDashboard'));
 
 // ==========================================
 // BẢNG MÀU GIAO DIỆN THEO MÙA PHỤNG VỤ
