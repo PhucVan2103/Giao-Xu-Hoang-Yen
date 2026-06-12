@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import React, { useEffect } from 'react';
 import { useNavigate, Navigate, useParams } from 'react-router-dom';
 import { Edit3, Star, Calendar, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
