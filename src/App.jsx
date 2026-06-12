@@ -245,7 +245,10 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setFirebaseUser(u);
-        setIsAdmin(!u.isAnonymous);
+        // BẢO MẬT: Chỉ cấp quyền Admin cho các email được chỉ định
+        const adminEmails = ['admin@giaoxuhoangyen.vn', 'email-cua-ban@gmail.com']; 
+        const hasAdminRole = u.email && adminEmails.includes(u.email.toLowerCase());
+        setIsAdmin(hasAdminRole);
       } else {
         setFirebaseUser(null);
         setIsAdmin(false);
