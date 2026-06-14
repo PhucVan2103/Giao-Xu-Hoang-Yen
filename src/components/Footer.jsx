@@ -16,7 +16,7 @@ export default function Footer({ isAdmin, footerData, contactInfo, logoConfig, s
         <div><h3 className="text-pink-100 font-bold text-xs uppercase mb-6 border-b border-pink-900/50 pb-3 tracking-widest">Kết Nối</h3><a href={footerData.facebookLink} target="_blank" rel="noreferrer" className="flex items-center gap-3 hover:text-pink-300 transition-colors"><div className="w-8 h-8 rounded-full bg-pink-900/40 flex items-center justify-center border border-pink-800/50"><FacebookIcon size={14} className="text-pink-200" /></div><span>Facebook Giáo Xứ</span></a></div>
       </div>
       <div className="max-w-6xl mx-auto px-4 mt-16 pt-6 border-t border-white/10 text-[9px] uppercase font-bold opacity-40 flex flex-col sm:flex-row justify-between items-center gap-4 tracking-widest">
-        <p>© 2013 GIÁO XỨ HOÀNG YÊN.</p>
+        <p onClick={() => setShowLoginModal(true)} className="cursor-pointer hover:opacity-100 transition-opacity">© 2013 GIÁO XỨ HOÀNG YÊN.</p>
         <div className="flex items-center gap-4 text-right">
           {isAdmin && <span onClick={() => navigate('/admin')} className="cursor-pointer text-pink-300 hover:text-white transition-all">Dashboard</span>}
         </div>
