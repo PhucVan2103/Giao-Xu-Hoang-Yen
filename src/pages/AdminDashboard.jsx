@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, CalendarDays, Map, Settings, LogOut, Menu, X, Users, Eye, Star, Globe, Plus, Search, Edit3, ChevronLeft, ChevronRight, Clock, Heart, BookOpen, MapPin, Phone, Image, AlignLeft, Inbox, Mail, MailOpen, Trash2, CheckCircle2, TrendingUp, FolderOpen, Copy, RefreshCw, HardDrive } from 'lucide-react';
+import { LayoutDashboard, FileText, CalendarDays, Map, Settings, LogOut, Menu, X, Users, Eye, Star, Globe, Plus, Search, Edit3, ChevronLeft, ChevronRight, Clock, Heart, BookOpen, MapPin, Phone, Image, AlignLeft, Inbox, Mail, MailOpen, Trash2, CheckCircle2, TrendingUp, FolderOpen, Copy, RefreshCw, HardDrive, ClipboardList } from 'lucide-react';
 import { formatDateString, getDaysArray, litColors, expandMassSchedules, normalizeMassSchedules, getStatusStyles } from '../utils/helpers';
 import { auth, db, appId } from '../utils/firebase';
 import { signOut } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins }) {
+export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, plans, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, setTempPlan, setEditingPlan, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -42,6 +42,7 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
     { name: 'Hành Hương', path: '/admin/hanh-huong', icon: Map },
     { name: 'Hộp Thư', path: '/admin/hop-thu', icon: Inbox, badge: unreadCount },
     { name: 'Thư Viện', path: '/admin/thu-vien', icon: FolderOpen },
+    { name: 'Kế Hoạch', path: '/admin/ke-hoach', icon: ClipboardList },
     { name: 'Cài Đặt', path: '/admin/cai-dat', icon: Settings },
   ];
 
@@ -112,10 +113,73 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
                <Route path="/hanh-huong" element={<PilgrimageManager pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
                <Route path="/hop-thu" element={<InboxManager messages={messages} setAppConfirm={setAppConfirm} />} />
                <Route path="/thu-vien" element={<MediaManager setAppConfirm={setAppConfirm} />} />
+               <Route path="/ke-hoach" element={<PlanManager plans={plans} setTempPlan={setTempPlan} setEditingPlan={setEditingPlan} />} />
                <Route path="/cai-dat" element={<SettingsManager parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins} />} />
             </Routes>
          </div>
       </main>
+    </div>
+  );
+}
+
+function PlanManager({ plans, setTempPlan, setEditingPlan }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredPlans = plans?.filter(plan => 
+    plan.title?.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  return (
+    <div className="animate-in fade-in zoom-in-95 duration-300 max-w-6xl mx-auto">
+       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+         <div>
+           <h1 className="text-2xl md:text-3xl font-bold text-pink-950 mb-2 uppercase tracking-tight">Kế Hoạch & Ghi Chú</h1>
+           <p className="text-stone-500 font-serif text-sm md:text-base">Không gian riêng tư của Admin để note lại các dự định và công việc sắp tới.</p>
+         </div>
+         <button onClick={() => {
+           setTempPlan({ id: Date.now(), title: '', date: '', status: 'Chưa bắt đầu', content: '' });
+           setEditingPlan('new');
+         }} className="bg-pink-600 hover:bg-pink-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md transition-all active:scale-95 flex items-center gap-2">
+           <Plus size={16} /> Thêm Kế Hoạch
+         </button>
+       </div>
+
+       <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden flex flex-col">
+         <div className="p-4 border-b border-stone-100 bg-stone-50/50">
+           <div className="relative">
+             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+             <input type="text" placeholder="Tìm kiếm kế hoạch..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:border-pink-500 outline-none transition-colors shadow-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+           </div>
+         </div>
+         
+         <div className="overflow-x-auto">
+           <table className="w-full text-left border-collapse">
+             <thead>
+               <tr className="bg-stone-100 text-[10px] uppercase tracking-widest text-stone-500 border-b border-stone-200">
+                 <th className="p-4 font-bold min-w-[200px]">Tên Kế Hoạch</th>
+                 <th className="p-4 font-bold">Ngày Dự Kiến</th>
+                 <th className="p-4 font-bold text-center">Trạng Thái</th>
+                 <th className="p-4 font-bold text-right">Thao Tác</th>
+               </tr>
+             </thead>
+             <tbody className="text-sm">
+               {filteredPlans.map(item => (
+                 <tr key={item.id} className="border-b border-stone-100 hover:bg-pink-50/30 transition-colors group">
+                   <td className="p-4"><p className="font-bold text-stone-800 font-serif leading-snug line-clamp-2 max-w-sm mb-1">{item.title}</p></td>
+                   <td className="p-4"><p className="text-[11px] text-stone-500 font-bold mb-1 flex items-center gap-1.5"><CalendarDays size={12}/>{item.date || 'Chưa xác định'}</p></td>
+                   <td className="p-4 text-center">
+                     <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full shadow-sm border uppercase tracking-wider whitespace-nowrap ${item.status === 'Hoàn thành' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : item.status === 'Đang thực hiện' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                       {item.status}
+                     </span>
+                   </td>
+                   <td className="p-4 text-right"><button onClick={() => { setTempPlan(item); setEditingPlan(item.id); }} className="p-2 text-stone-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg transition-colors border border-transparent hover:border-pink-200 shadow-sm" title="Chi tiết"><Edit3 size={16} /></button></td>
+                 </tr>
+               ))}
+               {filteredPlans.length === 0 && (<tr><td colSpan="4" className="p-8 text-center text-stone-500 font-serif italic">Không có kế hoạch nào được ghi nhận.</td></tr>)}
+             </tbody>
+           </table>
+         </div>
+       </div>
     </div>
   );
 }

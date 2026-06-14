@@ -171,6 +171,7 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [dailyVisits, setDailyVisits] = useState({});
   const [adminEmails, setAdminEmails] = useState(['admin@giaoxuhoangyen.vn', 'denthanhgiaoxuhoangyen@gmail.com']);
+  const [plans, setPlans] = useState([]);
 
   // --- States View Detail & Pagination ---
   const [selectedNews, setSelectedNews] = useState(null);
@@ -199,6 +200,8 @@ export default function App() {
   const [tempNews, setTempNews] = useState(null);
   const [editingPilgrimage, setEditingPilgrimage] = useState(null);
   const [tempPilgrimage, setTempPilgrimage] = useState(null);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [tempPlan, setTempPlan] = useState(null);
   const [editingReception, setEditingReception] = useState(false);
   const [tempReception, setTempReception] = useState({});
   const [editingLiturgyEvent, setEditingLiturgyEvent] = useState(false);
@@ -270,7 +273,7 @@ export default function App() {
       return;
     }
 
-    let unsubNews, unsubPilgrimages, unsubLiturgy, unsubConfig, unsubMessages, unsubAnalytics;
+    let unsubNews, unsubPilgrimages, unsubLiturgy, unsubConfig, unsubMessages, unsubAnalytics, unsubPlans;
 
     try {
       unsubNews = onSnapshot(
@@ -361,6 +364,16 @@ export default function App() {
         (err) => console.error("Firebase lỗi lấy Analytics:", err)
       );
 
+      unsubPlans = onSnapshot(
+        collection(db, 'artifacts', appId, 'public', 'data', 'plans'),
+        (snapshot) => {
+          const items = [];
+          snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+          setPlans(items.sort((a,b) => b.id - a.id));
+        },
+        (err) => console.error("Firebase lỗi lấy Plans:", err)
+      );
+
     } catch (err) {
       console.error("Lỗi khi thiết lập listeners Firebase:", err);
     }
@@ -372,6 +385,7 @@ export default function App() {
       if(unsubConfig) unsubConfig();
       if(unsubMessages) unsubMessages();
       if(unsubAnalytics) unsubAnalytics();
+      if(unsubPlans) unsubPlans();
     };
   // TỐI ƯU 4: Xóa [firebaseUser] khỏi dependency array, tránh việc useEffect bị kích hoạt 2 lần gây lag
   }, []);
@@ -837,10 +851,10 @@ export default function App() {
             <Route path="/tin-tuc/:id" element={<NewsDetail isAdmin={isAdmin} newsItems={newsItems} setTempNews={setTempNews} setEditingNews={setEditingNews} />} />
             <Route path="/lien-he" element={<Contact isAdmin={isAdmin} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} formStatus={formStatus} handleContactSubmit={handleContactSubmit} />} />
             <Route path="/admin/*" element={<AdminDashboard 
-              isAdmin={isAdmin} setShowLoginModal={setShowLoginModal} setIsAdmin={setIsAdmin} parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} 
+              isAdmin={isAdmin} setShowLoginModal={setShowLoginModal} setIsAdmin={setIsAdmin} parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} plans={plans}
               setTempNews={setTempNews} setEditingNews={setEditingNews} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} 
               confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} 
-              setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} 
+              setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} setTempPlan={setTempPlan} setEditingPlan={setEditingPlan}
               receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} 
               logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero}
               footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} setTempStats={setTempStats} setEditingStats={setEditingStats}
@@ -1156,6 +1170,58 @@ export default function App() {
                   toast.success('Đã lưu kế hoạch thành công!');
                 } catch(e) { 
                   console.error("Lỗi lưu hành hương:", e);
+                  toast.error("Lỗi lưu kế hoạch: " + e.message); 
+                }
+              }}>Lưu Kế Hoạch</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingPlan !== null && tempPlan && (
+        <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
+          <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 custom-scrollbar relative">
+            <button onClick={() => setEditingPlan(null)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
+            <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">{editingPlan === 'new' ? 'Thêm Kế Hoạch' : 'Sửa Kế Hoạch'}</h3>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Tiêu đề kế hoạch</label>
+            <input className="w-full border border-pink-200 p-3 rounded mb-5 font-bold text-lg outline-none focus:border-pink-600" value={tempPlan.title || ''} onChange={(e) => setTempPlan({...tempPlan, title: e.target.value})} placeholder="Nhập tiêu đề..." />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+              <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Ngày dự kiến</label><input className="w-full border border-pink-200 p-3 rounded text-sm bg-stone-50 outline-none focus:border-pink-500" value={tempPlan.date || ''} onChange={(e) => setTempPlan({...tempPlan, date: e.target.value})} placeholder="VD: 15/06/2024" /></div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Trạng Thái</label>
+                <select className="w-full border border-pink-200 p-3 rounded text-sm font-bold bg-white outline-none cursor-pointer focus:border-pink-500" value={tempPlan.status || 'Chưa bắt đầu'} onChange={(e) => setTempPlan({...tempPlan, status: e.target.value})}>
+                  <option value="Chưa bắt đầu">Chưa bắt đầu</option><option value="Đang thực hiện">Đang thực hiện</option><option value="Hoàn thành">Hoàn thành</option>
+                </select>
+              </div>
+            </div>
+            
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 mt-6 block">Nội dung chi tiết (Ghi chú)</label>
+            <div className="mb-6"><RichTextEditor value={tempPlan.content || ''} onChange={(val) => setTempPlan({...tempPlan, content: val})} minHeight="250px" /></div>
+            <div className="flex gap-4 border-t pt-5 mt-6">
+              {editingPlan !== 'new' && <button type="button" className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={async () => { 
+                if(!db) return;
+                try {
+                  await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'plans', tempPlan.id.toString())); 
+                  setEditingPlan(null); 
+                  toast.success('Đã xóa kế hoạch!');
+                } catch(e) { 
+                  console.error("Lỗi xóa kế hoạch:", e);
+                  toast.error("Lỗi xóa kế hoạch: " + e.message); 
+                }
+              }}>Xóa Kế Hoạch</button>}
+              <div className="flex-1"></div>
+              <button className="bg-stone-100 px-8 py-3 rounded font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingPlan(null)}>Hủy Bỏ</button>
+              <button className="bg-pink-700 text-white px-10 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={async () => { 
+                if (!tempPlan.title || tempPlan.title.trim() === '') return alert('Vui lòng nhập tên kế hoạch');
+                if(!db) return alert("Chưa kết nối CSDL");
+                try {
+                  const id = tempPlan.id || Date.now();
+                  const d = JSON.parse(JSON.stringify({ ...tempPlan, id }));
+                  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'plans', id.toString()), d);
+                  setEditingPlan(null); 
+                  toast.success('Đã lưu kế hoạch thành công!');
+                } catch(e) { 
+                  console.error("Lỗi lưu kế hoạch:", e);
                   toast.error("Lỗi lưu kế hoạch: " + e.message); 
                 }
               }}>Lưu Kế Hoạch</button>
