@@ -7,7 +7,7 @@ import { signOut } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, plans, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, setTempPlan, setEditingPlan, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins, planFolders }) {
+export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, plans, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, setTempPlan, setEditingPlan, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins, planFolders, setAppPrompt, saveConfigToDB }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -113,7 +113,7 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
                <Route path="/hanh-huong" element={<PilgrimageManager pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
                <Route path="/hop-thu" element={<InboxManager messages={messages} setAppConfirm={setAppConfirm} />} />
                <Route path="/thu-vien" element={<MediaManager setAppConfirm={setAppConfirm} />} />
-               <Route path="/ke-hoach" element={<PlanManager plans={plans} setTempPlan={setTempPlan} setEditingPlan={setEditingPlan} planFolders={planFolders} />} />
+               <Route path="/ke-hoach" element={<PlanManager plans={plans} setTempPlan={setTempPlan} setEditingPlan={setEditingPlan} planFolders={planFolders} setAppPrompt={setAppPrompt} saveConfigToDB={saveConfigToDB} setAppConfirm={setAppConfirm} />} />
                <Route path="/cai-dat" element={<SettingsManager parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins} />} />
             </Routes>
          </div>
@@ -122,9 +122,9 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
   );
 }
 
-function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders }) {
+function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders, setAppPrompt, saveConfigToDB, setAppConfirm }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFolder, setActiveFolder] = useState('All');
+  const [activeFolder, setActiveFolder] = useState(null);
   const [viewingPlan, setViewingPlan] = useState(null);
   
   const filteredPlans = plans?.filter(plan => {
@@ -185,30 +185,116 @@ function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders }) {
     }, 500);
   };
 
+  const handleAddFolder = () => {
+    setAppPrompt({
+      isOpen: true, title: 'Tạo Thư Mục Sự Kiện', desc: 'Nhập tên thư mục mới (Ví dụ: Hội chợ 2024, Noel...):', defaultValue: '',
+      onConfirm: (res) => {
+        setAppPrompt(prev => ({ ...prev, isOpen: false }));
+        if (res && res.trim() !== '') {
+          const newName = res.trim();
+          if (!planFolders?.includes(newName)) {
+            saveConfigToDB('planFolders', [...(planFolders || []), newName]);
+          }
+        }
+      }
+    });
+  };
+
+  const handleDeleteFolder = (folderName) => {
+    setAppConfirm({
+      isOpen: true, title: 'Xóa Thư Mục', message: `Bạn có chắc muốn xóa thư mục "${folderName}" không? Các kế hoạch bên trong sẽ vẫn còn nhưng được tự động chuyển về thư mục gốc.`, isDanger: true,
+      onConfirm: () => {
+        setAppConfirm(prev => ({ ...prev, isOpen: false }));
+        const newList = planFolders.filter(f => f !== folderName);
+        saveConfigToDB('planFolders', newList);
+      }
+    });
+  };
+
+  const handleEditFolder = (folderName) => {
+    setAppPrompt({
+      isOpen: true, title: 'Đổi Tên Thư Mục', desc: 'Nhập tên mới cho thư mục này:', defaultValue: folderName,
+      onConfirm: async (res) => {
+        setAppPrompt(prev => ({ ...prev, isOpen: false }));
+        if (res && res.trim() !== '' && res.trim() !== folderName) {
+          const newName = res.trim();
+          const newList = planFolders.map(f => f === folderName ? newName : f);
+          await saveConfigToDB('planFolders', newList);
+          
+          plans.forEach(async (p) => {
+             if ((p.folder || planFolders?.[0] || 'Chung') === folderName) {
+                 try {
+                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'plans', p.id.toString()), { folder: newName });
+                 } catch(e) { console.error("Lỗi cập nhật plan:", e); }
+             }
+          });
+        }
+      }
+    });
+  };
+
+  if (activeFolder === null) {
+     return (
+        <div className="animate-in fade-in zoom-in-95 duration-300 max-w-6xl mx-auto">
+           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+             <div>
+               <h1 className="text-2xl md:text-3xl font-bold text-pink-950 mb-2 uppercase tracking-tight">Kế Hoạch & Sự Kiện</h1>
+               <p className="text-stone-500 font-serif text-sm md:text-base">Quản lý các dự án, sự kiện và kế hoạch mục vụ theo từng thư mục.</p>
+             </div>
+             <button onClick={handleAddFolder} className="bg-pink-600 hover:bg-pink-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md transition-all active:scale-95 flex items-center gap-2">
+               <Plus size={16} /> Tạo Thư Mục Mới
+             </button>
+           </div>
+           
+           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+             <div onClick={() => setActiveFolder('All')} className="bg-white border border-stone-200 p-6 rounded-2xl shadow-sm hover:shadow-md hover:border-pink-300 transition-all cursor-pointer group flex flex-col items-center justify-center text-center h-48">
+                <div className="w-16 h-16 bg-stone-100 text-stone-500 rounded-full flex items-center justify-center mb-4 group-hover:bg-pink-50 group-hover:text-pink-600 transition-colors">
+                  <ClipboardList size={28} />
+                </div>
+                <h3 className="font-bold text-lg text-stone-800 mb-1">Tất Cả Kế Hoạch</h3>
+                <p className="text-stone-500 text-sm font-serif">{plans.length} file ghi chú</p>
+             </div>
+             
+             {(planFolders || []).map((folder, idx) => {
+                const count = plans.filter(p => (p.folder || planFolders?.[0] || 'Chung') === folder).length;
+                return (
+                  <div key={folder} onClick={() => setActiveFolder(folder)} className="bg-white border border-stone-200 p-6 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group relative flex flex-col items-center justify-center text-center h-48">
+                     <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={(e) => { e.stopPropagation(); handleEditFolder(folder); }} className="p-1.5 text-stone-400 hover:text-blue-600 bg-stone-50 hover:bg-blue-50 rounded shadow-sm border border-stone-100" title="Đổi tên thư mục"><Edit3 size={14}/></button>
+                        {idx !== 0 && <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder); }} className="p-1.5 text-stone-400 hover:text-red-600 bg-stone-50 hover:bg-red-50 rounded shadow-sm border border-stone-100" title="Xóa thư mục"><Trash2 size={14}/></button>}
+                     </div>
+                     <div className="w-full flex flex-col items-center">
+                       <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                         <FolderOpen size={28} />
+                       </div>
+                       <h3 className="font-bold text-lg text-stone-800 mb-1 line-clamp-1 px-4 w-full">{folder}</h3>
+                       <p className="text-stone-500 text-sm font-serif">{count} file ghi chú</p>
+                     </div>
+                  </div>
+                );
+             })}
+           </div>
+        </div>
+     );
+  }
+
   return (
-    <div className="animate-in fade-in zoom-in-95 duration-300 max-w-6xl mx-auto">
+    <div className="animate-in fade-in slide-in-from-right-8 duration-300 max-w-6xl mx-auto">
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
          <div>
-           <h1 className="text-2xl md:text-3xl font-bold text-pink-950 mb-2 uppercase tracking-tight">Kế Hoạch & Ghi Chú</h1>
-           <p className="text-stone-500 font-serif text-sm md:text-base">Không gian riêng tư của Admin để note lại các dự định và công việc sắp tới.</p>
+           <button onClick={() => setActiveFolder(null)} className="flex items-center gap-2 text-stone-500 hover:text-pink-600 font-bold uppercase tracking-widest text-xs mb-4 transition-colors"><ChevronLeft size={16}/> Danh sách thư mục</button>
+           <h1 className="text-2xl md:text-3xl font-bold text-pink-950 mb-2 uppercase tracking-tight flex items-center gap-3"><FolderOpen className="text-blue-500" size={28} /> {activeFolder === 'All' ? 'Tất cả kế hoạch' : activeFolder}</h1>
+           <p className="text-stone-500 font-serif text-sm md:text-base">Quản lý các file kế hoạch, ghi chú chi tiết bên trong thư mục này.</p>
          </div>
          <button onClick={() => {
            setTempPlan({ id: Date.now(), title: '', date: '', status: 'Chưa bắt đầu', priority: 'Trung bình', content: '', folder: activeFolder === 'All' ? (planFolders?.[0] || 'Chung') : activeFolder });
            setEditingPlan('new');
          }} className="bg-pink-600 hover:bg-pink-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md transition-all active:scale-95 flex items-center gap-2">
-           <Plus size={16} /> Thêm Kế Hoạch
+           <Plus size={16} /> Thêm Kế Hoạch Vào Đây
          </button>
        </div>
 
        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden flex flex-col">
-         <div className="flex gap-4 border-b border-stone-100 pt-4 px-4 overflow-x-auto custom-scrollbar bg-stone-50/30">
-            <button onClick={() => setActiveFolder('All')} className={`flex items-center gap-2 px-4 py-2 font-bold text-sm uppercase tracking-widest transition-colors whitespace-nowrap border-b-2 ${activeFolder === 'All' ? 'border-pink-500 text-pink-600' : 'border-transparent text-stone-400 hover:text-stone-600'}`}>Tất cả</button>
-            {planFolders?.map(f => (
-              <button key={f} onClick={() => setActiveFolder(f)} className={`flex items-center gap-2 px-4 py-2 font-bold text-sm uppercase tracking-widest transition-colors whitespace-nowrap border-b-2 ${activeFolder === f ? 'border-pink-500 text-pink-600' : 'border-transparent text-stone-400 hover:text-stone-600'}`}>
-                <FolderOpen size={16} className={activeFolder === f ? 'text-pink-500' : 'text-stone-300'} /> {f}
-              </button>
-            ))}
-         </div>
          <div className="p-4 border-b border-stone-100 bg-white">
            <div className="relative">
              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />

@@ -862,7 +862,7 @@ export default function App() {
               receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} 
               logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero}
               footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} setTempStats={setTempStats} setEditingStats={setEditingStats}
-              messages={messages} setAppConfirm={setAppConfirm} dailyVisits={dailyVisits} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins} planFolders={planFolders}
+              messages={messages} setAppConfirm={setAppConfirm} dailyVisits={dailyVisits} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins} planFolders={planFolders} setAppPrompt={setAppPrompt} saveConfigToDB={saveConfigToDB}
             />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
