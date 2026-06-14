@@ -246,7 +246,7 @@ export default function App() {
       if (u) {
         setFirebaseUser(u);
         // BẢO MẬT: Chỉ cấp quyền Admin cho các email được chỉ định
-        const adminEmails = ['admin@giaoxuhoangyen.vn', 'email-cua-ban@gmail.com']; 
+        const adminEmails = ['admin@giaoxuhoangyen.vn', 'email-cua-ban@gmail.com', 'email-google-thuc-te-cua-ban@gmail.com']; 
         const hasAdminRole = u.email && adminEmails.includes(u.email.toLowerCase());
         setIsAdmin(hasAdminRole);
       } else {
