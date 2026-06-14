@@ -233,10 +233,6 @@ export default function App() {
 
     if (!auth) return;
 
-    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-      signInWithCustomToken(auth, __initial_auth_token).catch(console.error);
-    }
-
     // Xử lý kết quả trả về sau khi chuyển hướng Google (Redirect Login)
     getRedirectResult(auth).then((result) => {
       if (result) {

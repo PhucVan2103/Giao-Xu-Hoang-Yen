@@ -70,7 +70,15 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
                <Globe size={18} />
                <span className="font-bold text-xs uppercase tracking-widest">Xem Trang Web</span>
             </button>
-            <button onClick={async () => { await signOut(auth); setIsAdmin(false); navigate('/'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-pink-300 bg-pink-900/40 hover:bg-pink-900 hover:text-white transition-colors border border-pink-800/50">
+         <button onClick={async () => { 
+           try {
+             await signOut(auth); 
+             setIsAdmin(false); 
+             toast.success('Đã đăng xuất an toàn');
+             navigate('/');
+             setTimeout(() => window.location.reload(), 500); // Ép trình duyệt dọn dẹp sạch cache phiên
+           } catch (err) { toast.error('Lỗi đăng xuất: ' + err.message); }
+         }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-pink-300 bg-pink-900/40 hover:bg-pink-900 hover:text-white transition-colors border border-pink-800/50">
                <LogOut size={18} />
                <span className="font-bold text-xs uppercase tracking-widest">Đăng Xuất</span>
             </button>
