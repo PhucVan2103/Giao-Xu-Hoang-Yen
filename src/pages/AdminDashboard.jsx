@@ -7,7 +7,7 @@ import { signOut } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-export default function AdminDashboard({ isAdmin, adminRole, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, plans, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, setTempPlan, setEditingPlan, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins, planFolders, setAppPrompt, saveConfigToDB }) {
+export default function AdminDashboard({ isAdmin, adminRole, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, plans, logs, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, setTempPlan, setEditingPlan, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins, planFolders, setAppPrompt, saveConfigToDB }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -107,7 +107,7 @@ export default function AdminDashboard({ isAdmin, adminRole, setShowLoginModal, 
          {/* Content Area */}
          <div className="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
             <Routes>
-               <Route path="/" element={<Overview parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} messages={messages} dailyVisits={dailyVisits} />} />
+               <Route path="/" element={<Overview parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} messages={messages} dailyVisits={dailyVisits} logs={logs} />} />
                <Route path="/tin-tuc" element={<NewsManager newsItems={newsItems} setTempNews={setTempNews} setEditingNews={setEditingNews} />} />
                <Route path="/phung-vu" element={<LiturgyManager liturgyEvents={liturgyEvents} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} />} />
                <Route path="/hanh-huong" element={<PilgrimageManager pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
@@ -885,7 +885,7 @@ function NewsManager({ newsItems, setTempNews, setEditingNews }) {
   );
 }
 
-function Overview({ parishStats, newsItems, pilgrimagePlans, liturgyEvents, messages, dailyVisits }) {
+function Overview({ parishStats, newsItems, pilgrimagePlans, liturgyEvents, messages, dailyVisits, logs }) {
   const publishedNews = newsItems.filter(n => n.status !== 'draft');
   const totalViews = publishedNews.reduce((acc, curr) => acc + (curr.views || 0), 0);
   const upcomingPilgrimages = pilgrimagePlans.filter(p => p.status === 'Sắp diễn ra' || p.status === 'Đang mở đăng ký');
@@ -935,7 +935,7 @@ function Overview({ parishStats, newsItems, pilgrimagePlans, liturgyEvents, mess
           </div>
        </div>
 
-       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
          {/* Bảng Xếp Hạng Bài Viết */}
          <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 md:p-8 flex flex-col h-[400px]">
             <h3 className="text-sm font-bold text-stone-800 mb-6 flex items-center gap-2 uppercase tracking-widest"><Star className="text-amber-500" size={18} /> Top Bài Viết</h3>
@@ -950,6 +950,25 @@ function Overview({ parishStats, newsItems, pilgrimagePlans, liturgyEvents, mess
             <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-2">
                {liturgyEvents.slice().sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map((evt, idx) => (<div key={idx} className="flex gap-4 p-4 rounded-xl border border-stone-100 bg-stone-50/50"><div className="bg-white border border-stone-200 rounded-lg w-14 h-14 flex flex-col items-center justify-center flex-shrink-0 shadow-sm"><span className="text-[9px] uppercase font-bold text-pink-600">{new Date(evt.date).toLocaleDateString('vi-VN', { month: 'short' })}</span><span className="text-lg font-bold text-stone-800 leading-none mt-0.5">{new Date(evt.date).getDate()}</span></div><div><p className="font-bold text-sm text-stone-800 mb-1">{evt.title}</p><p className="text-xs font-serif text-stone-500 line-clamp-2 leading-relaxed">{evt.desc || 'Không có mô tả'}</p></div></div>))}
                {liturgyEvents.length === 0 && <div className="h-full flex items-center justify-center text-sm text-stone-400 font-serif italic">Chưa có sự kiện phụng vụ.</div>}
+            </div>
+         </div>
+         
+         {/* Nhật ký hoạt động */}
+         <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 md:p-8 flex flex-col h-[400px]">
+            <h3 className="text-sm font-bold text-stone-800 mb-6 flex items-center gap-2 uppercase tracking-widest"><Clock className="text-blue-500" size={18} /> Nhật Ký Hoạt Động</h3>
+            <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-2">
+               {logs?.slice(0, 30).map((log) => (
+                 <div key={log.id} className="flex gap-4 p-4 rounded-xl border border-stone-100 bg-stone-50/50 hover:bg-stone-50 transition">
+                   <div className="bg-white border border-stone-200 rounded-lg w-10 h-10 flex items-center justify-center flex-shrink-0 shadow-sm font-bold text-blue-600 uppercase">
+                     {log.email?.charAt(0) || 'A'}
+                   </div>
+                   <div>
+                     <p className="font-bold text-sm text-stone-800 mb-1 leading-snug">{log.action}</p>
+                     <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">{log.email} • {new Date(log.timestamp).toLocaleString('vi-VN')}</p>
+                   </div>
+                 </div>
+               ))}
+               {(!logs || logs.length === 0) && <div className="h-full flex items-center justify-center text-sm text-stone-400 font-serif italic">Chưa có hoạt động nào.</div>}
             </div>
          </div>
        </div>

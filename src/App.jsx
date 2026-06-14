@@ -174,6 +174,7 @@ export default function App() {
   const [adminRole, setAdminRole] = useState(null);
   const [plans, setPlans] = useState([]);
   const [planFolders, setPlanFolders] = useState(['Chung', 'Đại Lễ', 'Thường Niên']);
+  const [logs, setLogs] = useState([]);
 
   // --- States View Detail & Pagination ---
   const [selectedNews, setSelectedNews] = useState(null);
@@ -286,7 +287,7 @@ export default function App() {
       return;
     }
 
-    let unsubNews, unsubPilgrimages, unsubLiturgy, unsubConfig, unsubMessages, unsubAnalytics, unsubPlans;
+    let unsubNews, unsubPilgrimages, unsubLiturgy, unsubConfig, unsubMessages, unsubAnalytics, unsubPlans, unsubLogs;
 
     try {
       unsubNews = onSnapshot(
@@ -394,6 +395,16 @@ export default function App() {
         (err) => console.error("Firebase lỗi lấy Plans:", err)
       );
 
+      unsubLogs = onSnapshot(
+        collection(db, 'artifacts', appId, 'public', 'data', 'logs'),
+        (snapshot) => {
+          const items = [];
+          snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+          setLogs(items.sort((a,b) => b.timestamp - a.timestamp));
+        },
+        (err) => console.error("Firebase lỗi lấy Logs:", err)
+      );
+
     } catch (err) {
       console.error("Lỗi khi thiết lập listeners Firebase:", err);
     }
@@ -406,6 +417,7 @@ export default function App() {
       if(unsubMessages) unsubMessages();
       if(unsubAnalytics) unsubAnalytics();
       if(unsubPlans) unsubPlans();
+      if(unsubLogs) unsubLogs();
     };
   // TỐI ƯU 4: Xóa [firebaseUser] khỏi dependency array, tránh việc useEffect bị kích hoạt 2 lần gây lag
   }, []);
@@ -456,6 +468,30 @@ export default function App() {
       
       return uniqueList;
     });
+  };
+
+  // --- Ghi lại nhật ký hoạt động (Audit Logs) ---
+  const addAdminLog = async (actionDesc) => {
+    if (!db || !firebaseUser?.email) return;
+    try {
+      const now = Date.now();
+      const logId = now.toString();
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'logs', logId), {
+        id: logId,
+        email: firebaseUser.email,
+        action: actionDesc,
+        timestamp: now
+      });
+
+      // Tự động dọn dẹp các log cũ hơn 30 ngày (Tiết kiệm dung lượng)
+      const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+      const oldLogs = logs.filter(log => log.timestamp < thirtyDaysAgo);
+      for (const log of oldLogs) {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'logs', log.id));
+      }
+    } catch (e) {
+      console.error("Lỗi lưu log:", e);
+    }
   };
 
   // --- Hàm hỗ trợ ghi dữ liệu lên Firebase ---
@@ -873,7 +909,7 @@ export default function App() {
             <Route path="/tin-tuc/:id" element={<NewsDetail isAdmin={isAdmin} newsItems={newsItems} setTempNews={setTempNews} setEditingNews={setEditingNews} />} />
             <Route path="/lien-he" element={<Contact isAdmin={isAdmin} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} formStatus={formStatus} handleContactSubmit={handleContactSubmit} />} />
             <Route path="/admin/*" element={<AdminDashboard 
-              isAdmin={isAdmin} adminRole={adminRole} setShowLoginModal={setShowLoginModal} setIsAdmin={setIsAdmin} parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} plans={plans}
+              isAdmin={isAdmin} adminRole={adminRole} setShowLoginModal={setShowLoginModal} setIsAdmin={setIsAdmin} parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} plans={plans} logs={logs}
               setTempNews={setTempNews} setEditingNews={setEditingNews} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} 
               confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} 
               setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} setTempPlan={setTempPlan} setEditingPlan={setEditingPlan}
@@ -1006,6 +1042,7 @@ export default function App() {
                 if(!db) return;
                 try {
                   await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', tempNews.id.toString())); 
+                  addAdminLog(`Đã xóa bản tin: ${tempNews.title}`);
                   if (selectedNews?.id === tempNews.id) { setSelectedNews(null); navigate('/tin-tuc'); } 
                   setEditingNews(null); 
                   toast.success('Đã xóa bản tin!');
@@ -1025,6 +1062,7 @@ export default function App() {
           // Làm sạch dữ liệu trước khi lưu Firebase
           const d = JSON.parse(JSON.stringify({ ...tempNews, id, views: tempNews.views || 0, status: tempNews.status || 'published' }));
                   await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id.toString()), d);
+                  addAdminLog(editingNews === 'new' ? `Đã đăng tin mới: ${tempNews.title}` : `Đã cập nhật bài: ${tempNews.title}`);
                   if (selectedNews?.id === id) setSelectedNews(d); 
                   setEditingNews(null); 
                   toast.success('Đã lưu bài viết thành công!');
