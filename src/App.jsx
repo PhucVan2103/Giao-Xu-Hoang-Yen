@@ -715,7 +715,11 @@ export default function App() {
           const fileName = `images/paste_${Date.now()}.png`;
           const fileData = new Uint8Array(await file.arrayBuffer());
           
-          const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(file.type)}`);
+          const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(file.type)}&size=${fileData.length}`);
+          if (!res.ok) {
+            const errData = await res.json().catch(()=>({}));
+            throw new Error(errData.error || 'Upload không thành công');
+          }
           const { uploadUrl, publicUrl } = await res.json();
           
           const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': file.type } });
@@ -725,7 +729,7 @@ export default function App() {
           toast.success('Tải ảnh thành công!', { id: toastId });
         } catch (error) {
             console.error("Lỗi upload ảnh:", error);
-            toast.error('Lỗi upload: Vui lòng kiểm tra cấu hình CORS của R2!', { id: toastId });
+            toast.error(error.message.includes('quá lớn') ? error.message : 'Lỗi upload: Vui lòng kiểm tra cấu hình R2!', { id: toastId });
             setterFunction(prev => ({ ...prev, image: prev?.image === localUrl ? '' : prev?.image }));
           } finally {
             setIsUploading(false);
@@ -755,7 +759,11 @@ export default function App() {
         const fileData = new Uint8Array(await compressedFile.arrayBuffer());
         const fileName = `images/upload_${Date.now()}_${compressedFile.name}`;
         
-        const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(compressedFile.type)}`);
+        const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(compressedFile.type)}&size=${fileData.length}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(()=>({}));
+          throw new Error(errData.error || 'Upload không thành công');
+        }
         const { uploadUrl, publicUrl } = await res.json();
         
         const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': compressedFile.type } });
@@ -765,7 +773,7 @@ export default function App() {
         toast.success('Tải ảnh thành công!', { id: toastId });
       } catch (error) {
           console.error("Lỗi upload ảnh:", error);
-          toast.error('Lỗi upload: Vui lòng kiểm tra cấu hình CORS của R2!', { id: toastId });
+          toast.error(error.message.includes('quá lớn') ? error.message : 'Lỗi upload: Vui lòng kiểm tra cấu hình R2!', { id: toastId });
           setterFunction(prev => ({ ...prev, image: prev?.image === localUrl ? '' : prev?.image }));
         } finally {
           setIsUploading(false);

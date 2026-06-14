@@ -99,6 +99,7 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
   const editorRef = useRef(null);
   const [selectedImg, setSelectedImg] = useState(null);
   const fileInputRef = useRef(null);
+  const imgInputRef = useRef(null);
   const [promptConfig, setPromptConfig] = useState({ isOpen: false, type: '', title: '', desc: '', defaultValue: '' });
   const [savedRange, setSavedRange] = useState(null);
 
@@ -134,12 +135,6 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
       selection.removeAllRanges();
       selection.addRange(savedRange);
     }
-  };
-
-  const handleInsertImage = (e) => {
-    e.preventDefault();
-    saveSelection();
-    setPromptConfig({ isOpen: true, type: 'image', title: 'Chèn Hình Ảnh', desc: 'Nhập đường dẫn (URL) của hình ảnh:', defaultValue: '' });
   };
 
   const handleInsertLink = (e) => {
@@ -191,30 +186,86 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
       if (file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
       const fileData = new Uint8Array(await file.arrayBuffer());
       
-      const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(mimeType)}`);
+      const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(mimeType)}&size=${fileData.length}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(()=>({}));
+        throw new Error(errData.error || 'Upload Failed');
+      }
       const { uploadUrl, publicUrl } = await res.json();
       
       const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': mimeType } });
       if (!uploadRes.ok) throw new Error('Upload Failed');
       
+      restoreSelection();
       execCmd('insertHTML', `<a href="${publicUrl}" target="_blank" rel="noopener noreferrer">📎 ${file.name}</a>&nbsp;`);
       toast.success('Tải tài liệu thành công!', { id: toastId });
     } catch (error) {
         console.error("Lỗi upload tài liệu:", error);
-        toast.error('Lỗi tải tài liệu: Kiểm tra CORS R2!', { id: toastId });
+        toast.error(error.message.includes('quá lớn') ? error.message : 'Lỗi tải tài liệu: Kiểm tra cấu hình R2!', { id: toastId });
       }
     e.target.value = null; // Reset input sau khi upload
   };
 
-  const handlePaste = (e) => {
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const toastId = toast.loading('Đang tải ảnh lên...');
+    try {
+      const fileName = `images/editor_${Date.now()}_${file.name}`;
+      const fileData = new Uint8Array(await file.arrayBuffer());
+      
+      const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(file.type)}&size=${fileData.length}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(()=>({}));
+        throw new Error(errData.error || 'Upload Failed');
+      }
+      const { uploadUrl, publicUrl } = await res.json();
+      
+      const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': file.type } });
+      if (!uploadRes.ok) throw new Error('Upload Failed');
+      
+      restoreSelection();
+      execCmd('insertHTML', `<img src="${publicUrl}" style="display: block; float: none; margin: 1.5rem auto;" /><p><br></p>`);
+      toast.success('Tải ảnh thành công!', { id: toastId });
+    } catch (error) {
+      console.error("Lỗi upload ảnh:", error);
+      toast.error(error.message.includes('quá lớn') ? error.message : 'Lỗi tải ảnh: Kiểm tra cấu hình R2!', { id: toastId });
+    }
+    e.target.value = null; // Reset input sau khi upload
+  };
+
+  const handlePaste = async (e) => {
     const items = (e.clipboardData || e.originalEvent.clipboardData).items;
     for (let index in items) {
       const item = items[index];
       if (item.kind === 'file' && item.type.startsWith('image/')) {
         e.preventDefault();
-        const reader = new FileReader();
-        reader.onload = (event) => execCmd('insertHTML', `<img src="${event.target.result}" style="display: block; float: none; margin: 1.5rem auto;" /><p><br></p>`);
-        reader.readAsDataURL(item.getAsFile());
+        const file = item.getAsFile();
+        
+        saveSelection();
+        const toastId = toast.loading('Đang tải ảnh dán lên...');
+        try {
+          const fileName = `images/paste_${Date.now()}.png`;
+          const fileData = new Uint8Array(await file.arrayBuffer());
+          
+          const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(file.type)}&size=${fileData.length}`);
+          if (!res.ok) {
+            const errData = await res.json().catch(()=>({}));
+            throw new Error(errData.error || 'Upload không thành công');
+          }
+          const { uploadUrl, publicUrl } = await res.json();
+          
+          const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': file.type } });
+          if (!uploadRes.ok) throw new Error('Upload không thành công');
+          
+          restoreSelection();
+          execCmd('insertHTML', `<img src="${publicUrl}" style="display: block; float: none; margin: 1.5rem auto;" /><p><br></p>`);
+          toast.success('Tải ảnh thành công!', { id: toastId });
+        } catch (error) {
+          console.error("Lỗi upload ảnh:", error);
+          toast.error(error.message.includes('quá lớn') ? error.message : 'Lỗi upload ảnh: Kiểm tra cấu hình R2!', { id: toastId });
+        }
         return;
       }
     }
@@ -232,16 +283,17 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
         <input type="color" onInput={(e) => execCmd('backColor', e.target.value)} defaultValue="#ffff00" className="w-6 h-6 p-0 bg-transparent border-0 cursor-pointer rounded hover:scale-110 transition-transform" title="Tô màu nền (Highlight)" />
         <div className="w-px h-4 bg-pink-200 mx-1"></div>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={handleInsertLink} className="p-1.5 hover:bg-pink-200 rounded text-stone-700" title="Chèn liên kết (Link)"><LinkIcon size={14}/></button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-pink-200 rounded text-stone-700" title="Đính kèm tài liệu (PDF, Word, Excel)"><Paperclip size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => { saveSelection(); fileInputRef.current?.click(); }} className="p-1.5 hover:bg-pink-200 rounded text-stone-700" title="Đính kèm tài liệu (PDF, Word, Excel)"><Paperclip size={14}/></button>
         <div className="w-px h-4 bg-pink-200 mx-1"></div>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('left')} className="p-1.5 hover:bg-pink-200 rounded ml-2 text-stone-700"><AlignLeft size={14}/></button>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('center')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><AlignCenter size={14}/></button>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => handleAlign('right')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><AlignRight size={14}/></button>
         <div className="w-px h-4 bg-pink-200 mx-1"></div>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={handleInsertImage} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><ImageIcon size={14}/></button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => { saveSelection(); imgInputRef.current?.click(); }} className="p-1.5 hover:bg-pink-200 rounded text-stone-700" title="Tải ảnh lên"><ImageIcon size={14}/></button>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={handleInsertVideo} className="p-1.5 hover:bg-pink-200 rounded text-stone-700" title="Chèn Video YouTube/Facebook"><Video size={14}/></button>
       </div>
       <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" ref={fileInputRef} onChange={handleAttachmentUpload} className="hidden" />
+      <input type="file" accept="image/*" ref={imgInputRef} onChange={handleImageUpload} className="hidden" />
       <div ref={editorRef} contentEditable onInput={handleInput} onPaste={handlePaste} onClick={(e) => { if (e.target.tagName === 'IMG') { e.target.style.outline = '3px solid #ec4899'; setSelectedImg(e.target); } else { if (selectedImg) selectedImg.style.outline='none'; setSelectedImg(null); } }} className={`p-4 focus:outline-none overflow-y-auto ${editorContentClasses}`} style={{ minHeight }} />
       <PromptModal isOpen={promptConfig.isOpen} title={promptConfig.title} desc={promptConfig.desc} defaultValue={promptConfig.defaultValue} onCancel={() => { restoreSelection(); setPromptConfig({ ...promptConfig, isOpen: false }); }} onConfirm={onPromptConfirm} />
     </div>

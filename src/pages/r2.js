@@ -24,7 +24,16 @@ export default async function handler(req, res) {
   try {
     // 1. Tạo Pre-signed URL cho Frontend upload
     if (action === 'presign') {
-      const { key, contentType } = req.query;
+      const { key, contentType, size } = req.query;
+      
+      // Giới hạn kích thước file tải lên (Ví dụ: 5MB = 5 * 1024 * 1024 bytes)
+      const MAX_SIZE_BYTES = 5 * 1024 * 1024;
+      const fileSize = parseInt(size || '0', 10);
+      
+      if (fileSize > MAX_SIZE_BYTES) {
+        return res.status(400).json({ error: 'Kích thước file quá lớn. Vui lòng chọn file dưới 5MB.' });
+      }
+
       const command = new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key, ContentType: contentType });
       const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
       return res.status(200).json({ uploadUrl, publicUrl: `${R2_PUBLIC_URL}/${key}` });
