@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, CalendarDays, Map, Settings, LogOut, Menu, X, Users, Eye, Star, Globe, Plus, Search, Edit3, ChevronLeft, ChevronRight, Clock, Heart, BookOpen, MapPin, Phone, Image, AlignLeft, Inbox, Mail, MailOpen, Trash2, CheckCircle2, TrendingUp, FolderOpen, Copy, RefreshCw, HardDrive, ClipboardList, Paperclip } from 'lucide-react';
+import { LayoutDashboard, FileText, CalendarDays, Map, Settings, LogOut, Menu, X, Users, Eye, Star, Globe, Plus, Search, Edit3, ChevronLeft, ChevronRight, Clock, Heart, BookOpen, MapPin, Phone, Image, AlignLeft, Inbox, Mail, MailOpen, Trash2, CheckCircle2, TrendingUp, FolderOpen, Copy, RefreshCw, HardDrive, ClipboardList, Paperclip, Printer } from 'lucide-react';
 import { formatDateString, getDaysArray, litColors, expandMassSchedules, normalizeMassSchedules, getStatusStyles } from '../utils/helpers';
 import { auth, db, appId } from '../utils/firebase';
 import { signOut } from 'firebase/auth';
@@ -124,11 +124,62 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
 
 function PlanManager({ plans, setTempPlan, setEditingPlan }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedPlanId, setExpandedPlanId] = useState(null);
+  const [viewingPlan, setViewingPlan] = useState(null);
   
   const filteredPlans = plans?.filter(plan => 
     plan.title?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
+
+  // Hàm xử lý tạo trang và In (Hoặc lưu PDF)
+  const handlePrint = () => {
+    if (!viewingPlan) return;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>In Kế Hoạch: ${viewingPlan.title}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, serif; padding: 40px; color: #1c1917; line-height: 1.6; max-width: 800px; margin: auto; }
+            h1 { color: #831843; border-bottom: 2px solid #fce7f3; padding-bottom: 10px; margin-bottom: 20px; text-transform: uppercase; font-size: 24px; }
+            .meta { margin-bottom: 30px; font-size: 14px; color: #57534e; display: flex; gap: 15px; }
+            .meta span { font-weight: bold; background: #fafaf9; padding: 6px 12px; border-radius: 4px; border: 1px solid #e7e5e4; }
+            .content { margin-top: 30px; font-family: serif; font-size: 16px; }
+            .content img { max-width: 100%; height: auto; border-radius: 8px; margin: 20px 0; }
+            .content a { color: #2563eb; text-decoration: none; }
+            .attachments { margin-top: 40px; border-top: 1px dashed #d6d3d1; padding-top: 20px; }
+            .attachments h3 { font-size: 16px; color: #44403c; margin-bottom: 10px; text-transform: uppercase; }
+            .attachments ul { list-style-type: none; padding: 0; }
+            .attachments li { margin-bottom: 8px; font-size: 14px; background: #f5f5f4; padding: 8px 12px; border-radius: 4px; border: 1px solid #e7e5e4; }
+            @media print { @page { margin: 20mm; } body { padding: 0; max-width: 100%; } }
+          </style>
+        </head>
+        <body>
+          <h1>${viewingPlan.title}</h1>
+          <div class="meta">
+            <span>Trạng thái: ${viewingPlan.status}</span>
+            <span>Ngày dự kiến: ${viewingPlan.date || 'Chưa xác định'}</span>
+          </div>
+          <div class="content">
+            ${viewingPlan.content || '<p><i>Chưa có nội dung ghi chú.</i></p>'}
+          </div>
+          ${viewingPlan.attachments && viewingPlan.attachments.length > 0 ? `
+            <div class="attachments">
+              <h3>Tài liệu đính kèm (${viewingPlan.attachments.length})</h3>
+              <ul>${viewingPlan.attachments.map(att => `<li>📎 ${att.name}</li>`).join('')}</ul>
+            </div>
+          ` : ''}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    // Đợi 500ms để hình ảnh (nếu có) kịp tải xuống trước khi gọi lệnh In
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
+  };
 
   return (
     <div className="animate-in fade-in zoom-in-95 duration-300 max-w-6xl mx-auto">
@@ -165,55 +216,70 @@ function PlanManager({ plans, setTempPlan, setEditingPlan }) {
              </thead>
              <tbody className="text-sm">
                {filteredPlans.map(item => (
-                 <React.Fragment key={item.id}>
-                   <tr className="border-b border-stone-100 hover:bg-pink-50/30 transition-colors group">
-                     <td className="p-4"><p className="font-bold text-stone-800 font-serif leading-snug line-clamp-2 max-w-sm mb-1">{item.title}</p></td>
-                     <td className="p-4"><p className="text-[11px] text-stone-500 font-bold mb-1 flex items-center gap-1.5"><CalendarDays size={12}/>{item.date || 'Chưa xác định'}</p></td>
-                     <td className="p-4 text-center">
-                       <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full shadow-sm border uppercase tracking-wider whitespace-nowrap ${item.status === 'Hoàn thành' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : item.status === 'Đang thực hiện' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
-                         {item.status}
-                       </span>
-                     </td>
-                     <td className="p-4 text-right flex justify-end gap-1">
-                       <button onClick={() => setExpandedPlanId(expandedPlanId === item.id ? null : item.id)} className={`p-2 rounded-lg transition-colors border shadow-sm ${expandedPlanId === item.id ? 'bg-blue-100 text-blue-600 border-blue-200' : 'text-stone-500 border-transparent hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200'}`} title="Xem chi tiết nội dung"><Eye size={16} /></button>
-                       <button onClick={() => { setTempPlan(item); setEditingPlan(item.id); }} className="p-2 text-stone-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg transition-colors border border-transparent hover:border-pink-200 shadow-sm" title="Chỉnh sửa"><Edit3 size={16} /></button>
-                     </td>
-                   </tr>
-                   {expandedPlanId === item.id && (
-                     <tr className="bg-stone-50/50 border-b border-stone-100">
-                       <td colSpan="4" className="p-4 md:p-6 animate-in slide-in-from-top-2 duration-200">
-                          <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-inner max-w-4xl mx-auto">
-                             <h4 className="font-bold text-stone-800 mb-4 uppercase tracking-widest text-xs border-b border-stone-100 pb-2">Nội dung chi tiết</h4>
-                             {item.content ? (
-                               <div className="font-serif text-sm text-stone-700 leading-relaxed mb-6 [&_img]:max-w-full [&_img]:rounded-md [&_img]:my-2 [&_a]:text-blue-600 [&_a]:underline" dangerouslySetInnerHTML={{ __html: item.content }} />
-                             ) : (
-                               <p className="text-sm font-serif italic text-stone-400 mb-6">Chưa có nội dung ghi chú.</p>
-                             )}
-                             
-                             {item.attachments && item.attachments.length > 0 && (
-                               <div>
-                                 <h4 className="font-bold text-stone-800 mb-3 uppercase tracking-widest text-xs border-b border-stone-100 pb-2">Tài liệu đính kèm</h4>
-                                 <div className="flex flex-wrap gap-3">
-                                   {item.attachments.map((att, idx) => (
-                                     <a key={idx} href={att.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-stone-100 hover:bg-pink-50 border border-stone-200 hover:border-pink-200 px-3 py-2 rounded-lg text-sm font-bold text-blue-600 transition-colors shadow-sm">
-                                       <Paperclip size={14} className="text-stone-500"/>
-                                       <span className="truncate max-w-[200px]">{att.name}</span>
-                                     </a>
-                                   ))}
-                                 </div>
-                               </div>
-                             )}
-                          </div>
-                       </td>
-                     </tr>
-                   )}
-                 </React.Fragment>
+                 <tr key={item.id} className="border-b border-stone-100 hover:bg-pink-50/30 transition-colors group">
+                   <td className="p-4"><p className="font-bold text-stone-800 font-serif leading-snug line-clamp-2 max-w-sm mb-1">{item.title}</p></td>
+                   <td className="p-4"><p className="text-[11px] text-stone-500 font-bold mb-1 flex items-center gap-1.5"><CalendarDays size={12}/>{item.date || 'Chưa xác định'}</p></td>
+                   <td className="p-4 text-center">
+                     <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full shadow-sm border uppercase tracking-wider whitespace-nowrap ${item.status === 'Hoàn thành' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : item.status === 'Đang thực hiện' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                       {item.status}
+                     </span>
+                   </td>
+                   <td className="p-4 text-right flex justify-end gap-1">
+                     <button onClick={() => setViewingPlan(item)} className="p-2 rounded-lg transition-colors border shadow-sm text-stone-500 border-transparent hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200" title="Xem chi tiết nội dung"><Eye size={16} /></button>
+                     <button onClick={() => { setTempPlan(item); setEditingPlan(item.id); }} className="p-2 text-stone-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg transition-colors border border-transparent hover:border-pink-200 shadow-sm" title="Chỉnh sửa"><Edit3 size={16} /></button>
+                   </td>
+                 </tr>
                ))}
                {filteredPlans.length === 0 && (<tr><td colSpan="4" className="p-8 text-center text-stone-500 font-serif italic">Không có kế hoạch nào được ghi nhận.</td></tr>)}
              </tbody>
            </table>
          </div>
        </div>
+
+       {/* Popup Xem chi tiết kế hoạch */}
+       {viewingPlan && (
+         <div className="fixed inset-0 z-[300] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
+           <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-blue-500 custom-scrollbar relative">
+             <div className="absolute top-4 right-4 flex items-center gap-2 bg-white pl-2">
+               <button onClick={handlePrint} className="p-1.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-lg transition-all border border-transparent shadow-sm" title="In / Xuất file PDF kế hoạch này"><Printer size={20} /></button>
+               <button onClick={() => setViewingPlan(null)} className="p-1.5 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Đóng lại"><X size={20} /></button>
+             </div>
+             <h3 className="text-xl md:text-2xl font-bold text-stone-800 mb-3 uppercase tracking-tight pr-20">{viewingPlan.title}</h3>
+             
+             <div className="flex flex-wrap items-center gap-4 mb-6 border-b border-stone-100 pb-4">
+                <span className={`text-[10px] font-bold px-3 py-1 rounded-full shadow-sm border uppercase tracking-wider whitespace-nowrap ${viewingPlan.status === 'Hoàn thành' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : viewingPlan.status === 'Đang thực hiện' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                  {viewingPlan.status}
+                </span>
+                <p className="text-sm text-stone-500 font-bold flex items-center gap-1.5"><CalendarDays size={16}/> {viewingPlan.date || 'Chưa xác định'}</p>
+             </div>
+
+             <h4 className="font-bold text-stone-800 mb-4 uppercase tracking-widest text-xs border-b border-stone-50 pb-2">Nội dung chi tiết</h4>
+             {viewingPlan.content ? (
+               <div className="font-serif text-sm md:text-base text-stone-700 leading-relaxed mb-8 [&_img]:max-w-full [&_img]:rounded-md [&_img]:my-4 [&_a]:text-blue-600 [&_a]:underline" dangerouslySetInnerHTML={{ __html: viewingPlan.content }} />
+             ) : (
+               <p className="text-sm font-serif italic text-stone-400 mb-8">Chưa có nội dung ghi chú.</p>
+             )}
+             
+             {viewingPlan.attachments && viewingPlan.attachments.length > 0 && (
+               <div>
+                 <h4 className="font-bold text-stone-800 mb-3 uppercase tracking-widest text-xs border-b border-stone-50 pb-2">Tài liệu đính kèm ({viewingPlan.attachments.length})</h4>
+                 <div className="flex flex-wrap gap-3">
+                   {viewingPlan.attachments.map((att, idx) => (
+                     <a key={idx} href={att.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-stone-50 hover:bg-blue-50 border border-stone-200 hover:border-blue-200 px-4 py-2.5 rounded-lg text-sm font-bold text-blue-600 transition-colors shadow-sm">
+                       <Paperclip size={16} className="text-stone-500"/>
+                       <span className="truncate max-w-[250px]">{att.name}</span>
+                     </a>
+                   ))}
+                 </div>
+               </div>
+             )}
+             
+             <div className="mt-8 pt-5 border-t border-stone-100 flex justify-end">
+               <button onClick={() => setViewingPlan(null)} className="bg-stone-100 px-8 py-3 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-stone-200 transition text-stone-600">Đóng Lại</button>
+             </div>
+           </div>
+         </div>
+       )}
     </div>
   );
 }
