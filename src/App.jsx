@@ -6,7 +6,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import toast, { Toaster } from 'react-hot-toast';
 
 import { auth, db, appId } from './utils/firebase';
-import { signInAnonymously, signInWithCustomToken, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
+import { signInWithCustomToken, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, increment } from 'firebase/firestore';
 import imageCompression from 'browser-image-compression';
 
@@ -229,18 +229,19 @@ export default function App() {
     }
 
     if (!auth) return;
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) {
-        console.error("Lỗi xác thực Firebase:", err);
+
+    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+      signInWithCustomToken(auth, __initial_auth_token).catch(console.error);
+    }
+
+    // Xử lý kết quả trả về sau khi chuyển hướng Google (Redirect Login)
+    getRedirectResult(auth).then((result) => {
+      if (result) {
+        toast.success('Đăng nhập Google thành công!');
+        setShowLoginModal(false);
+        navigate('/admin');
       }
-    };
-    initAuth();
+    }).catch(console.error);
     
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
@@ -252,8 +253,6 @@ export default function App() {
       } else {
         setFirebaseUser(null);
         setIsAdmin(false);
-        // Tự động đăng nhập ẩn danh lại nếu bị đăng xuất
-        await signInAnonymously(auth).catch(console.error);
       }
     });
     return () => unsubscribe();
@@ -645,8 +644,16 @@ export default function App() {
       if (redirectToAdmin) navigate('/admin');
     } catch (error) {
       console.error("Lỗi đăng nhập Google:", error);
-      setLoginError('Đăng nhập Google thất bại!');
-      toast.error('Đăng nhập thất bại', { id: toastId });
+      // Nếu trình duyệt chặn Popup -> Chuyển sang Redirect để không bị lỗi
+      if (error.code === 'auth/popup-blocked' || error.message.includes('Cross-Origin-Opener-Policy') || error.message.includes('popup')) {
+        toast.loading('Trình duyệt chặn Popup, đang chuyển hướng trang...', { id: toastId });
+        signInWithRedirect(auth, provider).catch(err => {
+          toast.error('Lỗi chuyển hướng: ' + err.message, { id: toastId });
+        });
+      } else {
+        setLoginError('Đăng nhập Google thất bại!');
+        toast.error('Đăng nhập thất bại: ' + error.message, { id: toastId });
+      }
     }
   };
 
