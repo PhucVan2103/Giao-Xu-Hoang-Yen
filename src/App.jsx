@@ -170,6 +170,7 @@ export default function App() {
   const [newsCategories, setNewsCategories] = useState(['Tin Tức', 'Sự kiện', 'Giáo lý', 'Thông báo']);
   const [messages, setMessages] = useState([]);
   const [dailyVisits, setDailyVisits] = useState({});
+  const [adminEmails, setAdminEmails] = useState(['admin@giaoxuhoangyen.vn', 'denthanhgiaoxuhoangyen@gmail.com']);
 
   // --- States View Detail & Pagination ---
   const [selectedNews, setSelectedNews] = useState(null);
@@ -206,6 +207,8 @@ export default function App() {
   const [tempConfession, setTempConfession] = useState({});
   const [editingAdoration, setEditingAdoration] = useState(false);
   const [tempAdoration, setTempAdoration] = useState({});
+  const [editingAdmins, setEditingAdmins] = useState(false);
+  const [tempAdmins, setTempAdmins] = useState([]);
 
   // --- States Modals Chuyên Nghiệp ---
   const [appConfirm, setAppConfirm] = useState({ isOpen: false, title: '', message: '', isDanger: false, onConfirm: null });
@@ -246,10 +249,6 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setFirebaseUser(u);
-        // BẢO MẬT: Chỉ cấp quyền Admin cho các email được chỉ định
-        const adminEmails = ['admin@giaoxuhoangyen.vn', 'denthanhgiaoxuhoangyen@gmail.com']; 
-        const hasAdminRole = u.email && adminEmails.includes(u.email.toLowerCase());
-        setIsAdmin(hasAdminRole);
       } else {
         setFirebaseUser(null);
         setIsAdmin(false);
@@ -257,6 +256,16 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // 1.5 Cập nhật quyền Admin tự động khi user hoặc danh sách email đổi
+  useEffect(() => {
+    if (firebaseUser && firebaseUser.email) {
+      const hasAdminRole = adminEmails.includes(firebaseUser.email.toLowerCase());
+      setIsAdmin(hasAdminRole);
+    } else {
+      setIsAdmin(false);
+    }
+  }, [firebaseUser, adminEmails]);
 
   // 2. Data Synchronization (Bọc Try-Catch chống Crash)
   useEffect(() => {
@@ -320,6 +329,7 @@ export default function App() {
               if (d.receptionInfo) setReceptionInfo(d.receptionInfo);
               if (d.footerData) setFooterData(d.footerData);
               if (d.newsCategories) setNewsCategories(d.newsCategories);
+              if (d.adminEmails) setAdminEmails(d.adminEmails);
               
               // Tương thích ngược: Vẫn đọc từ main nếu chưa từng tách ra doc riêng
               if (d.logoConfig && !updatedLogo) updatedLogo = d.logoConfig;
@@ -437,6 +447,7 @@ export default function App() {
       case 'confessionData': setConfessionData(value); break;
       case 'adorationData': setAdorationData(value); break;
       case 'newsCategories': setNewsCategories(value); break;
+      case 'adminEmails': setAdminEmails(value); break;
       default: break;
     }
 
@@ -481,6 +492,7 @@ export default function App() {
         const toastId = toast.loading('Đang khởi tạo dữ liệu mẫu...');
         try {
       const mockConfig = {
+        adminEmails: ['admin@giaoxuhoangyen.vn', 'denthanhgiaoxuhoangyen@gmail.com'],
         parishStats: { population: '5,420', priest: 'Lm. Giuse Nguyễn Văn A', patron: 'Các Thánh Tử Đạo VN', address: '123 Các Thánh Tử Đạo, TP.HCM', seasonTheme: 'default' },
         quote: { text: "<p>Ta là bánh hằng sống từ trời xuống. Ai ăn bánh này, sẽ được sống muôn đời.</p>", ref: "Ga 6, 51" },
         massSchedules: [
@@ -828,7 +840,7 @@ export default function App() {
               receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} 
               logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero}
               footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} setTempStats={setTempStats} setEditingStats={setEditingStats}
-              messages={messages} setAppConfirm={setAppConfirm} dailyVisits={dailyVisits}
+              messages={messages} setAppConfirm={setAppConfirm} dailyVisits={dailyVisits} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins}
             />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -1378,6 +1390,25 @@ export default function App() {
             <ImageAdjuster data={tempLogoConfig} setData={setTempLogoConfig} aspectClass="w-40 h-40 rounded-full" />
 
             <div className="flex gap-3 mt-6"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingLogo(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('logoConfig', tempLogoConfig); setEditingLogo(false); }}>Lưu Logo</button></div>
+          </div>
+        </div>
+      )}
+
+      {editingAdmins && (
+        <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in zoom-in duration-200">
+          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border-t-4 border-pink-600 relative">
+             <button onClick={() => setEditingAdmins(false)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
+            <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Quản Lý Admin</h3>
+            <div className="space-y-4 mb-6">
+              {tempAdmins.map((email, idx) => (
+                <div key={idx} className="flex gap-2 items-center bg-stone-50 p-2 rounded-lg border border-stone-200">
+                  <input className="flex-1 bg-transparent text-sm outline-none font-bold" value={email} onChange={e => { const n = [...tempAdmins]; n[idx] = e.target.value.toLowerCase(); setTempAdmins(n); }} placeholder="email@gmail.com" />
+                  <button onClick={() => { const n = [...tempAdmins]; n.splice(idx, 1); setTempAdmins(n); }} className="text-stone-400 hover:text-red-500 p-1.5"><X size={16}/></button>
+                </div>
+              ))}
+              <button onClick={() => setTempAdmins([...tempAdmins, ''])} className="w-full py-2 bg-pink-50 text-pink-700 font-bold uppercase text-[10px] tracking-widest rounded border border-pink-200 hover:bg-pink-100">+ Thêm Email Admin</button>
+            </div>
+            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingAdmins(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('adminEmails', tempAdmins.filter(e => e.trim())); setEditingAdmins(false); }}>Lưu Lại</button></div>
           </div>
         </div>
       )}

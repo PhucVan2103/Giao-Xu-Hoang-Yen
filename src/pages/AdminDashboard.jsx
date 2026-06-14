@@ -7,20 +7,29 @@ import { signOut } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits }) {
+export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Chặn người dùng lạ (Yêu cầu đăng nhập)
+  // Guard Route: Tự động kiểm tra quyền và chặn truy cập trái phép
+  useEffect(() => {
+    if (!isAdmin) {
+      // Đợi 2 giây để Firebase kịp khôi phục phiên đăng nhập (nếu Admin ấn F5)
+      const timer = setTimeout(() => {
+        toast.error('Truy cập bị từ chối! Vui lòng đăng nhập quyền Admin.');
+        navigate('/');
+        setShowLoginModal(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isAdmin, navigate, setShowLoginModal]);
+
   if (!isAdmin) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-lg max-w-sm w-full text-center border-t-4 border-pink-600">
-          <h2 className="text-xl font-bold text-pink-950 mb-4 uppercase tracking-widest">Khu Vực Quản Trị</h2>
-          <p className="mb-6 text-sm font-serif text-stone-500">Vui lòng đăng nhập để truy cập Bảng điều khiển (Dashboard).</p>
-          <button onClick={() => { navigate('/'); setShowLoginModal(true); }} className="w-full bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-md transition-all active:scale-95">Quay về & Đăng nhập</button>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 p-4 absolute inset-0 z-[300]">
+        <div className="w-10 h-10 border-4 border-pink-200 border-t-pink-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-pink-800 font-bold uppercase tracking-widest text-xs">Đang kiểm tra quyền truy cập...</p>
       </div>
     );
   }
@@ -95,7 +104,7 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
                <Route path="/hanh-huong" element={<PilgrimageManager pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
                <Route path="/hop-thu" element={<InboxManager messages={messages} setAppConfirm={setAppConfirm} />} />
                <Route path="/thu-vien" element={<MediaManager setAppConfirm={setAppConfirm} />} />
-               <Route path="/cai-dat" element={<SettingsManager parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} />} />
+               <Route path="/cai-dat" element={<SettingsManager parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins} />} />
             </Routes>
          </div>
       </main>
@@ -202,7 +211,7 @@ function MediaManager({ setAppConfirm }) {
   );
 }
 
-function SettingsManager({ parishStats, setTempStats, setEditingStats, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, contactInfo, setTempContact, setEditingContact, footerData, setTempFooter, setEditingFooter }) {
+function SettingsManager({ parishStats, setTempStats, setEditingStats, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, contactInfo, setTempContact, setEditingContact, footerData, setTempFooter, setEditingFooter, adminEmails, setTempAdmins, setEditingAdmins }) {
   return (
     <div className="animate-in fade-in zoom-in-95 duration-300 max-w-6xl mx-auto">
       <div className="mb-8">
@@ -273,6 +282,23 @@ function SettingsManager({ parishStats, setTempStats, setEditingStats, logoConfi
             <p className="text-blue-600 truncate text-[11px] bg-blue-50 px-2 py-1 rounded border border-blue-100">{footerData.facebookLink || 'Chưa có link FB'}</p>
           </div>
           <button onClick={() => { setTempFooter(footerData); setTempContact(contactInfo); setEditingFooter(true); }} className="w-full py-3 bg-stone-50 hover:bg-pink-600 text-stone-600 hover:text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-colors shadow-sm">Sửa Chân Trang</button>
+        </div>
+        
+        {/* Thẻ Quản Lý Admin */}
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 flex flex-col relative group hover:border-pink-200 hover:shadow-md transition-all">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-sm"><Users size={20} /></div>
+            <h3 className="font-bold text-stone-800 uppercase tracking-widest text-sm">Tài Khoản Admin</h3>
+          </div>
+          <div className="flex-1 space-y-3 mb-8 text-sm custom-scrollbar overflow-y-auto max-h-32">
+            {adminEmails?.map((email, idx) => (
+              <div key={idx} className="flex gap-3 items-center border-b border-stone-50 pb-2">
+                <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
+                <span className="font-bold text-stone-700 truncate">{email}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => { setTempAdmins(adminEmails || []); setEditingAdmins(true); }} className="w-full py-3 bg-stone-50 hover:bg-pink-600 text-stone-600 hover:text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-colors shadow-sm">Quản Lý Admin</button>
         </div>
       </div>
     </div>
