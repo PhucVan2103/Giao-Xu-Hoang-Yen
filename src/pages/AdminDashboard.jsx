@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, CalendarDays, Map, Settings, LogOut, Menu, X, Users, Eye, Star, Globe, Plus, Search, Edit3, ChevronLeft, ChevronRight, Clock, Heart, BookOpen, MapPin, Phone, Image, AlignLeft, Inbox, Mail, MailOpen, Trash2, CheckCircle2, TrendingUp, FolderOpen, Copy, RefreshCw, HardDrive, ClipboardList, Paperclip, Printer } from 'lucide-react';
+import { LayoutDashboard, FileText, CalendarDays, Map, Settings, LogOut, Menu, X, Users, Eye, Star, Globe, Plus, Search, Edit3, ChevronLeft, ChevronRight, Clock, Heart, BookOpen, MapPin, Phone, Image, AlignLeft, Inbox, Mail, MailOpen, Trash2, CheckCircle2, TrendingUp, FolderOpen, Copy, RefreshCw, HardDrive, ClipboardList, Paperclip, Printer, List } from 'lucide-react';
 import { formatDateString, getDaysArray, litColors, expandMassSchedules, normalizeMassSchedules, getStatusStyles } from '../utils/helpers';
 import { auth, db, appId } from '../utils/firebase';
 import { signOut } from 'firebase/auth';
@@ -126,11 +126,29 @@ function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders, setAppPr
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFolder, setActiveFolder] = useState(null);
   const [viewingPlan, setViewingPlan] = useState(null);
+  const [viewMode, setViewMode] = useState('list');
+  const [calendarDate, setCalendarDate] = useState(new Date());
+
+  const prevMonth = () => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1));
+  const nextMonth = () => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
   
+  // Hàm parse ngày dạng DD/MM/YYYY để tính toán sắp xếp thời gian
+  const parseDateStr = (dateStr) => {
+    if (!dateStr) return 0;
+    const parts = dateStr.split('/');
+    if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+    return 0;
+  };
+
   const filteredPlans = plans?.filter(plan => {
     const matchesSearch = plan.title?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFolder = activeFolder === 'All' || (plan.folder || planFolders?.[0] || 'Chung') === activeFolder;
     return matchesSearch && matchesFolder;
+  }).sort((a, b) => {
+    const timeA = parseDateStr(a.date);
+    const timeB = parseDateStr(b.date);
+    if (timeA !== timeB) return timeB - timeA; // Sắp xếp theo ngày dự kiến (Mới nhất hiện trước)
+    return b.id - a.id; // Nếu trùng ngày, Kế hoạch nào tạo sau sẽ hiện trước
   }) || [];
 
   // Hàm xử lý tạo trang và In (Hoặc lưu PDF)
@@ -201,6 +219,10 @@ function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders, setAppPr
   };
 
   const handleDeleteFolder = (folderName) => {
+    if (folderName === (planFolders?.[0] || 'Chung') || folderName === 'Chung') {
+      toast.error('Bảo mật: Không được phép xóa thư mục gốc!');
+      return;
+    }
     setAppConfirm({
       isOpen: true, title: 'Xóa Thư Mục', message: `Bạn có chắc muốn xóa thư mục "${folderName}" không? Các kế hoạch bên trong sẽ vẫn còn nhưng được tự động chuyển về thư mục gốc.`, isDanger: true,
       onConfirm: () => {
@@ -212,6 +234,10 @@ function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders, setAppPr
   };
 
   const handleEditFolder = (folderName) => {
+    if (folderName === (planFolders?.[0] || 'Chung') || folderName === 'Chung') {
+      toast.error('Bảo mật: Không được phép đổi tên thư mục gốc!');
+      return;
+    }
     setAppPrompt({
       isOpen: true, title: 'Đổi Tên Thư Mục', desc: 'Nhập tên mới cho thư mục này:', defaultValue: folderName,
       onConfirm: async (res) => {
@@ -255,12 +281,15 @@ function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders, setAppPr
                 <p className="text-stone-500 text-sm font-serif">{plans.length} file ghi chú</p>
              </div>
              
-             {(planFolders || []).map((folder, idx) => {
+             {(() => {
+                // Đảo ngược danh sách thư mục (ngoại trừ thư mục đầu tiên) để thư mục tạo mới nằm ở đầu
+                const displayFolders = planFolders?.length ? [planFolders[0], ...planFolders.slice(1).reverse()] : ['Chung'];
+                return displayFolders.map((folder, idx) => {
                 const count = plans.filter(p => (p.folder || planFolders?.[0] || 'Chung') === folder).length;
                 return (
                   <div key={folder} onClick={() => setActiveFolder(folder)} className="bg-white border border-stone-200 p-6 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group relative flex flex-col items-center justify-center text-center h-48">
                      <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => { e.stopPropagation(); handleEditFolder(folder); }} className="p-1.5 text-stone-400 hover:text-blue-600 bg-stone-50 hover:bg-blue-50 rounded shadow-sm border border-stone-100" title="Đổi tên thư mục"><Edit3 size={14}/></button>
+                        {idx !== 0 && <button onClick={(e) => { e.stopPropagation(); handleEditFolder(folder); }} className="p-1.5 text-stone-400 hover:text-blue-600 bg-stone-50 hover:bg-blue-50 rounded shadow-sm border border-stone-100" title="Đổi tên thư mục"><Edit3 size={14}/></button>}
                         {idx !== 0 && <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder); }} className="p-1.5 text-stone-400 hover:text-red-600 bg-stone-50 hover:bg-red-50 rounded shadow-sm border border-stone-100" title="Xóa thư mục"><Trash2 size={14}/></button>}
                      </div>
                      <div className="w-full flex flex-col items-center">
@@ -272,7 +301,7 @@ function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders, setAppPr
                      </div>
                   </div>
                 );
-             })}
+             })()}
            </div>
         </div>
      );
@@ -295,49 +324,85 @@ function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders, setAppPr
        </div>
 
        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden flex flex-col">
-         <div className="p-4 border-b border-stone-100 bg-white">
-           <div className="relative">
+         <div className="p-4 border-b border-stone-100 bg-white flex flex-col sm:flex-row gap-4 justify-between items-center">
+           <div className="relative flex-1 w-full">
              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
              <input type="text" placeholder="Tìm kiếm kế hoạch trong thư mục này..." className="w-full pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:border-pink-500 outline-none transition-colors shadow-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
            </div>
+           <div className="flex bg-stone-100 p-1 rounded-lg shrink-0">
+             <button onClick={() => setViewMode('list')} className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest rounded transition-all ${viewMode === 'list' ? 'bg-white text-pink-600 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}><List size={14}/> Danh sách</button>
+             <button onClick={() => setViewMode('calendar')} className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest rounded transition-all ${viewMode === 'calendar' ? 'bg-white text-pink-600 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}><CalendarDays size={14}/> Lịch xem</button>
+           </div>
          </div>
          
-         <div className="overflow-x-auto">
-           <table className="w-full text-left border-collapse">
-             <thead>
-               <tr className="bg-stone-100 text-[10px] uppercase tracking-widest text-stone-500 border-b border-stone-200">
-                 <th className="p-4 font-bold min-w-[200px]">Tên Kế Hoạch</th>
-                 <th className="p-4 font-bold">Ngày Dự Kiến</th>
-                 <th className="p-4 font-bold text-center">Trạng Thái</th>
-                 <th className="p-4 font-bold text-right">Thao Tác</th>
-               </tr>
-             </thead>
-             <tbody className="text-sm">
-               {filteredPlans.map(item => (
-                 <tr key={item.id} className="border-b border-stone-100 hover:bg-pink-50/30 transition-colors group">
-                   <td className="p-4">
-                      <p className="font-bold text-stone-800 font-serif leading-snug line-clamp-2 max-w-sm mb-1">{item.title}</p>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        <span className="text-[9px] bg-white border border-stone-200 text-stone-500 px-2 py-0.5 rounded font-bold uppercase tracking-widest shadow-sm">{item.folder || planFolders?.[0] || 'Chung'}</span>
-                        <span className={`text-[9px] border px-2 py-0.5 rounded font-bold uppercase tracking-widest shadow-sm ${item.priority === 'Cao' ? 'bg-red-50 text-red-600 border-red-200' : item.priority === 'Thấp' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>{item.priority || 'Trung bình'}</span>
-                      </div>
-                   </td>
-                   <td className="p-4"><p className="text-[11px] text-stone-500 font-bold mb-1 flex items-center gap-1.5"><CalendarDays size={12}/>{item.date || 'Chưa xác định'}</p></td>
-                   <td className="p-4 text-center">
-                     <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full shadow-sm border uppercase tracking-wider whitespace-nowrap ${item.status === 'Hoàn thành' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : item.status === 'Đang thực hiện' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
-                       {item.status}
-                     </span>
-                   </td>
-                   <td className="p-4 text-right flex justify-end gap-1">
-                     <button onClick={() => setViewingPlan(item)} className="p-2 rounded-lg transition-colors border shadow-sm text-stone-500 border-transparent hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200" title="Xem chi tiết nội dung"><Eye size={16} /></button>
-                     <button onClick={() => { setTempPlan(item); setEditingPlan(item.id); }} className="p-2 text-stone-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg transition-colors border border-transparent hover:border-pink-200 shadow-sm" title="Chỉnh sửa"><Edit3 size={16} /></button>
-                   </td>
+         {viewMode === 'list' ? (
+           <div className="overflow-x-auto">
+             <table className="w-full text-left border-collapse">
+               <thead>
+                 <tr className="bg-stone-100 text-[10px] uppercase tracking-widest text-stone-500 border-b border-stone-200">
+                   <th className="p-4 font-bold min-w-[200px]">Tên Kế Hoạch</th>
+                   <th className="p-4 font-bold">Ngày Dự Kiến</th>
+                   <th className="p-4 font-bold text-center">Trạng Thái</th>
+                   <th className="p-4 font-bold text-right">Thao Tác</th>
                  </tr>
-               ))}
-               {filteredPlans.length === 0 && (<tr><td colSpan="4" className="p-8 text-center text-stone-500 font-serif italic">Không có kế hoạch nào được ghi nhận.</td></tr>)}
-             </tbody>
-           </table>
-         </div>
+               </thead>
+               <tbody className="text-sm">
+                 {filteredPlans.map(item => (
+                   <tr key={item.id} className="border-b border-stone-100 hover:bg-pink-50/30 transition-colors group">
+                     <td className="p-4">
+                        <p className="font-bold text-stone-800 font-serif leading-snug line-clamp-2 max-w-sm mb-1">{item.title}</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <span className="text-[9px] bg-white border border-stone-200 text-stone-500 px-2 py-0.5 rounded font-bold uppercase tracking-widest shadow-sm">{item.folder || planFolders?.[0] || 'Chung'}</span>
+                          <span className={`text-[9px] border px-2 py-0.5 rounded font-bold uppercase tracking-widest shadow-sm ${item.priority === 'Cao' ? 'bg-red-50 text-red-600 border-red-200' : item.priority === 'Thấp' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>{item.priority || 'Trung bình'}</span>
+                        </div>
+                     </td>
+                     <td className="p-4"><p className="text-[11px] text-stone-500 font-bold mb-1 flex items-center gap-1.5"><CalendarDays size={12}/>{item.date || 'Chưa xác định'}</p></td>
+                     <td className="p-4 text-center">
+                       <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full shadow-sm border uppercase tracking-wider whitespace-nowrap ${item.status === 'Hoàn thành' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : item.status === 'Đang thực hiện' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                         {item.status}
+                       </span>
+                     </td>
+                     <td className="p-4 text-right flex justify-end gap-1">
+                       <button onClick={() => setViewingPlan(item)} className="p-2 rounded-lg transition-colors border shadow-sm text-stone-500 border-transparent hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200" title="Xem chi tiết nội dung"><Eye size={16} /></button>
+                       <button onClick={() => { setTempPlan(item); setEditingPlan(item.id); }} className="p-2 text-stone-500 hover:text-pink-600 hover:bg-pink-100 rounded-lg transition-colors border border-transparent hover:border-pink-200 shadow-sm" title="Chỉnh sửa"><Edit3 size={16} /></button>
+                     </td>
+                   </tr>
+                 ))}
+                 {filteredPlans.length === 0 && (<tr><td colSpan="4" className="p-8 text-center text-stone-500 font-serif italic">Không có kế hoạch nào được ghi nhận.</td></tr>)}
+               </tbody>
+             </table>
+           </div>
+         ) : (
+           <div className="p-4 md:p-6 bg-stone-50/30">
+              <div className="flex justify-between items-center mb-6 border-b border-stone-200 pb-4">
+                <button onClick={prevMonth} className="p-2 text-stone-500 hover:text-pink-600 hover:bg-pink-50 rounded-full transition"><ChevronLeft size={20}/></button>
+                <h3 className="text-lg font-bold font-serif text-stone-800 uppercase tracking-widest">Tháng {calendarDate.getMonth() + 1} / {calendarDate.getFullYear()}</h3>
+                <button onClick={nextMonth} className="p-2 text-stone-500 hover:text-pink-600 hover:bg-pink-50 rounded-full transition"><ChevronRight size={20}/></button>
+              </div>
+              <div className="grid grid-cols-7 gap-2 md:gap-3">
+                {['T2','T3','T4','T5','T6','T7','CN'].map((d, i) => <div key={d} className={`text-center font-bold text-xs uppercase py-2 ${i === 6 ? 'text-red-500' : 'text-stone-400'}`}>{d}</div>)}
+                {getDaysArray(calendarDate.getFullYear(), calendarDate.getMonth()).map((d, idx) => {
+                  if (d === null) return <div key={`empty-${idx}`}></div>;
+                  const dateStr = formatDateString(new Date(calendarDate.getFullYear(), calendarDate.getMonth(), d));
+                  const dayPlans = filteredPlans.filter(p => p.date === dateStr);
+                  const isToday = dateStr === formatDateString(new Date());
+
+                  return (
+                    <div key={idx} className={`min-h-[100px] p-2 rounded-xl border transition-all flex flex-col relative ${isToday ? 'bg-pink-50/50 border-pink-300 ring-1 ring-pink-100' : 'bg-white border-stone-200 hover:border-blue-300'}`}>
+                      <span className={`text-xs font-bold mb-2 block ${idx % 7 === 6 ? 'text-red-600' : (isToday ? 'text-pink-600' : 'text-stone-700')}`}>{d}</span>
+                      <div className="flex flex-col gap-1.5 overflow-y-auto custom-scrollbar flex-1 max-h-[120px]">
+                        {dayPlans.map(p => (
+                          <div key={p.id} onClick={() => setViewingPlan(p)} className={`text-[9px] p-1.5 rounded cursor-pointer border leading-tight line-clamp-2 font-bold shadow-sm hover:opacity-80 transition-opacity ${p.priority === 'Cao' ? 'bg-red-50 text-red-700 border-red-200' : p.priority === 'Thấp' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`} title={p.title}>
+                            {p.title}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+           </div>
+         )}
        </div>
 
        {/* Popup Xem chi tiết kế hoạch */}

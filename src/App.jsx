@@ -1203,6 +1203,8 @@ export default function App() {
                         setAppPrompt(prev => ({ ...prev, isOpen: false }));
                         if (res && res.trim() !== '') {
                           const arr = res.split(",").map(s => s.trim()).filter(Boolean);
+                          const rootFolder = planFolders?.[0] || 'Chung';
+                          if (!arr.includes(rootFolder)) arr.unshift(rootFolder);
                           if (arr.length) saveConfigToDB('planFolders', arr);
                         }
                       }
@@ -1556,6 +1558,30 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Các Popup dùng chung toàn hệ thống */}
+      <ConfirmModal 
+        isOpen={appConfirm.isOpen} 
+        title={appConfirm.title} 
+        message={appConfirm.message} 
+        isDanger={appConfirm.isDanger} 
+        onConfirm={appConfirm.onConfirm} 
+        onCancel={() => setAppConfirm(prev => ({ ...prev, isOpen: false }))} 
+      />
+      
+      <PromptModal 
+        isOpen={appPrompt.isOpen} 
+        title={appPrompt.title} 
+        desc={appPrompt.desc} 
+        defaultValue={appPrompt.defaultValue} 
+        onConfirm={appPrompt.onConfirm} 
+        onCancel={() => setAppPrompt(prev => ({ ...prev, isOpen: false }))} 
+      />
+
+      <Lightbox 
+        src={lightboxImg} 
+        onClose={() => setLightboxImg(null)} 
+      />
 
     </div>
   );
