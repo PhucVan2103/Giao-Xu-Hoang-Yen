@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import {
-  X, ArrowUp, Edit3
+  X, ArrowUp, Edit3, Paperclip, Plus
 } from 'lucide-react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -1197,6 +1197,50 @@ export default function App() {
             
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 mt-6 block">Nội dung chi tiết (Ghi chú)</label>
             <div className="mb-6"><RichTextEditor value={tempPlan.content || ''} onChange={(val) => setTempPlan({...tempPlan, content: val})} minHeight="250px" /></div>
+            
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Tài Liệu Đính Kèm Riêng</label>
+            <div className="mb-6 space-y-2">
+              {(tempPlan.attachments || []).map((att, idx) => (
+                 <div key={idx} className="flex justify-between items-center bg-stone-50 p-3 rounded-lg border border-stone-200">
+                   <a href={att.url} target="_blank" rel="noreferrer" className="text-sm font-bold text-blue-600 hover:underline truncate flex-1 flex items-center gap-2">
+                     <Paperclip size={14} className="text-stone-500" /> {att.name}
+                   </a>
+                   <button onClick={() => setTempPlan(p => ({...p, attachments: p.attachments.filter((_, i) => i !== idx)}))} className="text-stone-400 hover:text-red-500 ml-4"><X size={16}/></button>
+                 </div>
+              ))}
+              <label className="flex items-center justify-center gap-2 w-full py-3 bg-stone-50 border border-stone-200 border-dashed rounded-lg text-stone-500 hover:text-pink-600 hover:bg-pink-50 hover:border-pink-300 transition-colors cursor-pointer text-sm font-bold shadow-sm">
+                <input type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar,image/*" onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const toastId = toast.loading('Đang tải tài liệu lên...');
+                    try {
+                      let mimeType = file.type || 'application/octet-stream';
+                      if (file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+                      const fileName = `documents/plan_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
+                      const fileData = new Uint8Array(await file.arrayBuffer());
+                      
+                      const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(mimeType)}&size=${fileData.length}`);
+                      if (!res.ok) {
+                         const errData = await res.json().catch(()=>({}));
+                         throw new Error(errData.error || 'Lỗi xin cấp quyền');
+                      }
+                      const { uploadUrl, publicUrl } = await res.json();
+                      
+                      const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': mimeType } });
+                      if (!uploadRes.ok) throw new Error('Upload không thành công');
+                      
+                      const newAttachment = { name: file.name, url: publicUrl, size: file.size };
+                      setTempPlan(prev => ({ ...prev, attachments: [...(prev.attachments || []), newAttachment] }));
+                      toast.success('Đính kèm file thành công!', { id: toastId });
+                    } catch (error) {
+                      toast.error(error.message.includes('quá lớn') ? error.message : 'Lỗi tải tài liệu: Vui lòng kiểm tra R2!', { id: toastId });
+                    }
+                    e.target.value = null;
+                }} />
+                <Plus size={16} /> Thêm Tài Liệu Mới
+              </label>
+            </div>
+
             <div className="flex gap-4 border-t pt-5 mt-6">
               {editingPlan !== 'new' && <button type="button" className="text-red-600 px-6 py-3 font-bold text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-50 transition-all rounded" onClick={async () => { 
                 if(!db) return;
