@@ -301,6 +301,7 @@ function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders, setAppPr
                      </div>
                   </div>
                 );
+                });
              })()}
            </div>
         </div>
