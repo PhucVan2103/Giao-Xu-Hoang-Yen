@@ -98,7 +98,9 @@ export const editorContentClasses = "lightbox-container font-serif text-stone-70
 
 export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
   const editorRef = useRef(null);
+  const wrapperRef = useRef(null);
   const [selectedImg, setSelectedImg] = useState(null);
+  const [overlayPos, setOverlayPos] = useState(null);
   const fileInputRef = useRef(null);
   const imgInputRef = useRef(null);
   const [promptConfig, setPromptConfig] = useState({ isOpen: false, type: '', title: '', desc: '', defaultValue: '' });
@@ -110,6 +112,68 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
     }
   }, [value]);
 
+  // --- Cập nhật vị trí khung bao quanh ảnh (Overlay) liên tục ---
+  useEffect(() => {
+    let animationFrameId;
+    const updateOverlay = () => {
+      // Nếu ảnh bị xóa hoặc không tồn tại, gỡ bỏ khung
+      if (!wrapperRef.current || !selectedImg || !document.body.contains(selectedImg)) {
+         if (selectedImg && !document.body.contains(selectedImg)) setSelectedImg(null);
+         return;
+      }
+      const wrapperRect = wrapperRef.current.getBoundingClientRect();
+      const imgRect = selectedImg.getBoundingClientRect();
+      
+      setOverlayPos(prev => {
+        const top = imgRect.top - wrapperRect.top;
+        const left = imgRect.left - wrapperRect.left;
+        if (prev && prev.top === top && prev.left === left && prev.width === imgRect.width && prev.height === imgRect.height) {
+           return prev; // Bỏ qua nếu không có sự thay đổi
+        }
+        return { top, left, width: imgRect.width, height: imgRect.height };
+      });
+      animationFrameId = requestAnimationFrame(updateOverlay);
+    };
+    
+    if (selectedImg) updateOverlay();
+    else setOverlayPos(null);
+    
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [selectedImg]);
+
+  // --- Logic xử lý khi kéo chuột để đổi kích thước (Resize) ---
+  const isResizing = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
+
+  const handleResizeMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    isResizing.current = true;
+    startX.current = e.clientX;
+    startWidth.current = selectedImg.offsetWidth;
+    
+    const handleMouseMove = (moveEvent) => {
+      if (!isResizing.current || !selectedImg) return;
+      const diffX = moveEvent.clientX - startX.current;
+      const newWidth = Math.max(50, startWidth.current + diffX); // Rộng tối thiểu 50px
+      selectedImg.style.width = `${newWidth}px`;
+      selectedImg.style.height = 'auto'; // Giữ nguyên tỉ lệ ảnh
+      selectedImg.style.maxWidth = '100%'; // Không cho phép ảnh tràn khỏi khung
+      handleInput();
+    };
+
+    const handleMouseUp = () => {
+      isResizing.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      handleInput(); // Lưu giá trị sau cùng vào HTML
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   const handleInput = () => { if (editorRef.current) onChange(editorRef.current.innerHTML); };
   const execCmd = (command, val = null) => { document.execCommand(command, false, val); handleInput(); };
 
@@ -118,7 +182,7 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
       if (alignType === 'left') { selectedImg.style.display = 'inline-block'; selectedImg.style.float = 'left'; selectedImg.style.margin = '0.5rem 1.5rem 1rem 0'; }
       else if (alignType === 'right') { selectedImg.style.display = 'inline-block'; selectedImg.style.float = 'right'; selectedImg.style.margin = '0.5rem 0 1rem 1.5rem'; }
       else { selectedImg.style.display = 'block'; selectedImg.style.float = 'none'; selectedImg.style.margin = '1.5rem auto'; }
-      selectedImg.style.outline = 'none'; setSelectedImg(null); handleInput();
+      handleInput();
     } else {
       const cmd = alignType === 'left' ? 'justifyLeft' : alignType === 'right' ? 'justifyRight' : 'justifyCenter';
       document.execCommand(cmd, false, null); handleInput();
@@ -288,7 +352,7 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
   };
 
   return (
-    <div className="border border-pink-200 rounded-sm flex flex-col bg-white overflow-hidden shadow-sm">
+    <div ref={wrapperRef} className="border border-pink-200 rounded-sm flex flex-col bg-white overflow-hidden shadow-sm relative">
       <div className="bg-pink-50 p-2 flex flex-wrap gap-1 border-b border-pink-200 items-center">
         <select onMouseDown={e => e.preventDefault()} onChange={(e) => execCmd('formatBlock', e.target.value)} className="text-xs p-1 border border-pink-200 rounded bg-white font-bold outline-none"><option value="P">Đoạn văn</option><option value="H3">Tiêu đề Lớn</option><option value="H4">Tiêu đề Nhỏ</option></select>
         <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => execCmd('bold')} className="p-1.5 hover:bg-pink-200 rounded text-stone-700"><Bold size={14}/></button>
@@ -310,7 +374,27 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
       </div>
       <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" ref={fileInputRef} onChange={handleAttachmentUpload} className="hidden" />
       <input type="file" accept="image/*" ref={imgInputRef} onChange={handleImageUpload} className="hidden" />
-      <div ref={editorRef} contentEditable onInput={handleInput} onPaste={handlePaste} onClick={(e) => { if (e.target.tagName === 'IMG') { e.target.style.outline = '3px solid #ec4899'; setSelectedImg(e.target); } else { if (selectedImg) selectedImg.style.outline='none'; setSelectedImg(null); } }} className={`p-4 focus:outline-none overflow-y-auto ${editorContentClasses}`} style={{ minHeight }} />
+      
+      {/* Lớp phủ (Overlay) hiện ra khi một ảnh được Click */}
+      {selectedImg && overlayPos && (
+        <div style={{ position: 'absolute', top: overlayPos.top, left: overlayPos.left, width: overlayPos.width, height: overlayPos.height, border: '3px dashed #ec4899', pointerEvents: 'none', zIndex: 10 }}>
+          <div 
+            style={{ position: 'absolute', right: -6, bottom: -6, width: 14, height: 14, backgroundColor: '#ec4899', borderRadius: '50%', cursor: 'se-resize', pointerEvents: 'auto', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+            onMouseDown={handleResizeMouseDown}
+            title="Kéo để thay đổi kích thước"
+          />
+        </div>
+      )}
+
+      <div 
+        ref={editorRef} 
+        contentEditable 
+        onInput={handleInput} 
+        onPaste={handlePaste} 
+        onClick={(e) => { if (e.target.tagName === 'IMG') { setSelectedImg(e.target); } else { setSelectedImg(null); } }} 
+        className={`p-4 focus:outline-none overflow-y-auto ${editorContentClasses}`} 
+        style={{ minHeight }} 
+      />
       <PromptModal isOpen={promptConfig.isOpen} title={promptConfig.title} desc={promptConfig.desc} defaultValue={promptConfig.defaultValue} onCancel={() => { restoreSelection(); setPromptConfig({ ...promptConfig, isOpen: false }); }} onConfirm={onPromptConfirm} />
     </div>
   );
