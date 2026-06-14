@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Church, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Video, Link as LinkIcon, Paperclip, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getImgStyle } from '../utils/helpers';
+import imageCompression from 'browser-image-compression';
 
 export const FacebookIcon = ({ size = 20, className = "" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -210,27 +211,36 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    const toastId = toast.loading('Đang tải ảnh lên...');
+    const toastId = toast.loading('Đang xử lý và tải ảnh lên...');
     try {
-      const fileName = `images/editor_${Date.now()}_${file.name}`;
-      const fileData = new Uint8Array(await file.arrayBuffer());
+      // Nén ảnh để đảm bảo dưới 1MB và tối ưu tốc độ tải trang
+      const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.8 };
+      const compressedFile = await imageCompression(file, options);
       
-      const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(file.type)}&size=${fileData.length}`);
+      // Loại bỏ ký tự đặc biệt khỏi tên file để tránh lỗi Signature S3
+      const safeName = compressedFile.name ? compressedFile.name.replace(/[^a-zA-Z0-9.\-_]/g, '') : 'image.jpg';
+      const fileName = `images/editor_${Date.now()}_${safeName}`;
+      const fileData = new Uint8Array(await compressedFile.arrayBuffer());
+      
+      const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(compressedFile.type)}&size=${fileData.length}`);
       if (!res.ok) {
         const errData = await res.json().catch(()=>({}));
         throw new Error(errData.error || 'Upload Failed');
       }
       const { uploadUrl, publicUrl } = await res.json();
       
-      const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': file.type } });
-      if (!uploadRes.ok) throw new Error('Upload Failed');
+      const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': compressedFile.type } });
+      if (!uploadRes.ok) {
+         const errText = await uploadRes.text().catch(() => '');
+         throw new Error('Upload không thành công: ' + errText);
+      }
       
       restoreSelection();
       execCmd('insertHTML', `<img src="${publicUrl}" style="display: block; float: none; margin: 1.5rem auto;" /><p><br></p>`);
       toast.success('Tải ảnh thành công!', { id: toastId });
     } catch (error) {
       console.error("Lỗi upload ảnh:", error);
-      toast.error(error.message.includes('quá lớn') ? error.message : 'Lỗi tải ảnh: Kiểm tra cấu hình R2!', { id: toastId });
+      toast.error(error.message.includes('quá lớn') ? error.message : `Lỗi tải ảnh: ${error.message}`, { id: toastId });
     }
     e.target.value = null; // Reset input sau khi upload
   };
@@ -244,27 +254,33 @@ export const RichTextEditor = ({ value, onChange, minHeight = "150px" }) => {
         const file = item.getAsFile();
         
         saveSelection();
-        const toastId = toast.loading('Đang tải ảnh dán lên...');
+        const toastId = toast.loading('Đang xử lý và tải ảnh dán lên...');
         try {
-          const fileName = `images/paste_${Date.now()}.png`;
-          const fileData = new Uint8Array(await file.arrayBuffer());
+          const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.8 };
+          const compressedFile = await imageCompression(file, options);
           
-          const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(file.type)}&size=${fileData.length}`);
+          const fileName = `images/paste_${Date.now()}_${Math.random().toString(36).substring(7)}.${compressedFile.type.split('/')[1] || 'png'}`;
+          const fileData = new Uint8Array(await compressedFile.arrayBuffer());
+          
+          const res = await fetch(`/api/r2?action=presign&key=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(compressedFile.type)}&size=${fileData.length}`);
           if (!res.ok) {
             const errData = await res.json().catch(()=>({}));
-            throw new Error(errData.error || 'Upload không thành công');
+            throw new Error(errData.error || 'Lỗi xin cấp quyền upload');
           }
           const { uploadUrl, publicUrl } = await res.json();
           
-          const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': file.type } });
-          if (!uploadRes.ok) throw new Error('Upload không thành công');
+          const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: fileData, headers: { 'Content-Type': compressedFile.type } });
+          if (!uploadRes.ok) {
+             const errText = await uploadRes.text().catch(() => '');
+             throw new Error('Upload không thành công: ' + errText);
+          }
           
           restoreSelection();
           execCmd('insertHTML', `<img src="${publicUrl}" style="display: block; float: none; margin: 1.5rem auto;" /><p><br></p>`);
           toast.success('Tải ảnh thành công!', { id: toastId });
         } catch (error) {
           console.error("Lỗi upload ảnh:", error);
-          toast.error(error.message.includes('quá lớn') ? error.message : 'Lỗi upload ảnh: Kiểm tra cấu hình R2!', { id: toastId });
+          toast.error(error.message.includes('quá lớn') ? error.message : `Lỗi upload ảnh: ${error.message}`, { id: toastId });
         }
         return;
       }
