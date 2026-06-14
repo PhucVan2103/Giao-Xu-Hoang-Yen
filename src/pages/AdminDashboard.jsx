@@ -7,7 +7,7 @@ import { signOut } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, plans, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, setTempPlan, setEditingPlan, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins, planFolders, setAppPrompt, saveConfigToDB }) {
+export default function AdminDashboard({ isAdmin, adminRole, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, plans, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, setTempPlan, setEditingPlan, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins, planFolders, setAppPrompt, saveConfigToDB }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -42,7 +42,7 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
     { name: 'Hành Hương', path: '/admin/hanh-huong', icon: Map },
     { name: 'Hộp Thư', path: '/admin/hop-thu', icon: Inbox, badge: unreadCount },
     { name: 'Thư Viện', path: '/admin/thu-vien', icon: FolderOpen },
-    { name: 'Kế Hoạch', path: '/admin/ke-hoach', icon: ClipboardList },
+    ...(adminRole === 'superadmin' ? [{ name: 'Kế Hoạch', path: '/admin/ke-hoach', icon: ClipboardList }] : []),
     { name: 'Cài Đặt', path: '/admin/cai-dat', icon: Settings },
   ];
 
@@ -113,8 +113,8 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
                <Route path="/hanh-huong" element={<PilgrimageManager pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
                <Route path="/hop-thu" element={<InboxManager messages={messages} setAppConfirm={setAppConfirm} />} />
                <Route path="/thu-vien" element={<MediaManager setAppConfirm={setAppConfirm} />} />
-               <Route path="/ke-hoach" element={<PlanManager plans={plans} setTempPlan={setTempPlan} setEditingPlan={setEditingPlan} planFolders={planFolders} setAppPrompt={setAppPrompt} saveConfigToDB={saveConfigToDB} setAppConfirm={setAppConfirm} />} />
-               <Route path="/cai-dat" element={<SettingsManager parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins} />} />
+               {adminRole === 'superadmin' && <Route path="/ke-hoach" element={<PlanManager plans={plans} setTempPlan={setTempPlan} setEditingPlan={setEditingPlan} planFolders={planFolders} setAppPrompt={setAppPrompt} saveConfigToDB={saveConfigToDB} setAppConfirm={setAppConfirm} />} />}
+               <Route path="/cai-dat" element={<SettingsManager adminRole={adminRole} parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins} />} />
             </Routes>
          </div>
       </main>
@@ -556,7 +556,7 @@ function MediaManager({ setAppConfirm }) {
   );
 }
 
-function SettingsManager({ parishStats, setTempStats, setEditingStats, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, contactInfo, setTempContact, setEditingContact, footerData, setTempFooter, setEditingFooter, adminEmails, setTempAdmins, setEditingAdmins }) {
+function SettingsManager({ adminRole, parishStats, setTempStats, setEditingStats, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, contactInfo, setTempContact, setEditingContact, footerData, setTempFooter, setEditingFooter, adminEmails, setTempAdmins, setEditingAdmins }) {
   return (
     <div className="animate-in fade-in zoom-in-95 duration-300 max-w-6xl mx-auto">
       <div className="mb-8">
@@ -630,21 +630,27 @@ function SettingsManager({ parishStats, setTempStats, setEditingStats, logoConfi
         </div>
         
         {/* Thẻ Quản Lý Admin */}
-        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 flex flex-col relative group hover:border-pink-200 hover:shadow-md transition-all">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-sm"><Users size={20} /></div>
-            <h3 className="font-bold text-stone-800 uppercase tracking-widest text-sm">Tài Khoản Admin</h3>
+        {adminRole === 'superadmin' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 flex flex-col relative group hover:border-pink-200 hover:shadow-md transition-all">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-sm"><Users size={20} /></div>
+              <h3 className="font-bold text-stone-800 uppercase tracking-widest text-sm">Tài Khoản Admin</h3>
+            </div>
+            <div className="flex-1 space-y-3 mb-8 text-sm custom-scrollbar overflow-y-auto max-h-32">
+              {adminEmails?.map((adminItem, idx) => {
+                const email = typeof adminItem === 'string' ? adminItem : adminItem.email;
+                const role = typeof adminItem === 'string' ? 'superadmin' : (adminItem.role || 'admin');
+                return (
+                <div key={idx} className="flex gap-3 items-center border-b border-stone-50 pb-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
+                  <span className="font-bold text-stone-700 truncate">{email}</span>
+                  <span className="text-[9px] bg-stone-100 text-stone-500 px-2 py-0.5 rounded ml-auto uppercase tracking-widest">{role === 'superadmin' ? 'Super Admin' : 'Admin'}</span>
+                </div>
+              )})}
+            </div>
+            <button onClick={() => { setTempAdmins(adminEmails || []); setEditingAdmins(true); }} className="w-full py-3 bg-stone-50 hover:bg-pink-600 text-stone-600 hover:text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-colors shadow-sm">Quản Lý Admin</button>
           </div>
-          <div className="flex-1 space-y-3 mb-8 text-sm custom-scrollbar overflow-y-auto max-h-32">
-            {adminEmails?.map((email, idx) => (
-              <div key={idx} className="flex gap-3 items-center border-b border-stone-50 pb-2">
-                <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
-                <span className="font-bold text-stone-700 truncate">{email}</span>
-              </div>
-            ))}
-          </div>
-          <button onClick={() => { setTempAdmins(adminEmails || []); setEditingAdmins(true); }} className="w-full py-3 bg-stone-50 hover:bg-pink-600 text-stone-600 hover:text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-colors shadow-sm">Quản Lý Admin</button>
-        </div>
+        )}
       </div>
     </div>
   );

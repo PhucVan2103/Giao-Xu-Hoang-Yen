@@ -170,7 +170,8 @@ export default function App() {
   const [newsCategories, setNewsCategories] = useState(['Tin Tức', 'Sự kiện', 'Giáo lý', 'Thông báo']);
   const [messages, setMessages] = useState([]);
   const [dailyVisits, setDailyVisits] = useState({});
-  const [adminEmails, setAdminEmails] = useState(['admin@giaoxuhoangyen.vn', 'denthanhgiaoxuhoangyen@gmail.com']);
+  const [adminEmails, setAdminEmails] = useState([{ email: 'admin@giaoxuhoangyen.vn', role: 'superadmin' }, { email: 'denthanhgiaoxuhoangyen@gmail.com', role: 'superadmin' }]);
+  const [adminRole, setAdminRole] = useState(null);
   const [plans, setPlans] = useState([]);
   const [planFolders, setPlanFolders] = useState(['Chung', 'Đại Lễ', 'Thường Niên']);
 
@@ -260,10 +261,21 @@ export default function App() {
   // 1.5 Cập nhật quyền Admin tự động khi user hoặc danh sách email đổi
   useEffect(() => {
     if (firebaseUser && firebaseUser.email) {
-      const hasAdminRole = adminEmails.includes(firebaseUser.email.toLowerCase());
-      setIsAdmin(hasAdminRole);
+      const userEmail = firebaseUser.email.toLowerCase();
+      const adminUser = adminEmails.find(u => 
+        (typeof u === 'string' && u.toLowerCase() === userEmail) || 
+        (u.email && u.email.toLowerCase() === userEmail)
+      );
+      if (adminUser) {
+        setIsAdmin(true);
+        setAdminRole(typeof adminUser === 'string' ? 'superadmin' : (adminUser.role || 'admin'));
+      } else {
+        setIsAdmin(false);
+        setAdminRole(null);
+      }
     } else {
       setIsAdmin(false);
+      setAdminRole(null);
     }
   }, [firebaseUser, adminEmails]);
 
@@ -329,7 +341,13 @@ export default function App() {
               if (d.receptionInfo) setReceptionInfo(d.receptionInfo);
               if (d.footerData) setFooterData(d.footerData);
               if (d.newsCategories) setNewsCategories(d.newsCategories);
-              if (d.adminEmails) setAdminEmails(d.adminEmails);
+              if (d.adminEmails) {
+                const formattedAdmins = d.adminEmails.map(item => {
+                  if (typeof item === 'string') return { email: item, role: 'superadmin' };
+                  return item;
+                });
+                setAdminEmails(formattedAdmins);
+              }
               if (d.planFolders) setPlanFolders(d.planFolders);
               
               // Tương thích ngược: Vẫn đọc từ main nếu chưa từng tách ra doc riêng
@@ -505,7 +523,7 @@ export default function App() {
         const toastId = toast.loading('Đang khởi tạo dữ liệu mẫu...');
         try {
       const mockConfig = {
-        adminEmails: ['admin@giaoxuhoangyen.vn', 'denthanhgiaoxuhoangyen@gmail.com'],
+        adminEmails: [{ email: 'admin@giaoxuhoangyen.vn', role: 'superadmin' }, { email: 'denthanhgiaoxuhoangyen@gmail.com', role: 'superadmin' }],
         planFolders: ['Chung', 'Đại Lễ', 'Mùa Chay', 'Giới Trẻ'],
         parishStats: { population: '5,420', priest: 'Lm. Giuse Nguyễn Văn A', patron: 'Các Thánh Tử Đạo VN', address: '123 Các Thánh Tử Đạo, TP.HCM', seasonTheme: 'default' },
         quote: { text: "<p>Ta là bánh hằng sống từ trời xuống. Ai ăn bánh này, sẽ được sống muôn đời.</p>", ref: "Ga 6, 51" },
@@ -855,7 +873,7 @@ export default function App() {
             <Route path="/tin-tuc/:id" element={<NewsDetail isAdmin={isAdmin} newsItems={newsItems} setTempNews={setTempNews} setEditingNews={setEditingNews} />} />
             <Route path="/lien-he" element={<Contact isAdmin={isAdmin} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} formStatus={formStatus} handleContactSubmit={handleContactSubmit} />} />
             <Route path="/admin/*" element={<AdminDashboard 
-              isAdmin={isAdmin} setShowLoginModal={setShowLoginModal} setIsAdmin={setIsAdmin} parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} plans={plans}
+              isAdmin={isAdmin} adminRole={adminRole} setShowLoginModal={setShowLoginModal} setIsAdmin={setIsAdmin} parishStats={parishStats} newsItems={newsItems} pilgrimagePlans={pilgrimagePlans} liturgyEvents={liturgyEvents} plans={plans}
               setTempNews={setTempNews} setEditingNews={setEditingNews} massSchedules={massSchedules} setTempMass={setTempMass} setEditingMass={setEditingMass} 
               confessionData={confessionData} setTempConfession={setTempConfession} setEditingConfession={setEditingConfession} adorationData={adorationData} setTempAdoration={setTempAdoration} setEditingAdoration={setEditingAdoration} 
               setTempLiturgyEvent={setTempLiturgyEvent} setEditingLiturgyEvent={setEditingLiturgyEvent} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} setTempPlan={setTempPlan} setEditingPlan={setEditingPlan}
@@ -1546,15 +1564,31 @@ export default function App() {
              <button onClick={() => setEditingAdmins(false)} className="absolute top-4 right-4 text-stone-400 hover:text-pink-600 transition-all"><X size={20} /></button>
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase text-center tracking-tight">Quản Lý Admin</h3>
             <div className="space-y-4 mb-6">
-              {tempAdmins.map((email, idx) => (
-                <div key={idx} className="flex gap-2 items-center bg-stone-50 p-2 rounded-lg border border-stone-200">
-                  <input className="flex-1 bg-transparent text-sm outline-none font-bold" value={email} onChange={e => { const n = [...tempAdmins]; n[idx] = e.target.value.toLowerCase(); setTempAdmins(n); }} placeholder="email@gmail.com" />
-                  <button onClick={() => { const n = [...tempAdmins]; n.splice(idx, 1); setTempAdmins(n); }} className="text-stone-400 hover:text-red-500 p-1.5"><X size={16}/></button>
-                </div>
-              ))}
-              <button onClick={() => setTempAdmins([...tempAdmins, ''])} className="w-full py-2 bg-pink-50 text-pink-700 font-bold uppercase text-[10px] tracking-widest rounded border border-pink-200 hover:bg-pink-100">+ Thêm Email Admin</button>
+              {tempAdmins.map((adminItem, idx) => {
+                const emailVal = typeof adminItem === 'string' ? adminItem : adminItem.email;
+                const roleVal = typeof adminItem === 'string' ? 'superadmin' : (adminItem.role || 'admin');
+                return (
+                  <div key={idx} className="flex gap-2 items-center bg-stone-50 p-2 rounded-lg border border-stone-200">
+                    <input className="flex-1 bg-transparent text-sm outline-none font-bold" value={emailVal} onChange={e => { 
+                      const n = [...tempAdmins]; 
+                      n[idx] = { email: e.target.value.toLowerCase(), role: roleVal }; 
+                      setTempAdmins(n); 
+                    }} placeholder="email@gmail.com" />
+                    <select className="bg-white border border-stone-200 rounded px-2 py-1 text-xs outline-none font-bold text-stone-600" value={roleVal} onChange={e => {
+                      const n = [...tempAdmins];
+                      n[idx] = { email: emailVal, role: e.target.value };
+                      setTempAdmins(n);
+                    }}>
+                      <option value="superadmin">Super Admin</option>
+                      <option value="admin">Admin thường</option>
+                    </select>
+                    <button onClick={() => { const n = [...tempAdmins]; n.splice(idx, 1); setTempAdmins(n); }} className="text-stone-400 hover:text-red-500 p-1.5 bg-stone-100 rounded hover:bg-red-50 transition-colors"><X size={16}/></button>
+                  </div>
+                );
+              })}
+              <button onClick={() => setTempAdmins([...tempAdmins, { email: '', role: 'admin' }])} className="w-full py-2 bg-pink-50 text-pink-700 font-bold uppercase text-[10px] tracking-widest rounded border border-pink-200 hover:bg-pink-100">+ Thêm Admin</button>
             </div>
-            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingAdmins(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('adminEmails', tempAdmins.filter(e => e.trim())); setEditingAdmins(false); }}>Lưu Lại</button></div>
+            <div className="flex gap-3"><button className="flex-1 bg-stone-100 py-3 rounded font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition" onClick={() => setEditingAdmins(false)}>Hủy</button><button className="flex-1 bg-pink-700 text-white py-3 rounded font-bold uppercase text-[10px] tracking-widest shadow-md active:scale-95 transition-all hover:bg-pink-800" onClick={() => { saveConfigToDB('adminEmails', tempAdmins.filter(e => { const email = typeof e === 'string' ? e : e.email; return email && email.trim() !== ''; })); setEditingAdmins(false); }}>Lưu Lại</button></div>
           </div>
         </div>
       )}
