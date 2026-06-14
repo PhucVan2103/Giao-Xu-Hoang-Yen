@@ -172,6 +172,7 @@ export default function App() {
   const [dailyVisits, setDailyVisits] = useState({});
   const [adminEmails, setAdminEmails] = useState(['admin@giaoxuhoangyen.vn', 'denthanhgiaoxuhoangyen@gmail.com']);
   const [plans, setPlans] = useState([]);
+  const [planFolders, setPlanFolders] = useState(['Chung', 'Đại Lễ', 'Thường Niên']);
 
   // --- States View Detail & Pagination ---
   const [selectedNews, setSelectedNews] = useState(null);
@@ -329,6 +330,7 @@ export default function App() {
               if (d.footerData) setFooterData(d.footerData);
               if (d.newsCategories) setNewsCategories(d.newsCategories);
               if (d.adminEmails) setAdminEmails(d.adminEmails);
+              if (d.planFolders) setPlanFolders(d.planFolders);
               
               // Tương thích ngược: Vẫn đọc từ main nếu chưa từng tách ra doc riêng
               if (d.logoConfig && !updatedLogo) updatedLogo = d.logoConfig;
@@ -458,6 +460,7 @@ export default function App() {
       case 'adorationData': setAdorationData(value); break;
       case 'newsCategories': setNewsCategories(value); break;
       case 'adminEmails': setAdminEmails(value); break;
+      case 'planFolders': setPlanFolders(value); break;
       default: break;
     }
 
@@ -503,6 +506,7 @@ export default function App() {
         try {
       const mockConfig = {
         adminEmails: ['admin@giaoxuhoangyen.vn', 'denthanhgiaoxuhoangyen@gmail.com'],
+        planFolders: ['Chung', 'Đại Lễ', 'Mùa Chay', 'Giới Trẻ'],
         parishStats: { population: '5,420', priest: 'Lm. Giuse Nguyễn Văn A', patron: 'Các Thánh Tử Đạo VN', address: '123 Các Thánh Tử Đạo, TP.HCM', seasonTheme: 'default' },
         quote: { text: "<p>Ta là bánh hằng sống từ trời xuống. Ai ăn bánh này, sẽ được sống muôn đời.</p>", ref: "Ga 6, 51" },
         massSchedules: [
@@ -858,7 +862,7 @@ export default function App() {
               receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} 
               logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero}
               footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} setTempStats={setTempStats} setEditingStats={setEditingStats}
-              messages={messages} setAppConfirm={setAppConfirm} dailyVisits={dailyVisits} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins}
+              messages={messages} setAppConfirm={setAppConfirm} dailyVisits={dailyVisits} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins} planFolders={planFolders}
             />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -1185,8 +1189,34 @@ export default function App() {
             <h3 className="text-xl font-bold text-pink-950 mb-6 uppercase tracking-tight">{editingPlan === 'new' ? 'Thêm Kế Hoạch' : 'Sửa Kế Hoạch'}</h3>
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Tiêu đề kế hoạch</label>
             <input className="w-full border border-pink-200 p-3 rounded mb-5 font-bold text-lg outline-none focus:border-pink-600" value={tempPlan.title || ''} onChange={(e) => setTempPlan({...tempPlan, title: e.target.value})} placeholder="Nhập tiêu đề..." />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-5">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Thư mục sự kiện</label>
+                <div className="flex gap-2">
+                  <select className="w-full border border-pink-200 p-3 rounded text-sm font-bold bg-white outline-none cursor-pointer focus:border-pink-500 flex-1" value={tempPlan.folder || planFolders?.[0] || 'Chung'} onChange={(e) => setTempPlan({...tempPlan, folder: e.target.value})}>
+                    {planFolders?.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <button type="button" onClick={() => { 
+                    setAppPrompt({
+                      isOpen: true, title: 'Thư Mục Kế Hoạch', desc: 'Nhập các thư mục mới, cách nhau bằng dấu phẩy (,):', defaultValue: planFolders?.join(", ") || '',
+                      onConfirm: (res) => {
+                        setAppPrompt(prev => ({ ...prev, isOpen: false }));
+                        if (res && res.trim() !== '') {
+                          const arr = res.split(",").map(s => s.trim()).filter(Boolean);
+                          if (arr.length) saveConfigToDB('planFolders', arr);
+                        }
+                      }
+                    });
+                  }} className="px-3 bg-pink-50 text-pink-700 rounded border border-pink-200 hover:bg-pink-100 transition" title="Chỉnh sửa thư mục"><Edit3 size={16} /></button>
+                </div>
+              </div>
               <div><label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Ngày dự kiến</label><input className="w-full border border-pink-200 p-3 rounded text-sm bg-stone-50 outline-none focus:border-pink-500" value={tempPlan.date || ''} onChange={(e) => setTempPlan({...tempPlan, date: e.target.value})} placeholder="VD: 15/06/2024" /></div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Mức Ưu Tiên</label>
+                <select className="w-full border border-pink-200 p-3 rounded text-sm font-bold bg-white outline-none cursor-pointer focus:border-pink-500" value={tempPlan.priority || 'Trung bình'} onChange={(e) => setTempPlan({...tempPlan, priority: e.target.value})}>
+                  <option value="Thấp" className="text-emerald-600">Thấp</option><option value="Trung bình" className="text-amber-600">Trung bình</option><option value="Cao" className="text-red-600">Cao (Quan trọng)</option>
+                </select>
+              </div>
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1 block">Trạng Thái</label>
                 <select className="w-full border border-pink-200 p-3 rounded text-sm font-bold bg-white outline-none cursor-pointer focus:border-pink-500" value={tempPlan.status || 'Chưa bắt đầu'} onChange={(e) => setTempPlan({...tempPlan, status: e.target.value})}>

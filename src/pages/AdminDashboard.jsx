@@ -7,7 +7,7 @@ import { signOut } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, plans, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, setTempPlan, setEditingPlan, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins }) {
+export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin, parishStats, newsItems, pilgrimagePlans, liturgyEvents, plans, setTempNews, setEditingNews, massSchedules, setTempMass, setEditingMass, confessionData, setTempConfession, setEditingConfession, adorationData, setTempAdoration, setEditingAdoration, setTempLiturgyEvent, setEditingLiturgyEvent, setTempPilgrimage, setEditingPilgrimage, setTempPlan, setEditingPlan, receptionInfo, setTempReception, setEditingReception, logoConfig, setTempLogoConfig, setEditingLogo, heroData, setTempHero, setEditingHero, footerData, setTempFooter, setEditingFooter, contactInfo, setTempContact, setEditingContact, setTempStats, setEditingStats, messages, setAppConfirm, dailyVisits, adminEmails, setTempAdmins, setEditingAdmins, planFolders }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -113,7 +113,7 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
                <Route path="/hanh-huong" element={<PilgrimageManager pilgrimagePlans={pilgrimagePlans} setTempPilgrimage={setTempPilgrimage} setEditingPilgrimage={setEditingPilgrimage} receptionInfo={receptionInfo} setTempReception={setTempReception} setEditingReception={setEditingReception} />} />
                <Route path="/hop-thu" element={<InboxManager messages={messages} setAppConfirm={setAppConfirm} />} />
                <Route path="/thu-vien" element={<MediaManager setAppConfirm={setAppConfirm} />} />
-               <Route path="/ke-hoach" element={<PlanManager plans={plans} setTempPlan={setTempPlan} setEditingPlan={setEditingPlan} />} />
+               <Route path="/ke-hoach" element={<PlanManager plans={plans} setTempPlan={setTempPlan} setEditingPlan={setEditingPlan} planFolders={planFolders} />} />
                <Route path="/cai-dat" element={<SettingsManager parishStats={parishStats} setTempStats={setTempStats} setEditingStats={setEditingStats} logoConfig={logoConfig} setTempLogoConfig={setTempLogoConfig} setEditingLogo={setEditingLogo} heroData={heroData} setTempHero={setTempHero} setEditingHero={setEditingHero} contactInfo={contactInfo} setTempContact={setTempContact} setEditingContact={setEditingContact} footerData={footerData} setTempFooter={setTempFooter} setEditingFooter={setEditingFooter} adminEmails={adminEmails} setTempAdmins={setTempAdmins} setEditingAdmins={setEditingAdmins} />} />
             </Routes>
          </div>
@@ -122,13 +122,16 @@ export default function AdminDashboard({ isAdmin, setShowLoginModal, setIsAdmin,
   );
 }
 
-function PlanManager({ plans, setTempPlan, setEditingPlan }) {
+function PlanManager({ plans, setTempPlan, setEditingPlan, planFolders }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeFolder, setActiveFolder] = useState('All');
   const [viewingPlan, setViewingPlan] = useState(null);
   
-  const filteredPlans = plans?.filter(plan => 
-    plan.title?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredPlans = plans?.filter(plan => {
+    const matchesSearch = plan.title?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFolder = activeFolder === 'All' || (plan.folder || planFolders?.[0] || 'Chung') === activeFolder;
+    return matchesSearch && matchesFolder;
+  }) || [];
 
   // Hàm xử lý tạo trang và In (Hoặc lưu PDF)
   const handlePrint = () => {
@@ -158,6 +161,7 @@ function PlanManager({ plans, setTempPlan, setEditingPlan }) {
           <h1>${viewingPlan.title}</h1>
           <div class="meta">
             <span>Trạng thái: ${viewingPlan.status}</span>
+            <span>Ưu tiên: ${viewingPlan.priority || 'Trung bình'}</span>
             <span>Ngày dự kiến: ${viewingPlan.date || 'Chưa xác định'}</span>
           </div>
           <div class="content">
@@ -189,7 +193,7 @@ function PlanManager({ plans, setTempPlan, setEditingPlan }) {
            <p className="text-stone-500 font-serif text-sm md:text-base">Không gian riêng tư của Admin để note lại các dự định và công việc sắp tới.</p>
          </div>
          <button onClick={() => {
-           setTempPlan({ id: Date.now(), title: '', date: '', status: 'Chưa bắt đầu', content: '' });
+           setTempPlan({ id: Date.now(), title: '', date: '', status: 'Chưa bắt đầu', priority: 'Trung bình', content: '', folder: activeFolder === 'All' ? (planFolders?.[0] || 'Chung') : activeFolder });
            setEditingPlan('new');
          }} className="bg-pink-600 hover:bg-pink-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md transition-all active:scale-95 flex items-center gap-2">
            <Plus size={16} /> Thêm Kế Hoạch
@@ -197,10 +201,18 @@ function PlanManager({ plans, setTempPlan, setEditingPlan }) {
        </div>
 
        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden flex flex-col">
-         <div className="p-4 border-b border-stone-100 bg-stone-50/50">
+         <div className="flex gap-4 border-b border-stone-100 pt-4 px-4 overflow-x-auto custom-scrollbar bg-stone-50/30">
+            <button onClick={() => setActiveFolder('All')} className={`flex items-center gap-2 px-4 py-2 font-bold text-sm uppercase tracking-widest transition-colors whitespace-nowrap border-b-2 ${activeFolder === 'All' ? 'border-pink-500 text-pink-600' : 'border-transparent text-stone-400 hover:text-stone-600'}`}>Tất cả</button>
+            {planFolders?.map(f => (
+              <button key={f} onClick={() => setActiveFolder(f)} className={`flex items-center gap-2 px-4 py-2 font-bold text-sm uppercase tracking-widest transition-colors whitespace-nowrap border-b-2 ${activeFolder === f ? 'border-pink-500 text-pink-600' : 'border-transparent text-stone-400 hover:text-stone-600'}`}>
+                <FolderOpen size={16} className={activeFolder === f ? 'text-pink-500' : 'text-stone-300'} /> {f}
+              </button>
+            ))}
+         </div>
+         <div className="p-4 border-b border-stone-100 bg-white">
            <div className="relative">
              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-             <input type="text" placeholder="Tìm kiếm kế hoạch..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:border-pink-500 outline-none transition-colors shadow-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+             <input type="text" placeholder="Tìm kiếm kế hoạch trong thư mục này..." className="w-full pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:border-pink-500 outline-none transition-colors shadow-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
            </div>
          </div>
          
@@ -217,7 +229,13 @@ function PlanManager({ plans, setTempPlan, setEditingPlan }) {
              <tbody className="text-sm">
                {filteredPlans.map(item => (
                  <tr key={item.id} className="border-b border-stone-100 hover:bg-pink-50/30 transition-colors group">
-                   <td className="p-4"><p className="font-bold text-stone-800 font-serif leading-snug line-clamp-2 max-w-sm mb-1">{item.title}</p></td>
+                   <td className="p-4">
+                      <p className="font-bold text-stone-800 font-serif leading-snug line-clamp-2 max-w-sm mb-1">{item.title}</p>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        <span className="text-[9px] bg-white border border-stone-200 text-stone-500 px-2 py-0.5 rounded font-bold uppercase tracking-widest shadow-sm">{item.folder || planFolders?.[0] || 'Chung'}</span>
+                        <span className={`text-[9px] border px-2 py-0.5 rounded font-bold uppercase tracking-widest shadow-sm ${item.priority === 'Cao' ? 'bg-red-50 text-red-600 border-red-200' : item.priority === 'Thấp' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>{item.priority || 'Trung bình'}</span>
+                      </div>
+                   </td>
                    <td className="p-4"><p className="text-[11px] text-stone-500 font-bold mb-1 flex items-center gap-1.5"><CalendarDays size={12}/>{item.date || 'Chưa xác định'}</p></td>
                    <td className="p-4 text-center">
                      <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full shadow-sm border uppercase tracking-wider whitespace-nowrap ${item.status === 'Hoàn thành' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : item.status === 'Đang thực hiện' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
@@ -249,6 +267,9 @@ function PlanManager({ plans, setTempPlan, setEditingPlan }) {
              <div className="flex flex-wrap items-center gap-4 mb-6 border-b border-stone-100 pb-4">
                 <span className={`text-[10px] font-bold px-3 py-1 rounded-full shadow-sm border uppercase tracking-wider whitespace-nowrap ${viewingPlan.status === 'Hoàn thành' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : viewingPlan.status === 'Đang thực hiện' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
                   {viewingPlan.status}
+                </span>
+                <span className={`text-[10px] font-bold px-3 py-1 rounded-full shadow-sm border uppercase tracking-wider whitespace-nowrap ${viewingPlan.priority === 'Cao' ? 'bg-red-50 text-red-600 border-red-200' : viewingPlan.priority === 'Thấp' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
+                  Ưu tiên: {viewingPlan.priority || 'Trung bình'}
                 </span>
                 <p className="text-sm text-stone-500 font-bold flex items-center gap-1.5"><CalendarDays size={16}/> {viewingPlan.date || 'Chưa xác định'}</p>
              </div>
